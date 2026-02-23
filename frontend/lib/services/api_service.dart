@@ -31,17 +31,19 @@ class ApiService {
     if (file is List<int>) {
       // Web bytes
       final base64Data = base64Encode(file);
-      final response = await _dio.post('/upload', data: {
+      final formData = FormData.fromMap({
         'image': base64Data,
         'type': 'base64',
       });
+      final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
     } else if (file is String) {
       // 已经是 base64
-      final response = await _dio.post('/upload', data: {
+      final formData = FormData.fromMap({
         'image': file,
         'type': 'base64',
       });
+      final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
     } else {
       // 移动端 File
