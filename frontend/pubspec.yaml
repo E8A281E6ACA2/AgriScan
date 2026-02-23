@@ -1,0 +1,46 @@
+name: agri_scan
+description: "AgriScan - 作物识别与数据采集应用"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.2.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  
+  # 网络
+  dio: ^5.4.0
+  
+  # 本地存储
+  shared_preferences: ^2.2.2
+  
+  # 图片处理
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
+  
+  # 相机
+  camera: ^0.10.5+9
+  
+  # 状态管理
+  provider: ^6.1.1
+  
+  # 工具
+  path_provider: ^2.1.2
+  intl: ^0.19.0
+  permission_handler: ^11.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
