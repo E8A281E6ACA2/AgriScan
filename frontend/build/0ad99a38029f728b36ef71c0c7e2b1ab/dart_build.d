@@ -1,1 +1,0 @@
- /Volumes/HP\ P900/projects/AgriScan/frontend/build/0ad99a38029f728b36ef71c0c7e2b1ab/dart_build_result.json:  /Users/yuanhuan/flutter-sdk/bin/cache/dart-sdk/version /Volumes/HP\ P900/projects/AgriScan/frontend/.dart_tool/package_config.json /Volumes/HP\ P900/projects/AgriScan/frontend/pubspec.yaml
