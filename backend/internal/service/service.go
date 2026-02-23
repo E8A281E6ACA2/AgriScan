@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"agri-scan/internal/llm"
 	"agri-scan/internal/model"
 	"agri-scan/internal/repository"
@@ -53,7 +54,7 @@ func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.I
 	// 上传到对象存储
 	// 注意：这里需要将 context 转换为标准 context
 	// 在实际使用中，应传入 context.Context
-	url, err := s.storage.Upload(nil, key, src)
+	url, err := s.storage.Upload(context.Background(), key, src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload: %w", err)
 	}
@@ -87,7 +88,7 @@ func (s *Service) UploadImageBase64(userID uint, base64Data string) (*model.Imag
 	key := s.storage.GenerateKey(userID, filename)
 
 	// 上传到对象存储
-	url, err := s.storage.Upload(context.Background(), key, strings.NewReader(string(data)))
+	url, err := s.storage.Upload(context.Background(), key, bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload: %w", err)
 	}
