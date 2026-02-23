@@ -79,7 +79,7 @@ func main() {
 
 	// 注册 OpenAI 兼容 Provider
 	if cfg.LLM.APIKey != "" {
-		llm.RegisterProvider("openai", llm.NewOpenAIProvider(cfg.LLM.APIKey, cfg.LLM.Endpoint))
+		llm.RegisterProvider("openai", llm.NewOpenAIProvider(cfg.LLM.APIKey, cfg.LLM.Endpoint, cfg.LLM.Model))
 		log.Println("OpenAI provider registered")
 	}
 

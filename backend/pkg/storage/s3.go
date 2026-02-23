@@ -88,9 +88,10 @@ func (s *S3Storage) Upload(ctx context.Context, key string, reader io.Reader) (s
 	}
 
 	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-		Body:   createReadCloser(data),
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(key),
+		Body:          createReadCloser(data),
+		ContentLength: aws.Int64(int64(len(data))),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload to S3: %w", err)

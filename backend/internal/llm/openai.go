@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -12,10 +14,14 @@ import (
 type OpenAIProvider struct {
 	BaseProvider
 	HTTPClient *http.Client
+	Model      string
 }
 
 // NewOpenAIProvider 创建 OpenAI Provider
-func NewOpenAIProvider(apiKey, endpoint string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, endpoint, model string) *OpenAIProvider {
+	if model == "" {
+		model = "gpt-4o"
+	}
 	return &OpenAIProvider{
 		BaseProvider: BaseProvider{
 			NameVal:  "openai",
@@ -23,6 +29,7 @@ func NewOpenAIProvider(apiKey, endpoint string) *OpenAIProvider {
 			Endpoint: endpoint,
 		},
 		HTTPClient: &http.Client{Timeout: 60 * time.Second},
+		Model:      model,
 	}
 }
 
@@ -30,7 +37,7 @@ func NewOpenAIProvider(apiKey, endpoint string) *OpenAIProvider {
 func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) {
 	// 构建请求
 	reqBody := map[string]interface{}{
-		"model": "gpt-4o",
+		"model": p.Model,
 		"messages": []map[string]interface{}{
 			{
 				"role": "user",
@@ -70,12 +77,17 @@ func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) 
 	}
 	defer resp.Body.Close()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
 	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 

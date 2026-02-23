@@ -80,7 +80,16 @@ func (s *Service) UploadImageBase64(userID uint, base64Data string) (*model.Imag
 	// 解码 base64
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
+		if strings.HasPrefix(base64Data, "data:") {
+			if comma := strings.Index(base64Data, ","); comma >= 0 {
+				return s.UploadImageBase64(userID, base64Data[comma+1:])
+			}
+		}
 		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("empty image data")
 	}
 
 	// 生成存储 key

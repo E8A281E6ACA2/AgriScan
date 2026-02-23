@@ -49,6 +49,7 @@ type LLMConfig struct {
 	Provider string // baidu, openai, qwen
 	APIKey   string
 	Endpoint string
+	Model    string
 }
 
 func Load() *Config {
@@ -87,6 +88,7 @@ func Load() *Config {
 			Provider: getEnv("LLM_PROVIDER", "qwen"),
 			APIKey:   getEnv("LLM_API_KEY", ""),
 			Endpoint: getEnv("LLM_ENDPOINT", ""),
+			Model:    getEnv("LLM_MODEL", "gpt-4o"),
 		},
 	}
 }

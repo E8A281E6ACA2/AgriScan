@@ -3,6 +3,7 @@ package handler
 import (
 	"agri-scan/internal/model"
 	"agri-scan/internal/service"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -55,13 +56,14 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		// Base64 上传（Web 端）
 		img, err := h.svc.UploadImageBase64(uint(userID), imageData)
 		if err != nil {
+			log.Printf("UploadImageBase64 failed: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, UploadResponse{
 			ImageID:         img.ID,
 			OriginalURL:     img.OriginalURL,
-			CompressedURL:  img.CompressedURL,
+			CompressedURL:   img.CompressedURL,
 		})
 		return
 	}
