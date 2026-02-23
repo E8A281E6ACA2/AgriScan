@@ -21,7 +21,13 @@ class AgriScanApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()),
-        Provider(create: (_) => ApiService()),
+        Provider(
+          create: (_) {
+            final api = ApiService();
+            api.setUserId(1);
+            return api;
+          },
+        ),
       ],
       child: MaterialApp(
         title: 'AgriScan',

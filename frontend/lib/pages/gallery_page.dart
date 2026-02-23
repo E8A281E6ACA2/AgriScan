@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -47,37 +48,35 @@ class _GalleryPageState extends State<GalleryPage> {
   Future<void> _processImage(XFile image) async {
     final provider = context.read<AppProvider>();
     final api = context.read<ApiService>();
-    
+
     setState(() => _isUploading = true);
-    
+
     try {
-      // 尝试 Base64 上传（兼容 Web）
-      try {
+      if (kIsWeb) {
         final bytes = await image.readAsBytes();
         final base64 = base64Encode(bytes);
-        
+
         provider.setLoading();
         final uploadRes = await api.uploadImage(base64);
         provider.setUploadResponse(uploadRes);
-        
+
         final result = await api.recognize(uploadRes.imageId);
         provider.setRecognizeResult(result);
         provider.addToHistory(result);
-        
+
         provider.setSuccess();
-      } catch (_) {
-        // 回退到文件上传
+      } else {
         provider.setLoading();
         final uploadRes = await api.uploadImage(image.path);
         provider.setUploadResponse(uploadRes);
-        
+
         final result = await api.recognize(uploadRes.imageId);
         provider.setRecognizeResult(result);
         provider.addToHistory(result);
-        
+
         provider.setSuccess();
       }
-      
+
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/result');
       }

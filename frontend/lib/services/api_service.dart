@@ -19,7 +19,6 @@ class ApiService {
     ));
   }
   
-  // 设置用户 ID
   void setUserId(int userId) {
     _dio.options.headers['X-User-ID'] = userId.toString();
   }
