@@ -113,11 +113,21 @@ func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) 
 
 // parseCropResponse 解析作物识别的 JSON 响应
 func parseCropResponse(content string) (*RecognitionResult, error) {
-	// 尝试直接解析
+	// 先尝试直接解析
 	var result RecognitionResult
-	if err := json.Unmarshal([]byte(content), &result); err != nil {
-		// 如果失败，尝试提取 JSON
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	if err := json.Unmarshal([]byte(content), &result); err == nil {
+		return &result, nil
 	}
-	return &result, nil
+
+	// 尝试从内容中提取 JSON
+	start := strings.Index(content, "{")
+	end := strings.LastIndex(content, "}")
+	if start >= 0 && end > start {
+		trimmed := strings.TrimSpace(content[start : end+1])
+		if err := json.Unmarshal([]byte(trimmed), &result); err == nil {
+			return &result, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to parse response")
 }
