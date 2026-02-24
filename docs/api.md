@@ -202,7 +202,67 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 8. 创建手记
+### 8. 标签库
+
+**GET** `/tags`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| category | string | - | 指定分类（disease/pest/weed） |
+
+**响应示例:**
+```json
+{
+  "categories": {
+    "disease": ["锈病", "白粉病"],
+    "pest": ["蚜虫", "螟虫"],
+    "weed": ["稗草", "马齿苋"]
+  }
+}
+```
+
+或：
+```json
+{
+  "category": "pest",
+  "tags": ["蚜虫", "螟虫"]
+}
+```
+
+---
+
+### 9. 导出模板
+
+**GET** `/export-templates?type=notes`
+
+**响应示例:**
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "type": "notes",
+      "name": "研究导出",
+      "fields": "id,created_at,image_id,crop_type,confidence,raw_text"
+    }
+  ]
+}
+```
+
+**POST** `/export-templates`
+```json
+{
+  "type": "notes",
+  "name": "研究导出",
+  "fields": "id,created_at,image_id,crop_type,confidence,raw_text"
+}
+```
+
+**DELETE** `/export-templates/:id`
+
+---
+
+### 10. 创建手记
 
 **POST** `/notes`
 
@@ -218,7 +278,7 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 9. 获取支持的提供商
+### 11. 获取支持的提供商
 
 **GET** `/providers`
 

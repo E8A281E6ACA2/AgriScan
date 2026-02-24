@@ -18,6 +18,7 @@ class _ResultPageState extends State<ResultPage> {
   bool _isSavingNote = false;
   String _noteCategory = 'crop';
   final List<String> _selectedTags = [];
+  List<String> _availableTags = [];
 
   @override
   void initState() {
@@ -34,6 +35,23 @@ class _ResultPageState extends State<ResultPage> {
               .toList();
           context.read<AppProvider>().setSimilar(similar);
         }).catchError((_) {}));
+    _loadTags();
+  }
+
+  Future<void> _loadTags() async {
+    final api = context.read<ApiService>();
+    if (_noteCategory == 'crop' || _noteCategory == 'other') {
+      setState(() => _availableTags = []);
+      return;
+    }
+    try {
+      final tags = await api.getTags(category: _noteCategory);
+      if (mounted) {
+        setState(() => _availableTags = tags);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _availableTags = []);
+    }
   }
   
   final List<String> _commonCrops = [
@@ -391,6 +409,7 @@ class _ResultPageState extends State<ResultPage> {
                       onSelected: (_) => setState(() {
                         _noteCategory = 'crop';
                         _selectedTags.clear();
+                        _availableTags = [];
                       }),
                     ),
                     ChoiceChip(
@@ -399,6 +418,7 @@ class _ResultPageState extends State<ResultPage> {
                       onSelected: (_) => setState(() {
                         _noteCategory = 'disease';
                         _selectedTags.clear();
+                        _loadTags();
                       }),
                     ),
                     ChoiceChip(
@@ -407,6 +427,7 @@ class _ResultPageState extends State<ResultPage> {
                       onSelected: (_) => setState(() {
                         _noteCategory = 'pest';
                         _selectedTags.clear();
+                        _loadTags();
                       }),
                     ),
                     ChoiceChip(
@@ -415,6 +436,7 @@ class _ResultPageState extends State<ResultPage> {
                       onSelected: (_) => setState(() {
                         _noteCategory = 'weed';
                         _selectedTags.clear();
+                        _loadTags();
                       }),
                     ),
                     ChoiceChip(
@@ -423,6 +445,7 @@ class _ResultPageState extends State<ResultPage> {
                       onSelected: (_) => setState(() {
                         _noteCategory = 'other';
                         _selectedTags.clear();
+                        _availableTags = [];
                       }),
                     ),
                   ],
@@ -592,7 +615,7 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   Widget _buildTagsChips() {
-    final tags = _tagsForCategory(_noteCategory);
+    final tags = _availableTags;
     if (tags.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -618,16 +641,5 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
-  List<String> _tagsForCategory(String category) {
-    switch (category) {
-      case 'pest':
-        return const ['蚜虫', '螟虫', '红蜘蛛', '蓟马', '粘虫', '象甲'];
-      case 'weed':
-        return const ['稗草', '马齿苋', '狗尾草', '牛筋草', '藜', '苍耳'];
-      case 'disease':
-        return const ['锈病', '白粉病', '叶斑病', '枯萎病', '纹枯病', '霜霉病'];
-      default:
-        return const [];
-    }
-  }
+  
 }

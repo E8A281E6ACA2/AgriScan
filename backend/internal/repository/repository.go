@@ -26,12 +26,32 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.RecognitionResult{},
 		&model.UserFeedback{},
 		&model.FieldNote{},
+		&model.ExportTemplate{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate: %w", err)
 	}
 
 	return &Repository{db: db}, nil
+}
+
+// ExportTemplate 操作
+func (r *Repository) CreateExportTemplate(tpl *model.ExportTemplate) error {
+	return r.db.Create(tpl).Error
+}
+
+func (r *Repository) GetExportTemplates(userID uint, typ string) ([]model.ExportTemplate, error) {
+	var items []model.ExportTemplate
+	query := r.db.Where("user_id = ?", userID)
+	if typ != "" {
+		query = query.Where("type = ?", typ)
+	}
+	err := query.Order("created_at DESC").Find(&items).Error
+	return items, err
+}
+
+func (r *Repository) DeleteExportTemplate(id uint, userID uint) error {
+	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.ExportTemplate{}).Error
 }
 
 func (r *Repository) DB() *gorm.DB {

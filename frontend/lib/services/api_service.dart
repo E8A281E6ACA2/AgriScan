@@ -125,6 +125,30 @@ class ApiService {
     );
     return Uint8List.fromList(response.data);
   }
+
+  Future<List<String>> getTags({String? category}) async {
+    final response = await _dio.get('/tags', queryParameters: {
+      if (category != null && category.isNotEmpty) 'category': category,
+    });
+    return List<String>.from(response.data['tags'] ?? []);
+  }
+
+  Future<List<ExportTemplate>> getExportTemplates({String type = 'notes'}) async {
+    final response = await _dio.get('/export-templates', queryParameters: {
+      'type': type,
+    });
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => ExportTemplate.fromJson(e)).toList();
+  }
+
+  Future<ExportTemplate> createExportTemplate(ExportTemplateRequest req) async {
+    final response = await _dio.post('/export-templates', data: req.toJson());
+    return ExportTemplate.fromJson(response.data);
+  }
+
+  Future<void> deleteExportTemplate(int id) async {
+    await _dio.delete('/export-templates/$id');
+  }
   
   // 提交反馈
   Future<void> submitFeedback(FeedbackRequest request) async {
@@ -343,4 +367,45 @@ class NotesResponse {
       offset: json['offset'],
     );
   }
+}
+
+class ExportTemplate {
+  final int id;
+  final String type;
+  final String name;
+  final String fields;
+
+  ExportTemplate({
+    required this.id,
+    required this.type,
+    required this.name,
+    required this.fields,
+  });
+
+  factory ExportTemplate.fromJson(Map<String, dynamic> json) {
+    return ExportTemplate(
+      id: json['id'],
+      type: json['type'] ?? 'notes',
+      name: json['name'] ?? '',
+      fields: json['fields'] ?? '',
+    );
+  }
+}
+
+class ExportTemplateRequest {
+  final String name;
+  final String fields;
+  final String type;
+
+  ExportTemplateRequest({
+    required this.name,
+    required this.fields,
+    this.type = 'notes',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'fields': fields,
+        'type': type,
+      };
 }

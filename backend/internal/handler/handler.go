@@ -433,6 +433,10 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/notes", h.CreateNote)
 		v1.GET("/notes", h.GetNotes)
 		v1.GET("/notes/export", h.ExportNotes)
+		v1.GET("/tags", h.GetTags)
+		v1.GET("/export-templates", h.GetExportTemplates)
+		v1.POST("/export-templates", h.CreateExportTemplate)
+		v1.DELETE("/export-templates/:id", h.DeleteExportTemplate)
 	}
 }
 
@@ -499,4 +503,88 @@ func normalizeNoteTags(notes []model.FieldNote) []gin.H {
 		})
 	}
 	return out
+}
+
+// GetTags 获取标签库
+// GET /api/v1/tags?category=...
+func (h *Handler) GetTags(c *gin.Context) {
+	category := c.DefaultQuery("category", "")
+	tags := map[string][]string{
+		"disease": {"锈病", "白粉病", "叶斑病", "枯萎病", "纹枯病", "霜霉病"},
+		"pest":    {"蚜虫", "螟虫", "红蜘蛛", "蓟马", "粘虫", "象甲"},
+		"weed":    {"稗草", "马齿苋", "狗尾草", "牛筋草", "藜", "苍耳"},
+	}
+	if category == "" {
+		c.JSON(http.StatusOK, gin.H{"categories": tags})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"category": category,
+		"tags":     tags[category],
+	})
+}
+
+// ExportTemplate handlers
+// GET /api/v1/export-templates?type=notes
+func (h *Handler) GetExportTemplates(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	typ := c.DefaultQuery("type", "notes")
+	items, err := h.svc.GetExportTemplates(uint(userID), typ)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items})
+}
+
+// POST /api/v1/export-templates
+func (h *Handler) CreateExportTemplate(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	var req struct {
+		Type   string `json:"type"`
+		Name   string `json:"name" binding:"required"`
+		Fields string `json:"fields" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	item, err := h.svc.CreateExportTemplate(uint(userID), req.Type, req.Name, req.Fields)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+// DELETE /api/v1/export-templates/:id
+func (h *Handler) DeleteExportTemplate(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.DeleteExportTemplate(uint(userID), uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

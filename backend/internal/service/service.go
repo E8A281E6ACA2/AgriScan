@@ -262,6 +262,34 @@ func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType st
 	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType, startDate, endDate)
 }
 
+// ExportTemplate
+func (s *Service) CreateExportTemplate(userID uint, typ, name, fields string) (*model.ExportTemplate, error) {
+	if typ == "" {
+		typ = "notes"
+	}
+	if name == "" || fields == "" {
+		return nil, fmt.Errorf("name and fields required")
+	}
+	item := &model.ExportTemplate{
+		UserID: userID,
+		Type:   typ,
+		Name:   name,
+		Fields: fields,
+	}
+	if err := s.repo.CreateExportTemplate(item); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (s *Service) GetExportTemplates(userID uint, typ string) ([]model.ExportTemplate, error) {
+	return s.repo.GetExportTemplates(userID, typ)
+}
+
+func (s *Service) DeleteExportTemplate(userID uint, id uint) error {
+	return s.repo.DeleteExportTemplate(id, userID)
+}
+
 // ListProviders 列出所有大模型提供商
 func (s *Service) ListProviders() []string {
 	return llm.ListProviders()

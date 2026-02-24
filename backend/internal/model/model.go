@@ -78,3 +78,14 @@ type FieldNote struct {
 	Provider      string         `gorm:"size:32" json:"provider"`
 	Tags          string         `gorm:"type:text" json:"tags"`
 }
+
+type ExportTemplate struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	UserID    uint           `gorm:"index" json:"user_id"`
+	Type      string         `gorm:"size:32;index" json:"type"` // e.g. notes
+	Name      string         `gorm:"size:64" json:"name"`
+	Fields    string         `gorm:"type:text" json:"fields"`
+}

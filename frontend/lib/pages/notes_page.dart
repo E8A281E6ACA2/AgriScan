@@ -97,11 +97,13 @@ class _NotesPageState extends State<NotesPage> {
       'raw_text',
     ],
   };
+  List<ExportTemplate> _templates = [];
 
   @override
   void initState() {
     super.initState();
     _loadNotes();
+    _loadTemplates();
   }
 
   Future<void> _loadNotes() async {
@@ -124,6 +126,14 @@ class _NotesPageState extends State<NotesPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadTemplates() async {
+    final api = context.read<ApiService>();
+    try {
+      final items = await api.getExportTemplates(type: 'notes');
+      if (mounted) setState(() => _templates = items);
+    } catch (_) {}
   }
 
   @override
@@ -330,6 +340,27 @@ class _NotesPageState extends State<NotesPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (_templates.isNotEmpty) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          children: _templates.map((t) {
+                            return OutlinedButton(
+                              onPressed: () {
+                                setStateDialog(() {
+                                  selected
+                                    ..clear()
+                                    ..addAll(t.fields.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
+                                });
+                              },
+                              child: Text(t.name),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Wrap(
                       spacing: 8,
                       children: _fieldPresets.keys.map((name) {
@@ -388,6 +419,17 @@ class _NotesPageState extends State<NotesPage> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('取消'),
                 ),
+                TextButton(
+                  onPressed: () async {
+                    final name = await _promptTemplateName();
+                    if (name == null || name.isEmpty) return;
+                    final fields = selected.join(',');
+                    if (fields.isEmpty) return;
+                    await _saveTemplate(name, fields);
+                    if (mounted) Navigator.pop(context);
+                  },
+                  child: const Text('保存模板'),
+                ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -440,6 +482,54 @@ class _NotesPageState extends State<NotesPage> {
         );
       }
     }
+  }
+
+  Future<void> _saveTemplate(String name, String fields) async {
+    final api = context.read<ApiService>();
+    try {
+      await api.createExportTemplate(ExportTemplateRequest(
+        name: name,
+        fields: fields,
+      ));
+      await _loadTemplates();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('模板已保存')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存模板失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _promptTemplateName() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('模板名称'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: '例如：研究导出'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('保存'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _pickDate({required bool isStart}) async {
