@@ -66,6 +66,7 @@ func (r *Repository) GetResultsByUserID(userID uint, limit, offset int) ([]model
 		Order("recognition_results.created_at DESC").
 		Limit(limit).
 		Offset(offset).
+		Preload("Image").
 		Find(&results).Error
 	return results, err
 }

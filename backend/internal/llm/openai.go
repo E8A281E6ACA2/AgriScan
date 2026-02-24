@@ -116,6 +116,7 @@ func parseCropResponse(content string) (*RecognitionResult, error) {
 	// 先尝试直接解析
 	var result RecognitionResult
 	if err := json.Unmarshal([]byte(content), &result); err == nil {
+		result.RawText = content
 		return &result, nil
 	}
 
@@ -125,6 +126,7 @@ func parseCropResponse(content string) (*RecognitionResult, error) {
 	if start >= 0 && end > start {
 		trimmed := strings.TrimSpace(content[start : end+1])
 		if err := json.Unmarshal([]byte(trimmed), &result); err == nil {
+			result.RawText = content
 			return &result, nil
 		}
 	}

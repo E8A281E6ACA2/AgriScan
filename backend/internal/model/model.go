@@ -37,6 +37,8 @@ type RecognitionResult struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 	ImageID      uint           `gorm:"uniqueIndex" json:"image_id"`
+	Image        Image          `gorm:"foreignKey:ImageID" json:"image"`
+	RawText     string         `gorm:"type:text" json:"raw_text"`
 	CropType     string         `gorm:"size:64;index" json:"crop_type"`
 	Confidence   float64        `json:"confidence"`
 	Description  string         `gorm:"type:text" json:"description"`

@@ -7,6 +7,7 @@ import (
 
 // RecognitionResult 识别结果结构
 type RecognitionResult struct {
+	RawText     string  `json:"raw_text"`
 	CropType     string  `json:"crop_type"`
 	Confidence   float64 `json:"confidence"`
 	Description  string  `json:"description"`

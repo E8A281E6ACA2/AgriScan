@@ -28,6 +28,7 @@ type UploadResponse struct {
 
 // RecognizeResponse 识别响应
 type RecognizeResponse struct {
+	RawText     string  `json:"raw_text"`
 	ResultID     uint    `json:"result_id"`
 	CropType     string  `json:"crop_type"`
 	Confidence   float64 `json:"confidence"`
@@ -75,6 +76,7 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, RecognizeResponse{
+		RawText:     savedResult.RawText,
 		ResultID:     savedResult.ID,
 		CropType:     savedResult.CropType,
 		Confidence:   savedResult.Confidence,
@@ -171,6 +173,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, RecognizeResponse{
+		RawText:     savedResult.RawText,
 		ResultID:     savedResult.ID,
 		CropType:     savedResult.CropType,
 		Confidence:   savedResult.Confidence,

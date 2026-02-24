@@ -151,6 +151,7 @@ func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*mode
 	existing, err := s.repo.GetResultByImageID(imageID)
 	if err == nil && existing != nil {
 		// 已存在，更新
+		existing.RawText = result.RawText
 		existing.CropType = result.CropType
 		existing.Confidence = result.Confidence
 		existing.Description = result.Description
@@ -163,6 +164,7 @@ func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*mode
 	// 创建新结果
 	saved := &model.RecognitionResult{
 		ImageID:      imageID,
+		RawText:      result.RawText,
 		CropType:     result.CropType,
 		Confidence:   result.Confidence,
 		Description:  result.Description,
