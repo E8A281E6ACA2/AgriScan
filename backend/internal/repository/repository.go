@@ -60,8 +60,13 @@ func (r *Repository) GetResultByImageID(imageID uint) (*model.RecognitionResult,
 
 func (r *Repository) GetResultsByUserID(userID uint, limit, offset int) ([]model.RecognitionResult, error) {
 	var results []model.RecognitionResult
-	err := r.db.Where("user_id IN (SELECT id FROM images WHERE user_id = ?)", userID).
-		Limit(limit).Offset(offset).Find(&results).Error
+	err := r.db.
+		Joins("JOIN images ON images.id = recognition_results.image_id").
+		Where("images.user_id = ?", userID).
+		Order("recognition_results.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&results).Error
 	return results, err
 }
 
