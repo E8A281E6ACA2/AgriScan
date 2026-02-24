@@ -338,6 +338,7 @@ class _NotesPageState extends State<NotesPage> {
 
   Future<void> _showExportDialog() async {
     final selected = Set<String>.from(_fieldPresets['完整']!);
+    String format = 'csv';
     await showDialog(
       context: context,
       builder: (context) {
@@ -385,6 +386,26 @@ class _NotesPageState extends State<NotesPage> {
                           child: Text(name),
                         );
                       }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text('导出格式'),
+                        const SizedBox(width: 8),
+                        DropdownButton<String>(
+                          value: format,
+                          items: const [
+                            DropdownMenuItem(value: 'csv', child: Text('CSV')),
+                            DropdownMenuItem(value: 'json', child: Text('JSON')),
+                          ],
+                          onChanged: (val) {
+                            if (val == null) return;
+                            setStateDialog(() {
+                              format = val;
+                            });
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Expanded(
@@ -443,7 +464,7 @@ class _NotesPageState extends State<NotesPage> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _exportNotes(selected.toList());
+                    _exportNotes(selected.toList(), format: format);
                   },
                   child: const Text('导出'),
                 ),
@@ -455,7 +476,7 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  Future<void> _exportNotes(List<String> fields) async {
+  Future<void> _exportNotes(List<String> fields, {required String format}) async {
     final api = context.read<ApiService>();
     try {
       final params = <String, dynamic>{
@@ -477,9 +498,14 @@ class _NotesPageState extends State<NotesPage> {
       if (fields.isNotEmpty) {
         params['fields'] = fields.join(',');
       }
+      if (format.isNotEmpty) {
+        params['format'] = format;
+      }
 
       final bytes = await api.exportNotes(params);
-      final path = await saveBytesAsFile('notes.csv', bytes);
+      final filename = format == 'json' ? 'notes.json' : 'notes.csv';
+      final contentType = format == 'json' ? 'application/json' : 'text/csv';
+      final path = await saveBytesAsFile(filename, bytes, contentType: contentType);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('导出成功: $path')),

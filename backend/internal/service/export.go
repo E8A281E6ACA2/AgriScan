@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"io"
 	"strconv"
 	"strings"
@@ -61,6 +62,60 @@ func (s *Service) ExportNotesCSV(w io.Writer, userID uint, limit, offset int, ca
 	}
 
 	return writer.Error()
+}
+
+// ExportNotesJSON 导出手记为 JSON
+func (s *Service) ExportNotesJSON(w io.Writer, userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time, fields string) error {
+	notes, err := s.GetNotes(userID, limit, offset, category, cropType, startDate, endDate)
+	if err != nil {
+		return err
+	}
+
+	columns := parseFields(fields)
+	items := make([]map[string]any, 0, len(notes))
+
+	for _, n := range notes {
+		var resultID any
+		if n.ResultID != nil {
+			resultID = *n.ResultID
+		}
+		var growth any
+		if n.GrowthStage != nil {
+			growth = *n.GrowthStage
+		}
+		var issue any
+		if n.PossibleIssue != nil {
+			issue = *n.PossibleIssue
+		}
+
+		row := map[string]any{
+			"id":             n.ID,
+			"created_at":     n.CreatedAt.Format("2006-01-02 15:04:05"),
+			"image_id":       n.ImageID,
+			"result_id":      resultID,
+			"image_url":      n.ImageURL,
+			"category":       n.Category,
+			"crop_type":      n.CropType,
+			"confidence":     n.Confidence,
+			"description":    n.Description,
+			"growth_stage":   growth,
+			"possible_issue": issue,
+			"provider":       n.Provider,
+			"note":           n.Note,
+			"raw_text":       n.RawText,
+			"tags":           n.Tags,
+		}
+
+		out := make(map[string]any, len(columns))
+		for _, col := range columns {
+			out[col] = row[col]
+		}
+		items = append(items, out)
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(items)
 }
 
 func parseFields(fields string) []string {

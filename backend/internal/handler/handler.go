@@ -396,7 +396,7 @@ func (h *Handler) GetNotes(c *gin.Context) {
 	})
 }
 
-// ExportNotes 导出手记 CSV
+// ExportNotes 导出手记 CSV/JSON
 // GET /api/v1/notes/export
 func (h *Handler) ExportNotes(c *gin.Context) {
 	userIDStr := c.GetHeader("X-User-ID")
@@ -413,6 +413,7 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	startDateStr := c.DefaultQuery("start_date", "")
 	endDateStr := c.DefaultQuery("end_date", "")
 	fields := c.DefaultQuery("fields", "")
+	format := strings.ToLower(c.DefaultQuery("format", "csv"))
 
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
@@ -420,6 +421,15 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	startDate, endDate, err := parseDateRange(startDateStr, endDateStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=notes.json")
+		if err := h.svc.ExportNotesJSON(c.Writer, uint(userID), limit, offset, category, cropType, startDate, endDate, fields); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 

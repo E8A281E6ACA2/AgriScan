@@ -182,7 +182,7 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 7. 导出手记 CSV
+### 7. 导出手记（CSV/JSON）
 
 **GET** `/notes/export`
 
@@ -195,6 +195,7 @@ Web/跨端 Base64 方式：
 | start_date | string | - | 开始日期（YYYY-MM-DD） |
 | end_date | string | - | 结束日期（YYYY-MM-DD） |
 | fields | string | - | 选择导出字段（逗号分隔） |
+| format | string | csv | 导出格式（csv/json） |
 
 可选字段：
 `id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text,tags`
@@ -204,7 +205,31 @@ Web/跨端 Base64 方式：
 - 完整：`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,tags`
 - 研究用：完整 + `raw_text`
 
-返回 `text/csv` 文件。
+返回：
+- `format=csv`：`text/csv` 文件
+- `format=json`：`application/json` 文件（数组）
+
+**JSON 响应示例:**
+```json
+[
+  {
+    "id": 1,
+    "created_at": "2026-02-24 20:31:42",
+    "image_id": 10,
+    "result_id": 20,
+    "image_url": "https://example.com/xxx.jpg",
+    "category": "crop",
+    "crop_type": "水稻",
+    "confidence": 0.9234,
+    "description": "长势正常",
+    "growth_stage": "拔节期",
+    "possible_issue": null,
+    "provider": "qwen",
+    "note": "示例手记",
+    "tags": "虫害,杂草"
+  }
+]
+```
 
 ---
 
