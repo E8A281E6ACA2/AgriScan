@@ -89,3 +89,24 @@ type ExportTemplate struct {
 	Name      string         `gorm:"size:64" json:"name"`
 	Fields    string         `gorm:"type:text" json:"fields"`
 }
+
+type Crop struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Code      string         `gorm:"size:32;index" json:"code"`
+	Name      string         `gorm:"size:64" json:"name"`
+	Aliases   string         `gorm:"type:text" json:"aliases"`
+	Active    bool           `gorm:"index" json:"active"`
+}
+
+type Tag struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Category  string         `gorm:"size:16;index" json:"category"`
+	Name      string         `gorm:"size:64" json:"name"`
+	Active    bool           `gorm:"index" json:"active"`
+}

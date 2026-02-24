@@ -108,10 +108,24 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	// 检查是否是 base64 上传
 	imageData := c.PostForm("image")
 	imageType := c.PostForm("type")
+	latStr := c.PostForm("latitude")
+	lngStr := c.PostForm("longitude")
+	var lat *float64
+	var lng *float64
+	if latStr != "" {
+		if v, err := strconv.ParseFloat(latStr, 64); err == nil {
+			lat = &v
+		}
+	}
+	if lngStr != "" {
+		if v, err := strconv.ParseFloat(lngStr, 64); err == nil {
+			lng = &v
+		}
+	}
 
 	if imageType == "base64" && imageData != "" {
 		// Base64 上传（Web 端）
-		img, err := h.svc.UploadImageBase64(uint(userID), imageData)
+		img, err := h.svc.UploadImageBase64(uint(userID), imageData, lat, lng)
 		if err != nil {
 			log.Printf("UploadImageBase64 failed: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -133,7 +147,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	}
 
 	// 上传到对象存储
-	img, err := h.svc.UploadImage(uint(userID), file)
+	img, err := h.svc.UploadImage(uint(userID), file, lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -430,6 +444,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/history", h.GetHistory)
 		v1.POST("/feedback", h.SubmitFeedback)
 		v1.GET("/providers", h.GetLLMProviders)
+		v1.GET("/crops", h.GetCrops)
 		v1.POST("/notes", h.CreateNote)
 		v1.GET("/notes", h.GetNotes)
 		v1.GET("/notes/export", h.ExportNotes)
@@ -509,19 +524,24 @@ func normalizeNoteTags(notes []model.FieldNote) []gin.H {
 // GET /api/v1/tags?category=...
 func (h *Handler) GetTags(c *gin.Context) {
 	category := c.DefaultQuery("category", "")
-	tags := map[string][]string{
-		"disease": {"锈病", "白粉病", "叶斑病", "枯萎病", "纹枯病", "霜霉病"},
-		"pest":    {"蚜虫", "螟虫", "红蜘蛛", "蓟马", "粘虫", "象甲"},
-		"weed":    {"稗草", "马齿苋", "狗尾草", "牛筋草", "藜", "苍耳"},
-	}
-	if category == "" {
-		c.JSON(http.StatusOK, gin.H{"categories": tags})
+	items, err := h.svc.GetTags(category)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"category": category,
-		"tags":     tags[category],
-	})
+	if category == "" {
+		categories := map[string][]string{}
+		for _, t := range items {
+			categories[t.Category] = append(categories[t.Category], t.Name)
+		}
+		c.JSON(http.StatusOK, gin.H{"categories": categories})
+		return
+	}
+	tags := make([]string, 0, len(items))
+	for _, t := range items {
+		tags = append(tags, t.Name)
+	}
+	c.JSON(http.StatusOK, gin.H{"category": category, "tags": tags})
 }
 
 // ExportTemplate handlers
@@ -587,4 +607,14 @@ func (h *Handler) DeleteExportTemplate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// GET /api/v1/crops
+func (h *Handler) GetCrops(c *gin.Context) {
+	items, err := h.svc.GetCrops()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items})
 }

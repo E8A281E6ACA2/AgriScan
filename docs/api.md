@@ -19,12 +19,16 @@ Content-Type: `multipart/form-data`
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | image | file | 图片文件 |
+| latitude | float | 纬度（可选） |
+| longitude | float | 经度（可选） |
 
 Web/跨端 Base64 方式：
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | image | string | base64 字符串 |
 | type | string | 固定为 `base64` |
+| latitude | float | 纬度（可选） |
+| longitude | float | 经度（可选） |
 
 **响应示例:**
 ```json
@@ -231,7 +235,22 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 9. 导出模板
+### 9. 作物列表
+
+**GET** `/crops`
+
+**响应示例:**
+```json
+{
+  "results": [
+    { "id": 1, "code": "corn", "name": "玉米", "active": true }
+  ]
+}
+```
+
+---
+
+### 10. 导出模板
 
 **GET** `/export-templates?type=notes`
 
@@ -262,7 +281,7 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 10. 创建手记
+### 11. 创建手记
 
 **POST** `/notes`
 
@@ -278,7 +297,7 @@ Web/跨端 Base64 方式：
 
 ---
 
-### 11. 获取支持的提供商
+### 12. 获取支持的提供商
 
 **GET** `/providers`
 

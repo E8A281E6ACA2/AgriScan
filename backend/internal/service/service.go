@@ -45,7 +45,7 @@ func (s *Service) ensureStorage() error {
 }
 
 // UploadImage 上传图片
-func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.Image, error) {
+func (s *Service) UploadImage(userID uint, file *multipart.FileHeader, lat, lng *float64) (*model.Image, error) {
 	if err := s.ensureStorage(); err != nil {
 		return nil, err
 	}
@@ -75,6 +75,8 @@ func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.I
 		OriginalURL:   url,
 		CompressedURL: url, // TODO: 压缩后再存储
 		FileSize:      file.Size,
+		Latitude:      lat,
+		Longitude:     lng,
 	}
 
 	err = s.repo.CreateImage(img)
@@ -86,7 +88,7 @@ func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.I
 }
 
 // UploadImageBase64 上传 Base64 编码的图片（Web 端）
-func (s *Service) UploadImageBase64(userID uint, base64Data string) (*model.Image, error) {
+func (s *Service) UploadImageBase64(userID uint, base64Data string, lat, lng *float64) (*model.Image, error) {
 	if err := s.ensureStorage(); err != nil {
 		return nil, err
 	}
@@ -121,6 +123,8 @@ func (s *Service) UploadImageBase64(userID uint, base64Data string) (*model.Imag
 		OriginalURL:   url,
 		CompressedURL: url,
 		FileSize:      int64(len(data)),
+		Latitude:      lat,
+		Longitude:     lng,
 	}
 
 	err = s.repo.CreateImage(img)
@@ -288,6 +292,15 @@ func (s *Service) GetExportTemplates(userID uint, typ string) ([]model.ExportTem
 
 func (s *Service) DeleteExportTemplate(userID uint, id uint) error {
 	return s.repo.DeleteExportTemplate(id, userID)
+}
+
+// Crop & Tag
+func (s *Service) GetCrops() ([]model.Crop, error) {
+	return s.repo.GetCrops(true)
+}
+
+func (s *Service) GetTags(category string) ([]model.Tag, error) {
+	return s.repo.GetTags(category)
 }
 
 // ListProviders 列出所有大模型提供商

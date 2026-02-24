@@ -29,14 +29,8 @@ class _NotesPageState extends State<NotesPage> {
     'other',
   ];
 
-  static const List<String> _cropTypes = [
-    'all',
-    'corn',
-    'wheat',
-    'rice',
-    'soybean',
-    'tomato',
-  ];
+  List<String> _cropTypes = ['all'];
+  Map<String, String> _cropNameMap = {};
 
   static const List<String> _fieldOptions = [
     'id',
@@ -104,6 +98,7 @@ class _NotesPageState extends State<NotesPage> {
     super.initState();
     _loadNotes();
     _loadTemplates();
+    _loadCrops();
   }
 
   Future<void> _loadNotes() async {
@@ -133,6 +128,18 @@ class _NotesPageState extends State<NotesPage> {
     try {
       final items = await api.getExportTemplates(type: 'notes');
       if (mounted) setState(() => _templates = items);
+    } catch (_) {}
+  }
+
+  Future<void> _loadCrops() async {
+    final api = context.read<ApiService>();
+    try {
+      final items = await api.getCrops();
+      if (!mounted) return;
+      setState(() {
+        _cropTypes = ['all', ...items.map((e) => e.code)];
+        _cropNameMap = {for (final c in items) c.code: c.name};
+      });
     } catch (_) {}
   }
 
@@ -181,7 +188,10 @@ class _NotesPageState extends State<NotesPage> {
                       border: OutlineInputBorder(),
                     ),
                     items: _cropTypes
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e == 'all' ? 'all' : '${_cropNameMap[e] ?? e} ($e)'),
+                            ))
                         .toList(),
                     onChanged: (val) {
                       if (val == null) return;

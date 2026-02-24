@@ -27,12 +27,38 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.UserFeedback{},
 		&model.FieldNote{},
 		&model.ExportTemplate{},
+		&model.Crop{},
+		&model.Tag{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate: %w", err)
 	}
 
+	if err := seedDefaults(db); err != nil {
+		return nil, fmt.Errorf("failed to seed defaults: %w", err)
+	}
+
 	return &Repository{db: db}, nil
+}
+
+func (r *Repository) GetCrops(activeOnly bool) ([]model.Crop, error) {
+	var items []model.Crop
+	query := r.db
+	if activeOnly {
+		query = query.Where("active = ?", true)
+	}
+	err := query.Order("created_at DESC").Find(&items).Error
+	return items, err
+}
+
+func (r *Repository) GetTags(category string) ([]model.Tag, error) {
+	var items []model.Tag
+	query := r.db.Where("active = ?", true)
+	if category != "" {
+		query = query.Where("category = ?", category)
+	}
+	err := query.Order("created_at DESC").Find(&items).Error
+	return items, err
 }
 
 // ExportTemplate 操作

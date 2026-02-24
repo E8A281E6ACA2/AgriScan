@@ -28,7 +28,7 @@ class ApiService {
   }
   
   // 上传图片 (兼容 Web)
-  Future<UploadResponse> uploadImage(dynamic file) async {
+  Future<UploadResponse> uploadImage(dynamic file, {double? latitude, double? longitude}) async {
     // Web 平台：file 是 bytes 或 base64 字符串
     // 其他平台：file 是 File 对象
     if (file is List<int>) {
@@ -37,6 +37,8 @@ class ApiService {
       final formData = FormData.fromMap({
         'image': base64Data,
         'type': 'base64',
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       });
       final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
@@ -45,6 +47,8 @@ class ApiService {
       final formData = FormData.fromMap({
         'image': file,
         'type': 'base64',
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       });
       final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
@@ -52,6 +56,8 @@ class ApiService {
       // 移动端 File
       final formData = FormData.fromMap({
         'image': MultipartFile.fromFileSync(file.path),
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       });
       final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
@@ -148,6 +154,12 @@ class ApiService {
 
   Future<void> deleteExportTemplate(int id) async {
     await _dio.delete('/export-templates/$id');
+  }
+
+  Future<List<Crop>> getCrops() async {
+    final response = await _dio.get('/crops');
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => Crop.fromJson(e)).toList();
   }
   
   // 提交反馈
@@ -388,6 +400,26 @@ class ExportTemplate {
       type: json['type'] ?? 'notes',
       name: json['name'] ?? '',
       fields: json['fields'] ?? '',
+    );
+  }
+}
+
+class Crop {
+  final int id;
+  final String code;
+  final String name;
+
+  Crop({
+    required this.id,
+    required this.code,
+    required this.name,
+  });
+
+  factory Crop.fromJson(Map<String, dynamic> json) {
+    return Crop(
+      id: json['id'],
+      code: json['code'] ?? '',
+      name: json['name'] ?? '',
     );
   }
 }

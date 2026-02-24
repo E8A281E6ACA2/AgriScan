@@ -25,9 +25,12 @@ dependencies:
   
   # 相机
   camera: ^0.10.5+9
-  
+
   # 状态管理
   provider: ^6.1.1
+
+  # 定位
+  geolocator: ^10.1.0
   
   # 工具
   path_provider: ^2.1.2

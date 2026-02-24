@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 
@@ -52,11 +53,16 @@ class _CameraPageState extends State<CameraPage> {
     setState(() => _isUploading = true);
 
     try {
+      final position = await _getLocation();
       final bytes = await image.readAsBytes();
       provider.setCurrentImageBytes(bytes);
 
       provider.setLoading();
-      final uploadRes = await api.uploadImage(bytes);
+      final uploadRes = await api.uploadImage(
+        bytes,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
       provider.setUploadResponse(uploadRes);
 
       final result = await api.recognize(uploadRes.imageId);
@@ -77,6 +83,27 @@ class _CameraPageState extends State<CameraPage> {
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<Position?> _getLocation() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+    } catch (_) {
+      return null;
     }
   }
   
