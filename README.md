@@ -45,3 +45,36 @@ AgriScan/
 1. 病害识别
 2. 生育期识别
 3. 本地 TFLite 模型
+
+## 快速启动（本地开发）
+
+### 1. 启动后端
+
+1. 确保 PostgreSQL 可用
+2. 配置 `backend/.env`
+   - S3/R2 或本地存储任选其一
+   - OpenAI 兼容接口需要 `LLM_API_KEY` 与 `LLM_ENDPOINT`
+3. 启动后端：
+   ```bash
+   cd backend
+   go run ./cmd/server
+   ```
+
+### 2. 启动前端
+
+Web：
+```bash
+cd frontend
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8080/api/v1
+```
+
+Android/iOS（建议局域网服务器地址）：
+```bash
+cd frontend
+flutter run --dart-define=API_BASE_URL=http://<你的局域网IP>:8080/api/v1
+```
+
+### 3. 联调脚本与验收清单
+
+- 预检 + API 冒烟测试脚本：`scripts/verify_mvp.sh`
+- MVP 验收清单：`docs/mvp_checklist.md`

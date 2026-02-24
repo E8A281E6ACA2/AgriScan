@@ -2,9 +2,7 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"time"
 )
 
 // COSStorage 腾讯云 COS 存储（暂时禁用）
@@ -23,8 +21,8 @@ func (s *COSStorage) Upload(ctx context.Context, key string, reader io.Reader) (
 }
 
 func (s *COSStorage) GenerateKey(userID uint, filename string) string {
-	t := time.Now()
-	return fmt.Sprintf("images/%d/%d%02d%02d/%s", userID, t.Year(), t.Month(), t.Day(), filename)
+	_ = userID
+	return generateObjectKey(filename)
 }
 
 func (s *COSStorage) Delete(ctx context.Context, key string) error {

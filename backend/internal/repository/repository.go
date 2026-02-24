@@ -24,6 +24,7 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.Image{},
 		&model.RecognitionResult{},
 		&model.UserFeedback{},
+		&model.FieldNote{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate: %w", err)
@@ -58,6 +59,12 @@ func (r *Repository) GetResultByImageID(imageID uint) (*model.RecognitionResult,
 	return &result, err
 }
 
+func (r *Repository) GetResultByID(id uint) (*model.RecognitionResult, error) {
+	var result model.RecognitionResult
+	err := r.db.First(&result, id).Error
+	return &result, err
+}
+
 func (r *Repository) GetResultsByUserID(userID uint, limit, offset int) ([]model.RecognitionResult, error) {
 	var results []model.RecognitionResult
 	err := r.db.
@@ -74,6 +81,27 @@ func (r *Repository) GetResultsByUserID(userID uint, limit, offset int) ([]model
 // UserFeedback 操作
 func (r *Repository) CreateFeedback(feedback *model.UserFeedback) error {
 	return r.db.Create(feedback).Error
+}
+
+// FieldNote 操作
+func (r *Repository) CreateNote(note *model.FieldNote) error {
+	return r.db.Create(note).Error
+}
+
+func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, cropType string) ([]model.FieldNote, error) {
+	var notes []model.FieldNote
+	query := r.db.Where("user_id = ?", userID)
+	if category != "" {
+		query = query.Where("category = ?", category)
+	}
+	if cropType != "" {
+		query = query.Where("crop_type = ?", cropType)
+	}
+	err := query.Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&notes).Error
+	return notes, err
 }
 
 // User 操作

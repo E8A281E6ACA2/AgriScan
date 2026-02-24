@@ -59,6 +59,14 @@ class HomePage extends StatelessWidget {
                 color: Colors.blue,
                 onTap: () => Navigator.pushNamed(context, '/history'),
               ),
+              const SizedBox(height: 16),
+              _buildFeatureButton(
+                context,
+                icon: Icons.note_alt,
+                label: '手记',
+                color: Colors.teal,
+                onTap: () => Navigator.pushNamed(context, '/notes'),
+              ),
               const Spacer(),
               // 底部信息
               Text(

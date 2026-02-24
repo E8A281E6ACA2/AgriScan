@@ -86,18 +86,41 @@ class _HistoryPageState extends State<HistoryPage> {
           child: Row(
             children: [
               // 作物图标
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+              if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                ClipRRect(
                   borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    item.imageUrl!,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.eco,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.eco,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
-                child: Icon(
-                  Icons.eco,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
               const SizedBox(width: 16),
               // 信息
               Expanded(
@@ -179,6 +202,25 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
               const Divider(height: 32),
+
+              if (item.imageUrl != null && item.imageUrl!.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    item.imageUrl!,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 200,
+                      color: Colors.grey[200],
+                      alignment: Alignment.center,
+                      child: const Text('图片加载失败'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               
               _buildDetailRow('作物类型', _formatCropName(item.cropType)),
               _buildDetailRow('置信度', '${(item.confidence * 100).toStringAsFixed(1)}%'),

@@ -21,21 +21,23 @@ func NewHandler(svc *service.Service) *Handler {
 
 // UploadResponse 上传响应
 type UploadResponse struct {
-	ImageID      uint   `json:"image_id"`
-	OriginalURL  string `json:"original_url"`
+	ImageID       uint   `json:"image_id"`
+	OriginalURL   string `json:"original_url"`
 	CompressedURL string `json:"compressed_url"`
 }
 
 // RecognizeResponse 识别响应
 type RecognizeResponse struct {
-	RawText     string  `json:"raw_text"`
-	ResultID     uint    `json:"result_id"`
-	CropType     string  `json:"crop_type"`
-	Confidence   float64 `json:"confidence"`
-	Description  string  `json:"description"`
-	GrowthStage  *string `json:"growth_stage"`
+	RawText       string  `json:"raw_text"`
+	ResultID      uint    `json:"result_id"`
+	ImageID       uint    `json:"image_id"`
+	CropType      string  `json:"crop_type"`
+	Confidence    float64 `json:"confidence"`
+	Description   string  `json:"description"`
+	GrowthStage   *string `json:"growth_stage"`
 	PossibleIssue *string `json:"possible_issue"`
-	Provider     string  `json:"provider"`
+	Provider      string  `json:"provider"`
+	ImageURL      string  `json:"image_url,omitempty"`
 }
 
 type RecognizeURLRequest struct {
@@ -76,14 +78,16 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, RecognizeResponse{
-		RawText:     savedResult.RawText,
-		ResultID:     savedResult.ID,
-		CropType:     savedResult.CropType,
-		Confidence:   savedResult.Confidence,
-		Description:  savedResult.Description,
-		GrowthStage:  savedResult.GrowthStage,
+		RawText:       savedResult.RawText,
+		ResultID:      savedResult.ID,
+		ImageID:       savedResult.ImageID,
+		CropType:      savedResult.CropType,
+		Confidence:    savedResult.Confidence,
+		Description:   savedResult.Description,
+		GrowthStage:   savedResult.GrowthStage,
 		PossibleIssue: savedResult.PossibleIssue,
-		Provider:     savedResult.Provider,
+		Provider:      savedResult.Provider,
+		ImageURL:      img.OriginalURL,
 	})
 }
 
@@ -111,9 +115,9 @@ func (h *Handler) UploadImage(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusOK, UploadResponse{
-			ImageID:         img.ID,
-			OriginalURL:     img.OriginalURL,
-			CompressedURL:   img.CompressedURL,
+			ImageID:       img.ID,
+			OriginalURL:   img.OriginalURL,
+			CompressedURL: img.CompressedURL,
 		})
 		return
 	}
@@ -133,8 +137,8 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, UploadResponse{
-		ImageID:      img.ID,
-		OriginalURL:  img.OriginalURL,
+		ImageID:       img.ID,
+		OriginalURL:   img.OriginalURL,
 		CompressedURL: img.CompressedURL,
 	})
 }
@@ -172,15 +176,20 @@ func (h *Handler) Recognize(c *gin.Context) {
 		return
 	}
 
+	// 自动创建手记
+	_, _ = h.svc.CreateNote(uint(userID), req.ImageID, &savedResult.ID, "", "crop")
+
 	c.JSON(http.StatusOK, RecognizeResponse{
-		RawText:     savedResult.RawText,
-		ResultID:     savedResult.ID,
-		CropType:     savedResult.CropType,
-		Confidence:   savedResult.Confidence,
-		Description:  savedResult.Description,
-		GrowthStage:  savedResult.GrowthStage,
+		RawText:       savedResult.RawText,
+		ResultID:      savedResult.ID,
+		ImageID:       savedResult.ImageID,
+		CropType:      savedResult.CropType,
+		Confidence:    savedResult.Confidence,
+		Description:   savedResult.Description,
+		GrowthStage:   savedResult.GrowthStage,
 		PossibleIssue: savedResult.PossibleIssue,
-		Provider:     savedResult.Provider,
+		Provider:      savedResult.Provider,
+		ImageURL:      img.OriginalURL,
 	})
 }
 
@@ -194,13 +203,29 @@ func (h *Handler) GetResult(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetResultByImageID(uint(id))
+	result, err := h.svc.GetResultByID(uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "result not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	imageURL := ""
+	if img, err := h.svc.GetImage(result.ImageID); err == nil {
+		imageURL = img.OriginalURL
+	}
+
+	c.JSON(http.StatusOK, RecognizeResponse{
+		RawText:       result.RawText,
+		ResultID:      result.ID,
+		ImageID:       result.ImageID,
+		CropType:      result.CropType,
+		Confidence:    result.Confidence,
+		Description:   result.Description,
+		GrowthStage:   result.GrowthStage,
+		PossibleIssue: result.PossibleIssue,
+		Provider:      result.Provider,
+		ImageURL:      imageURL,
+	})
 }
 
 // GetHistory 获取历史记录
@@ -225,8 +250,25 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		return
 	}
 
+	response := make([]RecognizeResponse, 0, len(results))
+	for _, r := range results {
+		resp := RecognizeResponse{
+			RawText:       r.RawText,
+			ResultID:      r.ID,
+			ImageID:       r.ImageID,
+			CropType:      r.CropType,
+			Confidence:    r.Confidence,
+			Description:   r.Description,
+			GrowthStage:   r.GrowthStage,
+			PossibleIssue: r.PossibleIssue,
+			Provider:      r.Provider,
+			ImageURL:      r.Image.OriginalURL,
+		}
+		response = append(response, resp)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"results": results,
+		"results": response,
 		"limit":   limit,
 		"offset":  offset,
 	})
@@ -238,7 +280,7 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 	var req struct {
 		ResultID      uint   `json:"result_id" binding:"required"`
 		CorrectedType string `json:"corrected_type"`
-		FeedbackNote string `json:"feedback_note"`
+		FeedbackNote  string `json:"feedback_note"`
 		IsCorrect     bool   `json:"is_correct"`
 	}
 
@@ -263,6 +305,92 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "feedback saved"})
 }
 
+// CreateNote 创建手记
+// POST /api/v1/notes
+func (h *Handler) CreateNote(c *gin.Context) {
+	var req struct {
+		ImageID  uint   `json:"image_id" binding:"required"`
+		ResultID *uint  `json:"result_id"`
+		Note     string `json:"note"`
+		Category string `json:"category"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		userID = 1
+	}
+
+	note, err := h.svc.CreateNote(uint(userID), req.ImageID, req.ResultID, req.Note, req.Category)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, note)
+}
+
+// GetNotes 获取手记列表
+// GET /api/v1/notes
+func (h *Handler) GetNotes(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+	category := c.DefaultQuery("category", "")
+	cropType := c.DefaultQuery("crop_type", "")
+
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+
+	notes, err := h.svc.GetNotes(uint(userID), limit, offset, category, cropType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"results": notes,
+		"limit":   limit,
+		"offset":  offset,
+	})
+}
+
+// ExportNotes 导出手记 CSV
+// GET /api/v1/notes/export
+func (h *Handler) ExportNotes(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "1000")
+	offsetStr := c.DefaultQuery("offset", "0")
+	category := c.DefaultQuery("category", "")
+	cropType := c.DefaultQuery("crop_type", "")
+
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=notes.csv")
+	if err := h.svc.ExportNotesCSV(c.Writer, uint(userID), limit, offset, category, cropType); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
 // GetLLMProviders 获取已注册的大模型提供商
 // GET /api/v1/providers
 func (h *Handler) GetLLMProviders(c *gin.Context) {
@@ -281,6 +409,9 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/history", h.GetHistory)
 		v1.POST("/feedback", h.SubmitFeedback)
 		v1.GET("/providers", h.GetLLMProviders)
+		v1.POST("/notes", h.CreateNote)
+		v1.GET("/notes", h.GetNotes)
+		v1.GET("/notes/export", h.ExportNotes)
 	}
 }
 

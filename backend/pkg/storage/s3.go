@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -22,10 +22,10 @@ type StorageInterface interface {
 
 // S3Storage S3 兼容存储（支持 Cloudflare R2、AWS S3 等）
 type S3Storage struct {
-	client     *s3.Client
-	bucket     string
-	baseURL    string
-	publicURL  string // R2 的自定义域名
+	client    *s3.Client
+	bucket    string
+	baseURL   string
+	publicURL string // R2 的自定义域名
 }
 
 type S3Config struct {
@@ -74,8 +74,8 @@ func NewS3Storage(cfg S3Config) (*S3Storage, error) {
 	return &S3Storage{
 		client:    client,
 		bucket:    cfg.Bucket,
-		baseURL:   cfg.Endpoint,
-		publicURL: cfg.PublicURL,
+		baseURL:   normalizeURL(cfg.Endpoint),
+		publicURL: normalizeURL(cfg.PublicURL),
 	}, nil
 }
 
@@ -117,9 +117,8 @@ func (s *S3Storage) UploadFile(ctx context.Context, key, filePath string) (strin
 
 // GenerateKey 生成存储 key
 func (s *S3Storage) GenerateKey(userID uint, filename string) string {
-	t := time.Now()
-	return fmt.Sprintf("images/%d/%d%02d%02d/%s",
-		userID, t.Year(), t.Month(), t.Day(), filename)
+	_ = userID
+	return generateObjectKey(filename)
 }
 
 // Delete 删除文件
@@ -129,6 +128,17 @@ func (s *S3Storage) Delete(ctx context.Context, key string) error {
 		Key:    aws.String(key),
 	})
 	return err
+}
+
+func normalizeURL(raw string) string {
+	raw = strings.TrimRight(raw, "/")
+	if raw == "" {
+		return ""
+	}
+	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
+		return raw
+	}
+	return "https://" + raw
 }
 
 // createReadCloser 创建 io.ReadCloser

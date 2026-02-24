@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -52,30 +50,18 @@ class _GalleryPageState extends State<GalleryPage> {
     setState(() => _isUploading = true);
 
     try {
-      if (kIsWeb) {
-        final bytes = await image.readAsBytes();
-        final base64 = base64Encode(bytes);
+      final bytes = await image.readAsBytes();
+      provider.setCurrentImageBytes(bytes);
 
-        provider.setLoading();
-        final uploadRes = await api.uploadImage(base64);
-        provider.setUploadResponse(uploadRes);
+      provider.setLoading();
+      final uploadRes = await api.uploadImage(bytes);
+      provider.setUploadResponse(uploadRes);
 
-        final result = await api.recognize(uploadRes.imageId);
-        provider.setRecognizeResult(result);
-        provider.addToHistory(result);
+      final result = await api.recognize(uploadRes.imageId);
+      provider.setRecognizeResult(result);
+      provider.addToHistory(result);
 
-        provider.setSuccess();
-      } else {
-        provider.setLoading();
-        final uploadRes = await api.uploadImage(image.path);
-        provider.setUploadResponse(uploadRes);
-
-        final result = await api.recognize(uploadRes.imageId);
-        provider.setRecognizeResult(result);
-        provider.addToHistory(result);
-
-        provider.setSuccess();
-      }
+      provider.setSuccess();
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/result');

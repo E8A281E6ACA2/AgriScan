@@ -20,6 +20,12 @@ Content-Type: `multipart/form-data`
 |------|------|------|
 | image | file | 图片文件 |
 
+Web/跨端 Base64 方式：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| image | string | base64 字符串 |
+| type | string | 固定为 `base64` |
+
 **响应示例:**
 ```json
 {
@@ -44,8 +50,10 @@ Content-Type: `multipart/form-data`
 **响应示例:**
 ```json
 {
+  "raw_text": "...",
   "result_id": 1,
   "image_id": 1,
+  "image_url": "https://oss.qs.al/agriscan/20260224/xxxx.jpg",
   "crop_type": "wheat",
   "confidence": 0.92,
   "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
@@ -59,20 +67,21 @@ Content-Type: `multipart/form-data`
 
 ### 3. 获取识别结果
 
-**GET** `/result/:id`
+**GET** `/result/:id`  (id 为 result_id)
 
 **响应示例:**
 ```json
 {
-  "id": 1,
+  "raw_text": "...",
+  "result_id": 1,
   "image_id": 1,
+  "image_url": "https://oss.qs.al/agriscan/20260224/xxxx.jpg",
   "crop_type": "wheat",
   "confidence": 0.92,
   "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
   "growth_stage": null,
   "possible_issue": null,
-  "provider": "qwen",
-  "created_at": "2024-01-01T12:00:00Z"
+  "provider": "qwen"
 }
 ```
 
@@ -90,7 +99,20 @@ Content-Type: `multipart/form-data`
 **响应示例:**
 ```json
 {
-  "results": [...],
+  "results": [
+    {
+      "raw_text": "...",
+      "result_id": 1,
+      "image_id": 1,
+      "image_url": "https://oss.qs.al/agriscan/20260224/xxxx.jpg",
+      "crop_type": "wheat",
+      "confidence": 0.92,
+      "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
+      "growth_stage": null,
+      "possible_issue": null,
+      "provider": "qwen"
+    }
+  ],
   "limit": 20,
   "offset": 0
 }
@@ -113,7 +135,75 @@ Content-Type: `multipart/form-data`
 
 ---
 
-### 6. 获取支持的提供商
+### 6. 获取手记列表
+
+**GET** `/notes`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 数量限制 |
+| offset | int | 0 | 偏移量 |
+| category | string | - | 过滤分类（crop/disease/pest/weed/other） |
+| crop_type | string | - | 过滤作物类型 |
+
+**响应示例:**
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "image_id": 1,
+      "result_id": 1,
+      "image_url": "https://oss.qs.al/agriscan/20260224/xxxx.jpg",
+      "crop_type": "wheat",
+      "confidence": 0.92,
+      "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
+      "growth_stage": null,
+      "possible_issue": null,
+      "provider": "qwen",
+      "note": "叶片发黄，疑似缺氮",
+      "category": "crop",
+      "created_at": "2026-02-24T12:00:00Z"
+    }
+  ],
+  "limit": 20,
+  "offset": 0
+}
+```
+
+---
+
+### 7. 导出手记 CSV
+
+**GET** `/notes/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 1000 | 导出数量限制 |
+| offset | int | 0 | 偏移量 |
+| category | string | - | 过滤分类（crop/disease/pest/weed/other） |
+| crop_type | string | - | 过滤作物类型 |
+
+返回 `text/csv` 文件。
+
+---
+
+### 8. 创建手记
+
+**POST** `/notes`
+
+```json
+{
+  "image_id": 1,
+  "result_id": 1,
+  "note": "叶片发黄，疑似缺氮",
+  "category": "crop"
+}
+```
+
+---
+
+### 9. 获取支持的提供商
 
 **GET** `/providers`
 

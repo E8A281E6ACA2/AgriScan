@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 
@@ -9,7 +9,7 @@ class AppProvider extends ChangeNotifier {
   String? _errorMessage;
   
   // 当前识别的数据
-  File? _currentImage;
+  Uint8List? _currentImageBytes;
   UploadResponse? _uploadResponse;
   RecognizeResponse? _recognizeResult;
   
@@ -19,7 +19,7 @@ class AppProvider extends ChangeNotifier {
   // Getters
   AppState get state => _state;
   String? get errorMessage => _errorMessage;
-  File? get currentImage => _currentImage;
+  Uint8List? get currentImageBytes => _currentImageBytes;
   UploadResponse? get uploadResponse => _uploadResponse;
   RecognizeResponse? get recognizeResult => _recognizeResult;
   List<RecognizeResponse> get history => _history;
@@ -45,14 +45,14 @@ class AppProvider extends ChangeNotifier {
   void reset() {
     _state = AppState.idle;
     _errorMessage = null;
-    _currentImage = null;
+    _currentImageBytes = null;
     _uploadResponse = null;
     _recognizeResult = null;
     notifyListeners();
   }
   
-  void setCurrentImage(File image) {
-    _currentImage = image;
+  void setCurrentImageBytes(Uint8List bytes) {
+    _currentImageBytes = bytes;
     notifyListeners();
   }
   

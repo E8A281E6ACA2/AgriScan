@@ -2,10 +2,14 @@ package llm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -15,10 +19,11 @@ type OpenAIProvider struct {
 	BaseProvider
 	HTTPClient *http.Client
 	Model      string
+	ImageInput string
 }
 
 // NewOpenAIProvider 创建 OpenAI Provider
-func NewOpenAIProvider(apiKey, endpoint, model string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, endpoint, model, imageInput string) *OpenAIProvider {
 	if model == "" {
 		model = "gpt-4o"
 	}
@@ -30,11 +35,17 @@ func NewOpenAIProvider(apiKey, endpoint, model string) *OpenAIProvider {
 		},
 		HTTPClient: &http.Client{Timeout: 60 * time.Second},
 		Model:      model,
+		ImageInput: imageInput,
 	}
 }
 
 // Recognize 调用 OpenAI API 进行图像识别
 func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) {
+	resolvedURL, err := p.resolveImageURL(imageURL)
+	if err != nil {
+		return nil, err
+	}
+
 	// 构建请求
 	reqBody := map[string]interface{}{
 		"model": p.Model,
@@ -49,7 +60,7 @@ func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) 
 					{
 						"type": "image_url",
 						"image_url": map[string]string{
-							"url": imageURL,
+							"url": resolvedURL,
 						},
 					},
 				},
@@ -109,6 +120,115 @@ func (p *OpenAIProvider) Recognize(imageURL string) (*RecognitionResult, error) 
 
 	// 解析 JSON 内容
 	return parseCropResponse(content)
+}
+
+func (p *OpenAIProvider) resolveImageURL(imageURL string) (string, error) {
+	mode := strings.ToLower(strings.TrimSpace(p.ImageInput))
+	if mode == "" {
+		mode = "auto"
+	}
+
+	if strings.HasPrefix(imageURL, "data:") {
+		return imageURL, nil
+	}
+
+	switch mode {
+	case "url":
+		return imageURL, nil
+	case "base64", "auto":
+		// continue
+	default:
+		return imageURL, nil
+	}
+
+	inline := mode == "base64"
+	if mode == "auto" {
+		u, err := url.Parse(imageURL)
+		if err != nil {
+			inline = true
+		} else {
+			if u.Scheme != "https" {
+				inline = true
+			}
+			host := u.Hostname()
+			if host == "" {
+				inline = true
+			} else if isPrivateHost(host) {
+				inline = true
+			} else if strings.HasSuffix(host, ".local") {
+				inline = true
+			}
+		}
+	}
+
+	if !inline {
+		return imageURL, nil
+	}
+
+	dataURL, err := p.fetchAsDataURL(imageURL)
+	if err != nil {
+		return "", err
+	}
+	return dataURL, nil
+}
+
+func isPrivateHost(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()
+}
+
+func (p *OpenAIProvider) fetchAsDataURL(imageURL string) (string, error) {
+	req, err := http.NewRequest("GET", imageURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create image request: %w", err)
+	}
+	resp, err := p.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to download image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download image: status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image: %w", err)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = contentTypeFromExt(imageURL)
+	}
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return fmt.Sprintf("data:%s;base64,%s", contentType, encoded), nil
+}
+
+func contentTypeFromExt(imageURL string) string {
+	ext := strings.ToLower(filepath.Ext(imageURL))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".webp":
+		return "image/webp"
+	case ".gif":
+		return "image/gif"
+	default:
+		return ""
+	}
 }
 
 // parseCropResponse 解析作物识别的 JSON 响应

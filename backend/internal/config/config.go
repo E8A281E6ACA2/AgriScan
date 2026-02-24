@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -11,6 +12,7 @@ type Config struct {
 	Database DatabaseConfig
 	COS      COSConfig
 	S3       S3Config
+	Local    LocalStorageConfig
 	LLM      LLMConfig
 }
 
@@ -29,11 +31,11 @@ type DatabaseConfig struct {
 }
 
 type COSConfig struct {
-	SecretID     string
-	SecretKey    string
-	Bucket       string
-	Region       string
-	BaseURL      string
+	SecretID  string
+	SecretKey string
+	Bucket    string
+	Region    string
+	BaseURL   string
 }
 
 type S3Config struct {
@@ -45,17 +47,23 @@ type S3Config struct {
 	PublicURL       string // 自定义域名
 }
 
+type LocalStorageConfig struct {
+	BasePath string
+	BaseURL  string
+}
+
 type LLMConfig struct {
-	Provider string // baidu, openai, qwen
-	APIKey   string
-	Endpoint string
-	Model    string
+	Provider   string // baidu, openai, qwen
+	APIKey     string
+	Endpoint   string
+	Model      string
+	ImageInput string // url, base64, auto
 }
 
 func Load() *Config {
 	// 加载 .env 文件（开发环境）
-	_ = godotenv.Load()
-	
+	loadDotEnv()
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
@@ -84,11 +92,16 @@ func Load() *Config {
 			Bucket:          getEnv("S3_BUCKET", ""),
 			PublicURL:       getEnv("S3_PUBLIC_URL", ""),
 		},
+		Local: LocalStorageConfig{
+			BasePath: getEnv("LOCAL_STORAGE_PATH", "./uploads"),
+			BaseURL:  getEnv("LOCAL_STORAGE_BASE_URL", ""),
+		},
 		LLM: LLMConfig{
-			Provider: getEnv("LLM_PROVIDER", "qwen"),
-			APIKey:   getEnv("LLM_API_KEY", ""),
-			Endpoint: getEnv("LLM_ENDPOINT", ""),
-			Model:    getEnv("LLM_MODEL", "gpt-4o"),
+			Provider:   getEnv("LLM_PROVIDER", "qwen"),
+			APIKey:     getEnv("LLM_API_KEY", ""),
+			Endpoint:   getEnv("LLM_ENDPOINT", "https://api.openai.com/v1"),
+			Model:      getEnv("LLM_MODEL", "gpt-4o"),
+			ImageInput: getEnv("LLM_IMAGE_INPUT", "auto"),
 		},
 	}
 }
@@ -98,4 +111,32 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func loadDotEnv() {
+	// 优先当前目录
+	if _, err := os.Stat(".env"); err == nil {
+		_ = godotenv.Load()
+		return
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		_ = godotenv.Load()
+		return
+	}
+
+	dir := cwd
+	for i := 0; i < 4; i++ {
+		candidate := filepath.Join(dir, ".env")
+		if _, err := os.Stat(candidate); err == nil {
+			_ = godotenv.Load(candidate)
+			return
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
 }

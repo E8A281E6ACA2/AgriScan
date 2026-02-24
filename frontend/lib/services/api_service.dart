@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8080/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080/api/v1',
+  );
   
   late final Dio _dio;
   
@@ -37,7 +41,7 @@ class ApiService {
       final response = await _dio.post('/upload', data: formData);
       return UploadResponse.fromJson(response.data);
     } else if (file is String) {
-      // 已经是 base64
+      // 如果是 base64 字符串，需要明确传入；路径请用 File
       final formData = FormData.fromMap({
         'image': file,
         'type': 'base64',
@@ -62,9 +66,9 @@ class ApiService {
     return RecognizeResponse.fromJson(response.data);
   }
   
-  // 获取识别结果
-  Future<RecognizeResponse> getResult(int imageId) async {
-    final response = await _dio.get('/result/$imageId');
+  // 获取识别结果（按 result_id）
+  Future<RecognizeResponse> getResult(int resultId) async {
+    final response = await _dio.get('/result/$resultId');
     return RecognizeResponse.fromJson(response.data);
   }
   
@@ -75,6 +79,43 @@ class ApiService {
       'offset': offset,
     });
     return HistoryResponse.fromJson(response.data);
+  }
+
+  // 创建手记
+  Future<Note> createNote(NoteRequest request) async {
+    final response = await _dio.post('/notes', data: request.toJson());
+    return Note.fromJson(response.data);
+  }
+
+  // 获取手记列表
+  Future<NotesResponse> getNotes({
+    int limit = 20,
+    int offset = 0,
+    String? category,
+    String? cropType,
+  }) async {
+    final params = <String, dynamic>{
+      'limit': limit,
+      'offset': offset,
+    };
+    if (category != null && category.isNotEmpty) {
+      params['category'] = category;
+    }
+    if (cropType != null && cropType.isNotEmpty) {
+      params['crop_type'] = cropType;
+    }
+
+    final response = await _dio.get('/notes', queryParameters: params);
+    return NotesResponse.fromJson(response.data);
+  }
+
+  Future<Uint8List> exportNotes(Map<String, dynamic> params) async {
+    final response = await _dio.get(
+      '/notes/export',
+      queryParameters: params,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data);
   }
   
   // 提交反馈
@@ -120,6 +161,7 @@ class RecognizeResponse {
   final String? growthStage;
   final String? possibleIssue;
   final String provider;
+  final String? imageUrl;
   
   RecognizeResponse({
     required this.resultId,
@@ -130,18 +172,20 @@ class RecognizeResponse {
     this.growthStage,
     this.possibleIssue,
     required this.provider,
+    this.imageUrl,
   });
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
     return RecognizeResponse(
-      resultId: json['result_id'],
-      imageId: json['image_id'] ?? 0,
+      resultId: json['result_id'] ?? json['id'] ?? 0,
+      imageId: json['image_id'] ?? json['imageId'] ?? 0,
       cropType: json['crop_type'],
       confidence: (json['confidence'] as num).toDouble(),
       description: json['description'] ?? '',
       growthStage: json['growth_stage'],
       possibleIssue: json['possible_issue'],
       provider: json['provider'],
+      imageUrl: json['image_url'],
     );
   }
 }
@@ -187,4 +231,99 @@ class FeedbackRequest {
     'feedback_note': feedbackNote,
     'is_correct': isCorrect,
   };
+}
+
+class Note {
+  final int id;
+  final int imageId;
+  final int? resultId;
+  final String imageUrl;
+  final String note;
+  final String category;
+  final String? cropType;
+  final double? confidence;
+  final String? description;
+  final String? growthStage;
+  final String? possibleIssue;
+  final String? provider;
+  final String createdAt;
+
+  Note({
+    required this.id,
+    required this.imageId,
+    this.resultId,
+    required this.imageUrl,
+    required this.note,
+    required this.category,
+    this.cropType,
+    this.confidence,
+    this.description,
+    this.growthStage,
+    this.possibleIssue,
+    this.provider,
+    required this.createdAt,
+  });
+
+  factory Note.fromJson(Map<String, dynamic> json) {
+    return Note(
+      id: json['id'],
+      imageId: json['image_id'],
+      resultId: json['result_id'],
+      imageUrl: json['image_url'] ?? '',
+      note: json['note'] ?? '',
+      category: json['category'] ?? 'crop',
+      cropType: json['crop_type'],
+      confidence: json['confidence'] == null
+          ? null
+          : (json['confidence'] as num).toDouble(),
+      description: json['description'],
+      growthStage: json['growth_stage'],
+      possibleIssue: json['possible_issue'],
+      provider: json['provider'],
+      createdAt: json['created_at'] ?? '',
+    );
+  }
+}
+
+class NoteRequest {
+  final int imageId;
+  final int? resultId;
+  final String note;
+  final String category;
+
+  NoteRequest({
+    required this.imageId,
+    this.resultId,
+    required this.note,
+    required this.category,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'image_id': imageId,
+        'result_id': resultId,
+        'note': note,
+        'category': category,
+      };
+}
+
+class NotesResponse {
+  final List<Note> results;
+  final int limit;
+  final int offset;
+
+  NotesResponse({
+    required this.results,
+    required this.limit,
+    required this.offset,
+  });
+
+  factory NotesResponse.fromJson(Map<String, dynamic> json) {
+    return NotesResponse(
+      results: (json['results'] as List)
+          .map((e) => Note.fromJson(e))
+          .toList(),
+      limit: json['limit'],
+      offset: json['offset'],
+    );
+  }
 }

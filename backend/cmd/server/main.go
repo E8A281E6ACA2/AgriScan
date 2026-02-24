@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -41,7 +40,7 @@ func main() {
 
 	// 初始化对象存储
 	var stor storage.StorageInterface
-	
+
 	// 优先使用 S3/R2 配置
 	if cfg.S3.AccessKeyID != "" && cfg.S3.SecretAccessKey != "" {
 		stor, err = storage.NewS3Storage(storage.S3Config{
@@ -69,8 +68,19 @@ func main() {
 		if err != nil {
 			log.Printf("Warning: Failed to init COS: %v", err)
 		}
-	} else {
-		log.Println("Warning: No object storage configured")
+	}
+
+	// 本地存储兜底
+	if stor == nil {
+		stor, err = storage.NewLocalStorage(storage.LocalConfig{
+			BasePath: cfg.Local.BasePath,
+			BaseURL:  cfg.Local.BaseURL,
+		})
+		if err != nil {
+			log.Printf("Warning: Failed to init local storage: %v", err)
+		} else {
+			log.Println("Local storage initialized")
+		}
 	}
 
 	// 初始化大模型提供商
@@ -79,7 +89,7 @@ func main() {
 
 	// 注册 OpenAI 兼容 Provider
 	if cfg.LLM.APIKey != "" {
-		llm.RegisterProvider("openai", llm.NewOpenAIProvider(cfg.LLM.APIKey, cfg.LLM.Endpoint, cfg.LLM.Model))
+		llm.RegisterProvider("openai", llm.NewOpenAIProvider(cfg.LLM.APIKey, cfg.LLM.Endpoint, cfg.LLM.Model, cfg.LLM.ImageInput))
 		log.Println("OpenAI provider registered")
 	}
 
@@ -98,7 +108,12 @@ func main() {
 
 	// 创建路由
 	r := gin.Default()
-	
+
+	// 本地存储静态资源服务
+	if cfg.Local.BaseURL != "" {
+		r.Static("/uploads", cfg.Local.BasePath)
+	}
+
 	// 添加 CORS 中间件
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -107,7 +122,7 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
-	
+
 	h.SetupRoutes(r)
 
 	// 启动服务器

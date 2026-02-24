@@ -1,10 +1,10 @@
 package service
 
 import (
-	"bytes"
 	"agri-scan/internal/llm"
 	"agri-scan/internal/model"
 	"agri-scan/internal/repository"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -18,9 +18,9 @@ import (
 )
 
 type Service struct {
-	repo      *repository.Repository
-	llm       llm.Provider
-	storage   StorageInterface
+	repo    *repository.Repository
+	llm     llm.Provider
+	storage StorageInterface
 }
 
 type StorageInterface interface {
@@ -37,8 +37,18 @@ func NewService(repo *repository.Repository, provider llm.Provider, storage Stor
 	}
 }
 
+func (s *Service) ensureStorage() error {
+	if s.storage == nil {
+		return fmt.Errorf("storage not configured")
+	}
+	return nil
+}
+
 // UploadImage 上传图片
 func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.Image, error) {
+	if err := s.ensureStorage(); err != nil {
+		return nil, err
+	}
 	// 读取文件
 	src, err := file.Open()
 	if err != nil {
@@ -77,6 +87,9 @@ func (s *Service) UploadImage(userID uint, file *multipart.FileHeader) (*model.I
 
 // UploadImageBase64 上传 Base64 编码的图片（Web 端）
 func (s *Service) UploadImageBase64(userID uint, base64Data string) (*model.Image, error) {
+	if err := s.ensureStorage(); err != nil {
+		return nil, err
+	}
 	// 解码 base64
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
@@ -163,14 +176,14 @@ func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*mode
 
 	// 创建新结果
 	saved := &model.RecognitionResult{
-		ImageID:      imageID,
-		RawText:      result.RawText,
-		CropType:     result.CropType,
-		Confidence:   result.Confidence,
-		Description:  result.Description,
-		GrowthStage:  result.GrowthStage,
+		ImageID:       imageID,
+		RawText:       result.RawText,
+		CropType:      result.CropType,
+		Confidence:    result.Confidence,
+		Description:   result.Description,
+		GrowthStage:   result.GrowthStage,
 		PossibleIssue: result.PossibleIssue,
-		Provider:     s.llm.Name(),
+		Provider:      s.llm.Name(),
 	}
 
 	err = s.repo.CreateResult(saved)
@@ -186,6 +199,10 @@ func (s *Service) GetResultByImageID(imageID uint) (*model.RecognitionResult, er
 	return s.repo.GetResultByImageID(imageID)
 }
 
+func (s *Service) GetResultByID(id uint) (*model.RecognitionResult, error) {
+	return s.repo.GetResultByID(id)
+}
+
 // GetHistory 获取用户历史记录
 func (s *Service) GetHistory(userID uint, limit, offset int) ([]model.RecognitionResult, error) {
 	return s.repo.GetResultsByUserID(userID, limit, offset)
@@ -194,6 +211,54 @@ func (s *Service) GetHistory(userID uint, limit, offset int) ([]model.Recognitio
 // SaveFeedback 保存用户反馈
 func (s *Service) SaveFeedback(feedback *model.UserFeedback) error {
 	return s.repo.CreateFeedback(feedback)
+}
+
+// CreateNote 创建手记
+func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note string, category string) (*model.FieldNote, error) {
+	img, err := s.repo.GetImageByID(imageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image: %w", err)
+	}
+
+	if category == "" {
+		category = "crop"
+	}
+
+	var result *model.RecognitionResult
+	if resultID != nil {
+		res, err := s.repo.GetResultByID(*resultID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get result: %w", err)
+		}
+		result = res
+	}
+
+	item := &model.FieldNote{
+		UserID:   userID,
+		ImageID:  imageID,
+		ResultID: resultID,
+		ImageURL: img.OriginalURL,
+		Note:     note,
+		Category: category,
+	}
+	if result != nil {
+		item.RawText = result.RawText
+		item.CropType = result.CropType
+		item.Confidence = result.Confidence
+		item.Description = result.Description
+		item.GrowthStage = result.GrowthStage
+		item.PossibleIssue = result.PossibleIssue
+		item.Provider = result.Provider
+	}
+	if err := s.repo.CreateNote(item); err != nil {
+		return nil, fmt.Errorf("failed to save note: %w", err)
+	}
+	return item, nil
+}
+
+// GetNotes 获取手记列表
+func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string) ([]model.FieldNote, error) {
+	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType)
 }
 
 // ListProviders 列出所有大模型提供商

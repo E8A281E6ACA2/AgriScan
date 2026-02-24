@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 
@@ -13,8 +12,11 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   final TextEditingController _feedbackController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
   String? _selectedCorrection;
   bool _isSubmitting = false;
+  bool _isSavingNote = false;
+  String _noteCategory = 'crop';
   
   final List<String> _commonCrops = [
     'wheat', 'corn', 'rice', 'soybean', 'cotton', 
@@ -24,6 +26,7 @@ class _ResultPageState extends State<ResultPage> {
   @override
   void dispose() {
     _feedbackController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
   
@@ -61,13 +64,45 @@ class _ResultPageState extends State<ResultPage> {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
+
+  Future<void> _saveNote() async {
+    if (_isSavingNote) return;
+    final provider = context.read<AppProvider>();
+    final api = context.read<ApiService>();
+    final result = provider.recognizeResult;
+    final noteText = _noteController.text.trim();
+    if (result == null) return;
+
+    setState(() => _isSavingNote = true);
+    try {
+      await api.createNote(NoteRequest(
+        imageId: result.imageId,
+        resultId: result.resultId,
+        note: noteText,
+        category: _noteCategory,
+      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('手记已保存')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存手记失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingNote = false);
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final result = provider.recognizeResult;
-        final image = provider.currentImage;
+        final imageBytes = provider.currentImageBytes;
         
         if (provider.state == AppState.loading) {
           return Scaffold(
@@ -125,14 +160,20 @@ class _ResultPageState extends State<ResultPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 图片展示
-                if (image != null)
+                if (imageBytes != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      image,
+                    child: Image.memory(
+                      imageBytes,
                       width: double.infinity,
                       height: 200,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 200,
+                        color: Colors.grey[200],
+                        alignment: Alignment.center,
+                        child: const Text('图片加载失败'),
+                      ),
                     ),
                   ),
                 const SizedBox(height: 24),
@@ -229,7 +270,66 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                 ),
-                
+
+                const SizedBox(height: 24),
+
+                // 手记区域
+                Text(
+                  '手记',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('作物'),
+                      selected: _noteCategory == 'crop',
+                      onSelected: (_) => setState(() => _noteCategory = 'crop'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('病害'),
+                      selected: _noteCategory == 'disease',
+                      onSelected: (_) => setState(() => _noteCategory = 'disease'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('虫害'),
+                      selected: _noteCategory == 'pest',
+                      onSelected: (_) => setState(() => _noteCategory = 'pest'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('杂草'),
+                      selected: _noteCategory == 'weed',
+                      onSelected: (_) => setState(() => _noteCategory = 'weed'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('其他'),
+                      selected: _noteCategory == 'other',
+                      onSelected: (_) => setState(() => _noteCategory = 'other'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _noteController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: '记录田间观察、用药情况、天气等',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSavingNote ? null : _saveNote,
+                    icon: const Icon(Icons.save),
+                    label: Text(_isSavingNote ? '保存中...' : '保存手记'),
+                  ),
+                ),
+
                 const SizedBox(height: 24),
                 
                 // 操作按钮
