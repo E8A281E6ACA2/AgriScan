@@ -123,6 +123,23 @@ func (s *Service) GetImage(id uint) (*model.Image, error) {
 	return s.repo.GetImageByID(id)
 }
 
+// CreateImageFromURL 创建外部图片记录
+func (s *Service) CreateImageFromURL(userID uint, imageURL string) (*model.Image, error) {
+	img := &model.Image{
+		UserID:        userID,
+		OriginalURL:   imageURL,
+		CompressedURL: imageURL,
+		FileSize:      0,
+	}
+
+	err := s.repo.CreateImage(img)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save image: %w", err)
+	}
+
+	return img, nil
+}
+
 // Recognize 调用大模型识别
 func (s *Service) Recognize(imageURL string) (*llm.RecognitionResult, error) {
 	return s.llm.Recognize(imageURL)

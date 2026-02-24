@@ -37,6 +37,54 @@ type RecognizeResponse struct {
 	Provider     string  `json:"provider"`
 }
 
+type RecognizeURLRequest struct {
+	ImageURL string `json:"image_url" binding:"required"`
+}
+
+// RecognizeByURL 使用外部图片 URL 识别
+// POST /api/v1/recognize-url
+func (h *Handler) RecognizeByURL(c *gin.Context) {
+	var req RecognizeURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		userID = 1
+	}
+
+	img, err := h.svc.CreateImageFromURL(uint(userID), req.ImageURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.svc.Recognize(img.OriginalURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	savedResult, err := h.svc.SaveResult(img.ID, result)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, RecognizeResponse{
+		ResultID:     savedResult.ID,
+		CropType:     savedResult.CropType,
+		Confidence:   savedResult.Confidence,
+		Description:  savedResult.Description,
+		GrowthStage:  savedResult.GrowthStage,
+		PossibleIssue: savedResult.PossibleIssue,
+		Provider:     savedResult.Provider,
+	})
+}
+
 // UploadImage 上传图片
 // POST /api/v1/upload
 func (h *Handler) UploadImage(c *gin.Context) {
@@ -225,6 +273,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 	{
 		v1.POST("/upload", h.UploadImage)
 		v1.POST("/recognize", h.Recognize)
+		v1.POST("/recognize-url", h.RecognizeByURL)
 		v1.GET("/result/:id", h.GetResult)
 		v1.GET("/history", h.GetHistory)
 		v1.POST("/feedback", h.SubmitFeedback)
