@@ -264,12 +264,16 @@ class FeedbackRequest {
   final String? correctedType;
   final String? feedbackNote;
   final bool isCorrect;
+  final String? category;
+  final List<String>? tags;
   
   FeedbackRequest({
     required this.resultId,
     this.correctedType,
     this.feedbackNote,
     required this.isCorrect,
+    this.category,
+    this.tags,
   });
   
   Map<String, dynamic> toJson() => {
@@ -277,6 +281,8 @@ class FeedbackRequest {
     'corrected_type': correctedType,
     'feedback_note': feedbackNote,
     'is_correct': isCorrect,
+    'category': category,
+    'tags': tags,
   };
 }
 

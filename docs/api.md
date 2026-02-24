@@ -133,7 +133,9 @@ Web/跨端 Base64 方式：
   "result_id": 1,
   "corrected_type": "corn",
   "feedback_note": "实际是玉米",
-  "is_correct": false
+  "is_correct": false,
+  "category": "pest",
+  "tags": ["蚜虫", "螟虫"]
 }
 ```
 

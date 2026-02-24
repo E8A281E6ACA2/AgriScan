@@ -56,6 +56,8 @@ type UserFeedback struct {
 	CorrectedType string         `gorm:"size:64" json:"corrected_type"`
 	FeedbackNote  string         `gorm:"type:text" json:"feedback_note"`
 	IsCorrect     bool           `json:"is_correct"`
+	Category      string         `gorm:"size:16;index" json:"category"`
+	Tags          string         `gorm:"type:text" json:"tags"`
 }
 
 type FieldNote struct {

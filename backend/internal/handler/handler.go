@@ -295,10 +295,12 @@ func (h *Handler) GetHistory(c *gin.Context) {
 // POST /api/v1/feedback
 func (h *Handler) SubmitFeedback(c *gin.Context) {
 	var req struct {
-		ResultID      uint   `json:"result_id" binding:"required"`
-		CorrectedType string `json:"corrected_type"`
-		FeedbackNote  string `json:"feedback_note"`
-		IsCorrect     bool   `json:"is_correct"`
+		ResultID      uint     `json:"result_id" binding:"required"`
+		CorrectedType string   `json:"corrected_type"`
+		FeedbackNote  string   `json:"feedback_note"`
+		IsCorrect     bool     `json:"is_correct"`
+		Category      string   `json:"category"`
+		Tags          []string `json:"tags"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -311,6 +313,8 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 		CorrectedType: req.CorrectedType,
 		FeedbackNote:  req.FeedbackNote,
 		IsCorrect:     req.IsCorrect,
+		Category:      req.Category,
+		Tags:          strings.Join(req.Tags, ","),
 	}
 
 	err := h.svc.SaveFeedback(feedback)

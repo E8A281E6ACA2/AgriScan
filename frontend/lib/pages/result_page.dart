@@ -19,6 +19,12 @@ class _ResultPageState extends State<ResultPage> {
   String _noteCategory = 'crop';
   final List<String> _selectedTags = [];
   List<String> _availableTags = [];
+  bool _feedbackSubmitted = false;
+  bool _feedbackPrompted = false;
+  List<Crop> _crops = [];
+  String _feedbackCategory = 'crop';
+  final List<String> _feedbackTags = [];
+  String? _feedbackCorrectedType;
 
   @override
   void initState() {
@@ -36,6 +42,21 @@ class _ResultPageState extends State<ResultPage> {
           context.read<AppProvider>().setSimilar(similar);
         }).catchError((_) {}));
     _loadTags();
+    _loadCrops();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_feedbackPrompted) {
+        _feedbackPrompted = true;
+        _showQuickFeedback();
+      }
+    });
+  }
+
+  Future<void> _loadCrops() async {
+    final api = context.read<ApiService>();
+    try {
+      final items = await api.getCrops();
+      if (mounted) setState(() => _crops = items);
+    } catch (_) {}
   }
 
   Future<void> _loadTags() async {
@@ -68,6 +89,7 @@ class _ResultPageState extends State<ResultPage> {
   
   Future<void> _submitFeedback(bool isCorrect) async {
     if (_isSubmitting) return;
+    if (_feedbackSubmitted) return;
     
     setState(() => _isSubmitting = true);
     
@@ -83,7 +105,10 @@ class _ResultPageState extends State<ResultPage> {
         correctedType: _selectedCorrection,
         feedbackNote: _feedbackController.text,
         isCorrect: isCorrect,
+        category: _noteCategory,
+        tags: _selectedTags,
       ));
+      _feedbackSubmitted = true;
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -612,6 +637,209 @@ class _ResultPageState extends State<ResultPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showQuickFeedback() async {
+    if (_feedbackSubmitted) return;
+    await showModalBottomSheet(
+      context: context,
+      isDismissible: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '这次识别是否正确？',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _submitFeedback(true);
+                      },
+                      child: const Text('正确'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showQuickCorrection();
+                      },
+                      child: const Text('错误'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('跳过'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showQuickCorrection() async {
+    _feedbackCategory = 'crop';
+    _feedbackTags.clear();
+    _feedbackCorrectedType = _crops.isNotEmpty ? _crops.first.code : null;
+    await _loadFeedbackTags();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '选择正确类型',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _feedbackCorrectedType,
+                decoration: const InputDecoration(
+                  labelText: '作物类型',
+                  border: OutlineInputBorder(),
+                ),
+                items: _crops
+                    .map((c) => DropdownMenuItem(
+                          value: c.code,
+                          child: Text('${c.name} (${c.code})'),
+                        ))
+                    .toList(),
+                onChanged: (val) => setState(() => _feedbackCorrectedType = val),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('病害'),
+                    selected: _feedbackCategory == 'disease',
+                    onSelected: (_) => setState(() {
+                      _feedbackCategory = 'disease';
+                      _feedbackTags.clear();
+                      _loadFeedbackTags();
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('虫害'),
+                    selected: _feedbackCategory == 'pest',
+                    onSelected: (_) => setState(() {
+                      _feedbackCategory = 'pest';
+                      _feedbackTags.clear();
+                      _loadFeedbackTags();
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('杂草'),
+                    selected: _feedbackCategory == 'weed',
+                    onSelected: (_) => setState(() {
+                      _feedbackCategory = 'weed';
+                      _feedbackTags.clear();
+                      _loadFeedbackTags();
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _availableTags.map((t) {
+                  final selected = _feedbackTags.contains(t);
+                  return FilterChip(
+                    label: Text(t),
+                    selected: selected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _feedbackTags.add(t);
+                        } else {
+                          _feedbackTags.remove(t);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _submitQuickFeedback();
+                  },
+                  child: const Text('提交'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _loadFeedbackTags() async {
+    final api = context.read<ApiService>();
+    try {
+      final tags = await api.getTags(category: _feedbackCategory);
+      if (mounted) {
+        setState(() => _availableTags = tags);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _submitQuickFeedback() async {
+    if (_isSubmitting || _feedbackSubmitted) return;
+    final provider = context.read<AppProvider>();
+    final api = context.read<ApiService>();
+    final result = provider.recognizeResult;
+    if (result == null) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await api.submitFeedback(FeedbackRequest(
+        resultId: result.resultId,
+        correctedType: _feedbackCorrectedType,
+        feedbackNote: '',
+        isCorrect: false,
+        category: _feedbackCategory,
+        tags: _feedbackTags,
+      ));
+      _feedbackSubmitted = true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('感谢反馈')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('反馈失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Widget _buildTagsChips() {
