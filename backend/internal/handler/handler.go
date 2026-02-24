@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -179,7 +180,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 	}
 
 	// 自动创建手记
-	_, _ = h.svc.CreateNote(uint(userID), req.ImageID, &savedResult.ID, "", "crop")
+	_, _ = h.svc.CreateNote(uint(userID), req.ImageID, &savedResult.ID, "", "crop", nil)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       savedResult.RawText,
@@ -311,10 +312,11 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 // POST /api/v1/notes
 func (h *Handler) CreateNote(c *gin.Context) {
 	var req struct {
-		ImageID  uint   `json:"image_id" binding:"required"`
-		ResultID *uint  `json:"result_id"`
-		Note     string `json:"note"`
-		Category string `json:"category"`
+		ImageID  uint     `json:"image_id" binding:"required"`
+		ResultID *uint    `json:"result_id"`
+		Note     string   `json:"note"`
+		Category string   `json:"category"`
+		Tags     []string `json:"tags"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -328,7 +330,7 @@ func (h *Handler) CreateNote(c *gin.Context) {
 		userID = 1
 	}
 
-	note, err := h.svc.CreateNote(uint(userID), req.ImageID, req.ResultID, req.Note, req.Category)
+	note, err := h.svc.CreateNote(uint(userID), req.ImageID, req.ResultID, req.Note, req.Category, req.Tags)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -370,7 +372,7 @@ func (h *Handler) GetNotes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"results": notes,
+		"results": normalizeNoteTags(notes),
 		"limit":   limit,
 		"offset":  offset,
 	})
@@ -465,4 +467,36 @@ func parseDateRange(start, end string) (*time.Time, *time.Time, error) {
 		return nil, nil, fmt.Errorf("invalid date range")
 	}
 	return startTime, endTime, nil
+}
+
+func normalizeNoteTags(notes []model.FieldNote) []gin.H {
+	out := make([]gin.H, 0, len(notes))
+	for _, n := range notes {
+		tags := []string{}
+		if n.Tags != "" {
+			for _, t := range strings.Split(n.Tags, ",") {
+				if strings.TrimSpace(t) != "" {
+					tags = append(tags, strings.TrimSpace(t))
+				}
+			}
+		}
+		out = append(out, gin.H{
+			"id":             n.ID,
+			"created_at":     n.CreatedAt,
+			"image_id":       n.ImageID,
+			"result_id":      n.ResultID,
+			"image_url":      n.ImageURL,
+			"note":           n.Note,
+			"category":       n.Category,
+			"raw_text":       n.RawText,
+			"crop_type":      n.CropType,
+			"confidence":     n.Confidence,
+			"description":    n.Description,
+			"growth_stage":   n.GrowthStage,
+			"possible_issue": n.PossibleIssue,
+			"provider":       n.Provider,
+			"tags":           tags,
+		})
+	}
+	return out
 }

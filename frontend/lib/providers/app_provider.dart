@@ -15,6 +15,7 @@ class AppProvider extends ChangeNotifier {
   
   // 历史记录
   List<RecognizeResponse> _history = [];
+  List<RecognizeResponse> _similar = [];
   
   // Getters
   AppState get state => _state;
@@ -23,6 +24,7 @@ class AppProvider extends ChangeNotifier {
   UploadResponse? get uploadResponse => _uploadResponse;
   RecognizeResponse? get recognizeResult => _recognizeResult;
   List<RecognizeResponse> get history => _history;
+  List<RecognizeResponse> get similar => _similar;
   
   void setLoading() {
     _state = AppState.loading;
@@ -73,6 +75,11 @@ class AppProvider extends ChangeNotifier {
   
   void setHistory(List<RecognizeResponse> history) {
     _history = history;
+    notifyListeners();
+  }
+
+  void setSimilar(List<RecognizeResponse> items) {
+    _similar = items;
     notifyListeners();
   }
 }

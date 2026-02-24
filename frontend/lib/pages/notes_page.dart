@@ -55,6 +55,49 @@ class _NotesPageState extends State<NotesPage> {
     'raw_text',
   ];
 
+  static const Map<String, List<String>> _fieldPresets = {
+    '轻量': [
+      'id',
+      'created_at',
+      'image_url',
+      'category',
+      'crop_type',
+      'confidence',
+      'note',
+    ],
+    '完整': [
+      'id',
+      'created_at',
+      'image_id',
+      'result_id',
+      'image_url',
+      'category',
+      'crop_type',
+      'confidence',
+      'description',
+      'growth_stage',
+      'possible_issue',
+      'provider',
+      'note',
+    ],
+    '研究用': [
+      'id',
+      'created_at',
+      'image_id',
+      'result_id',
+      'image_url',
+      'category',
+      'crop_type',
+      'confidence',
+      'description',
+      'growth_stage',
+      'possible_issue',
+      'provider',
+      'note',
+      'raw_text',
+    ],
+  };
+
   @override
   void initState() {
     super.initState();
@@ -245,6 +288,13 @@ class _NotesPageState extends State<NotesPage> {
                                       '类型: ${note.category}',
                                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                                     ),
+                                    if (note.tags.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '标签: ${note.tags.join(", ")}',
+                                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                      ),
+                                    ],
                                     const SizedBox(height: 4),
                                     Text(
                                       note.createdAt,
@@ -267,7 +317,7 @@ class _NotesPageState extends State<NotesPage> {
   }
 
   Future<void> _showExportDialog() async {
-    final selected = Set<String>.from(_fieldOptions);
+    final selected = Set<String>.from(_fieldPresets['完整']!);
     await showDialog(
       context: context,
       builder: (context) {
@@ -277,25 +327,48 @@ class _NotesPageState extends State<NotesPage> {
               title: const Text('选择导出字段'),
               content: SizedBox(
                 width: double.maxFinite,
-                child: ListView(
-                  shrinkWrap: true,
-                  children: _fieldOptions.map((f) {
-                    final checked = selected.contains(f);
-                    return CheckboxListTile(
-                      value: checked,
-                      onChanged: (val) {
-                        setStateDialog(() {
-                          if (val == true) {
-                            selected.add(f);
-                          } else {
-                            selected.remove(f);
-                          }
-                        });
-                      },
-                      title: Text(f),
-                      dense: true,
-                    );
-                  }).toList(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      children: _fieldPresets.keys.map((name) {
+                        return OutlinedButton(
+                          onPressed: () {
+                            setStateDialog(() {
+                              selected
+                                ..clear()
+                                ..addAll(_fieldPresets[name]!);
+                            });
+                          },
+                          child: Text(name),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: _fieldOptions.map((f) {
+                          final checked = selected.contains(f);
+                          return CheckboxListTile(
+                            value: checked,
+                            onChanged: (val) {
+                              setStateDialog(() {
+                                if (val == true) {
+                                  selected.add(f);
+                                } else {
+                                  selected.remove(f);
+                                }
+                              });
+                            },
+                            title: Text(f),
+                            dense: true,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               actions: [

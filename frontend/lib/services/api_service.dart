@@ -257,6 +257,7 @@ class Note {
   final String? growthStage;
   final String? possibleIssue;
   final String? provider;
+  final List<String> tags;
   final String createdAt;
 
   Note({
@@ -272,6 +273,7 @@ class Note {
     this.growthStage,
     this.possibleIssue,
     this.provider,
+    required this.tags,
     required this.createdAt,
   });
 
@@ -291,6 +293,7 @@ class Note {
       growthStage: json['growth_stage'],
       possibleIssue: json['possible_issue'],
       provider: json['provider'],
+      tags: json['tags'] == null ? [] : List<String>.from(json['tags']),
       createdAt: json['created_at'] ?? '',
     );
   }
@@ -301,12 +304,14 @@ class NoteRequest {
   final int? resultId;
   final String note;
   final String category;
+  final List<String> tags;
 
   NoteRequest({
     required this.imageId,
     this.resultId,
     required this.note,
     required this.category,
+    required this.tags,
   });
 
   Map<String, dynamic> toJson() => {
@@ -314,6 +319,7 @@ class NoteRequest {
         'result_id': resultId,
         'note': note,
         'category': category,
+        'tags': tags,
       };
 }
 

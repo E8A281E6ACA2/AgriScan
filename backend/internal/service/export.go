@@ -50,6 +50,7 @@ func (s *Service) ExportNotesCSV(w io.Writer, userID uint, limit, offset int, ca
 			"provider":       n.Provider,
 			"note":           n.Note,
 			"raw_text":       n.RawText,
+			"tags":           n.Tags,
 		}
 
 		out := make([]string, 0, len(columns))
@@ -77,13 +78,14 @@ func parseFields(fields string) []string {
 		"possible_issue",
 		"provider",
 		"note",
+		"tags",
 	}
 	if strings.TrimSpace(fields) == "" {
 		return defaultCols
 	}
 
 	allowed := map[string]bool{}
-	for _, c := range append(defaultCols, "raw_text") {
+	for _, c := range append(defaultCols, "raw_text", "tags") {
 		allowed[c] = true
 	}
 

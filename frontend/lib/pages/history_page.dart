@@ -24,6 +24,7 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       final response = await api.getHistory();
       provider.setHistory(response.results);
+      provider.setSimilar(_findSimilar(response.results));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -31,6 +32,13 @@ class _HistoryPageState extends State<HistoryPage> {
         );
       }
     }
+  }
+
+  List<RecognizeResponse> _findSimilar(List<RecognizeResponse> history) {
+    final result = context.read<AppProvider>().recognizeResult;
+    if (result == null || result.cropType.isEmpty) return [];
+    final crop = result.cropType;
+    return history.where((h) => h.cropType == crop && h.imageUrl != null && h.imageUrl!.isNotEmpty).take(6).toList();
   }
   
   @override

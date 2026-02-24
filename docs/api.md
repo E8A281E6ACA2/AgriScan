@@ -164,6 +164,7 @@ Web/跨端 Base64 方式：
       "possible_issue": null,
       "provider": "qwen",
       "note": "叶片发黄，疑似缺氮",
+      "tags": ["锈病", "蚜虫"],
       "category": "crop",
       "created_at": "2026-02-24T12:00:00Z"
     }
@@ -190,7 +191,12 @@ Web/跨端 Base64 方式：
 | fields | string | - | 选择导出字段（逗号分隔） |
 
 可选字段：
-`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text`
+`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text,tags`
+
+字段预设（前端使用）：
+- 轻量：`id,created_at,image_url,category,crop_type,confidence,note`
+- 完整：`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,tags`
+- 研究用：完整 + `raw_text`
 
 返回 `text/csv` 文件。
 
@@ -205,7 +211,8 @@ Web/跨端 Base64 方式：
   "image_id": 1,
   "result_id": 1,
   "note": "叶片发黄，疑似缺氮",
-  "category": "crop"
+  "category": "crop",
+  "tags": ["锈病", "蚜虫"]
 }
 ```
 

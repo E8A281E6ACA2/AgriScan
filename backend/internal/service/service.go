@@ -214,7 +214,7 @@ func (s *Service) SaveFeedback(feedback *model.UserFeedback) error {
 }
 
 // CreateNote 创建手记
-func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note string, category string) (*model.FieldNote, error) {
+func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note string, category string, tags []string) (*model.FieldNote, error) {
 	img, err := s.repo.GetImageByID(imageID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image: %w", err)
@@ -240,6 +240,7 @@ func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note str
 		ImageURL: img.OriginalURL,
 		Note:     note,
 		Category: category,
+		Tags:     strings.Join(tags, ","),
 	}
 	if result != nil {
 		item.RawText = result.RawText

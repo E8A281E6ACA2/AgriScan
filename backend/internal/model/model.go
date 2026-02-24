@@ -76,4 +76,5 @@ type FieldNote struct {
 	GrowthStage   *string        `json:"growth_stage"`
 	PossibleIssue *string        `json:"possible_issue"`
 	Provider      string         `gorm:"size:32" json:"provider"`
+	Tags          string         `gorm:"type:text" json:"tags"`
 }

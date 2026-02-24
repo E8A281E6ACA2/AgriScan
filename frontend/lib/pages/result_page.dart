@@ -17,6 +17,24 @@ class _ResultPageState extends State<ResultPage> {
   bool _isSubmitting = false;
   bool _isSavingNote = false;
   String _noteCategory = 'crop';
+  final List<String> _selectedTags = [];
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => context.read<ApiService>().getHistory().then((res) {
+          if (!mounted) return;
+          context.read<AppProvider>().setHistory(res.results);
+          final result = context.read<AppProvider>().recognizeResult;
+          if (result == null) return;
+          final crop = result.cropType;
+          final similar = res.results
+              .where((h) => h.cropType == crop && h.imageUrl != null && h.imageUrl!.isNotEmpty)
+              .take(6)
+              .toList();
+          context.read<AppProvider>().setSimilar(similar);
+        }).catchError((_) {}));
+  }
   
   final List<String> _commonCrops = [
     'wheat', 'corn', 'rice', 'soybean', 'cotton', 
@@ -80,6 +98,7 @@ class _ResultPageState extends State<ResultPage> {
         resultId: result.resultId,
         note: noteText,
         category: _noteCategory,
+        tags: _selectedTags,
       ));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -159,6 +178,42 @@ class _ResultPageState extends State<ResultPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 相似样例
+                if (provider.similar.isNotEmpty) ...[
+                  Text(
+                    '相似样例（同作物历史）',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 88,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        final item = provider.similar[index];
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            item.imageUrl ?? '',
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 88,
+                              height: 88,
+                              color: Colors.grey[200],
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.image_not_supported),
+                            ),
+                          ),
+                        );
+                      },
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemCount: provider.similar.length,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // 图片展示
                 if (imageBytes != null)
                   ClipRRect(
@@ -333,30 +388,47 @@ class _ResultPageState extends State<ResultPage> {
                     ChoiceChip(
                       label: const Text('作物'),
                       selected: _noteCategory == 'crop',
-                      onSelected: (_) => setState(() => _noteCategory = 'crop'),
+                      onSelected: (_) => setState(() {
+                        _noteCategory = 'crop';
+                        _selectedTags.clear();
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('病害'),
                       selected: _noteCategory == 'disease',
-                      onSelected: (_) => setState(() => _noteCategory = 'disease'),
+                      onSelected: (_) => setState(() {
+                        _noteCategory = 'disease';
+                        _selectedTags.clear();
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('虫害'),
                       selected: _noteCategory == 'pest',
-                      onSelected: (_) => setState(() => _noteCategory = 'pest'),
+                      onSelected: (_) => setState(() {
+                        _noteCategory = 'pest';
+                        _selectedTags.clear();
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('杂草'),
                       selected: _noteCategory == 'weed',
-                      onSelected: (_) => setState(() => _noteCategory = 'weed'),
+                      onSelected: (_) => setState(() {
+                        _noteCategory = 'weed';
+                        _selectedTags.clear();
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('其他'),
                       selected: _noteCategory == 'other',
-                      onSelected: (_) => setState(() => _noteCategory = 'other'),
+                      onSelected: (_) => setState(() {
+                        _noteCategory = 'other';
+                        _selectedTags.clear();
+                      }),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                _buildTagsChips(),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _noteController,
@@ -437,6 +509,16 @@ class _ResultPageState extends State<ResultPage> {
   
   Widget _buildConfidenceRow(double confidence) {
     final percent = (confidence * 100).toStringAsFixed(1);
+    final label = confidence >= 0.85
+        ? '高可信'
+        : confidence >= 0.6
+            ? '中等可信'
+            : '低可信';
+    final risk = confidence >= 0.85
+        ? '风险低'
+        : confidence >= 0.6
+            ? '风险中'
+            : '风险高';
     return Row(
       children: [
         SizedBox(
@@ -450,9 +532,17 @@ class _ResultPageState extends State<ResultPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '$percent%',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Text(
+                    '$percent%',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(label, style: TextStyle(color: Colors.grey[600])),
+                  const SizedBox(width: 8),
+                  Text(risk, style: TextStyle(color: Colors.grey[600])),
+                ],
               ),
               const SizedBox(height: 4),
               LinearProgressIndicator(
@@ -499,5 +589,45 @@ class _ResultPageState extends State<ResultPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildTagsChips() {
+    final tags = _tagsForCategory(_noteCategory);
+    if (tags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: tags.map((tag) {
+        final selected = _selectedTags.contains(tag);
+        return FilterChip(
+          label: Text(tag),
+          selected: selected,
+          onSelected: (val) {
+            setState(() {
+              if (val) {
+                _selectedTags.add(tag);
+              } else {
+                _selectedTags.remove(tag);
+              }
+            });
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  List<String> _tagsForCategory(String category) {
+    switch (category) {
+      case 'pest':
+        return const ['蚜虫', '螟虫', '红蜘蛛', '蓟马', '粘虫', '象甲'];
+      case 'weed':
+        return const ['稗草', '马齿苋', '狗尾草', '牛筋草', '藜', '苍耳'];
+      case 'disease':
+        return const ['锈病', '白粉病', '叶斑病', '枯萎病', '纹枯病', '霜霉病'];
+      default:
+        return const [];
+    }
   }
 }
