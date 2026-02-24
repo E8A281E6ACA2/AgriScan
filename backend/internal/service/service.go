@@ -214,7 +214,11 @@ func (s *Service) GetHistory(userID uint, limit, offset int) ([]model.Recognitio
 
 // SaveFeedback 保存用户反馈
 func (s *Service) SaveFeedback(feedback *model.UserFeedback) error {
-	return s.repo.CreateFeedback(feedback)
+	if err := s.repo.CreateFeedback(feedback); err != nil {
+		return err
+	}
+	_ = s.repo.UpdateNoteFeedback(feedback.ResultID, feedback)
+	return nil
 }
 
 // CreateNote 创建手记

@@ -130,6 +130,17 @@ func (r *Repository) CreateFeedback(feedback *model.UserFeedback) error {
 	return r.db.Create(feedback).Error
 }
 
+func (r *Repository) UpdateNoteFeedback(resultID uint, feedback *model.UserFeedback) error {
+	update := map[string]interface{}{
+		"is_correct":        feedback.IsCorrect,
+		"corrected_type":    feedback.CorrectedType,
+		"feedback_note":     feedback.FeedbackNote,
+		"feedback_category": feedback.Category,
+		"feedback_tags":     feedback.Tags,
+	}
+	return r.db.Model(&model.FieldNote{}).Where("result_id = ?", resultID).Updates(update).Error
+}
+
 // FieldNote 操作
 func (r *Repository) CreateNote(note *model.FieldNote) error {
 	return r.db.Create(note).Error

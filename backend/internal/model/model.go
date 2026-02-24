@@ -61,24 +61,29 @@ type UserFeedback struct {
 }
 
 type FieldNote struct {
-	ID            uint           `gorm:"primarykey" json:"id"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
-	UserID        uint           `gorm:"index" json:"user_id"`
-	ImageID       uint           `gorm:"index" json:"image_id"`
-	ResultID      *uint          `gorm:"index" json:"result_id"`
-	ImageURL      string         `gorm:"size:512" json:"image_url"`
-	Note          string         `gorm:"type:text" json:"note"`
-	Category      string         `gorm:"size:16;index" json:"category"`
-	RawText       string         `gorm:"type:text" json:"raw_text"`
-	CropType      string         `gorm:"size:64;index" json:"crop_type"`
-	Confidence    float64        `json:"confidence"`
-	Description   string         `gorm:"type:text" json:"description"`
-	GrowthStage   *string        `json:"growth_stage"`
-	PossibleIssue *string        `json:"possible_issue"`
-	Provider      string         `gorm:"size:32" json:"provider"`
-	Tags          string         `gorm:"type:text" json:"tags"`
+	ID               uint           `gorm:"primarykey" json:"id"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	UserID           uint           `gorm:"index" json:"user_id"`
+	ImageID          uint           `gorm:"index" json:"image_id"`
+	ResultID         *uint          `gorm:"index" json:"result_id"`
+	ImageURL         string         `gorm:"size:512" json:"image_url"`
+	Note             string         `gorm:"type:text" json:"note"`
+	Category         string         `gorm:"size:16;index" json:"category"`
+	RawText          string         `gorm:"type:text" json:"raw_text"`
+	CropType         string         `gorm:"size:64;index" json:"crop_type"`
+	Confidence       float64        `json:"confidence"`
+	Description      string         `gorm:"type:text" json:"description"`
+	GrowthStage      *string        `json:"growth_stage"`
+	PossibleIssue    *string        `json:"possible_issue"`
+	Provider         string         `gorm:"size:32" json:"provider"`
+	Tags             string         `gorm:"type:text" json:"tags"`
+	IsCorrect        *bool          `json:"is_correct"`
+	CorrectedType    string         `gorm:"size:64" json:"corrected_type"`
+	FeedbackNote     string         `gorm:"type:text" json:"feedback_note"`
+	FeedbackCategory string         `gorm:"size:16;index" json:"feedback_category"`
+	FeedbackTags     string         `gorm:"type:text" json:"feedback_tags"`
 }
 
 type ExportTemplate struct {

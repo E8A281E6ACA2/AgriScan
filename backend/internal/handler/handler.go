@@ -503,22 +503,35 @@ func normalizeNoteTags(notes []model.FieldNote) []gin.H {
 				}
 			}
 		}
+		fbTags := []string{}
+		if n.FeedbackTags != "" {
+			for _, t := range strings.Split(n.FeedbackTags, ",") {
+				if strings.TrimSpace(t) != "" {
+					fbTags = append(fbTags, strings.TrimSpace(t))
+				}
+			}
+		}
 		out = append(out, gin.H{
-			"id":             n.ID,
-			"created_at":     n.CreatedAt,
-			"image_id":       n.ImageID,
-			"result_id":      n.ResultID,
-			"image_url":      n.ImageURL,
-			"note":           n.Note,
-			"category":       n.Category,
-			"raw_text":       n.RawText,
-			"crop_type":      n.CropType,
-			"confidence":     n.Confidence,
-			"description":    n.Description,
-			"growth_stage":   n.GrowthStage,
-			"possible_issue": n.PossibleIssue,
-			"provider":       n.Provider,
-			"tags":           tags,
+			"id":                n.ID,
+			"created_at":        n.CreatedAt,
+			"image_id":          n.ImageID,
+			"result_id":         n.ResultID,
+			"image_url":         n.ImageURL,
+			"note":              n.Note,
+			"category":          n.Category,
+			"raw_text":          n.RawText,
+			"crop_type":         n.CropType,
+			"confidence":        n.Confidence,
+			"description":       n.Description,
+			"growth_stage":      n.GrowthStage,
+			"possible_issue":    n.PossibleIssue,
+			"provider":          n.Provider,
+			"tags":              tags,
+			"is_correct":        n.IsCorrect,
+			"corrected_type":    n.CorrectedType,
+			"feedback_note":     n.FeedbackNote,
+			"feedback_category": n.FeedbackCategory,
+			"feedback_tags":     fbTags,
 		})
 	}
 	return out
