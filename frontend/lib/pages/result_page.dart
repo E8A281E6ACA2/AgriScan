@@ -230,9 +230,57 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
+                // 识别说明与原始输出
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '识别说明',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          result?.description ?? '暂无说明',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '提示：识别结果仅供参考，建议结合田间实际情况判断。',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                        if (result?.rawText != null &&
+                            result!.rawText!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: const Text('模型原始输出'),
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  result.rawText!,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
                 // 反馈区域
                 Text(
                   '反馈纠错',

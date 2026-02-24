@@ -257,8 +257,8 @@ func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note str
 }
 
 // GetNotes 获取手记列表
-func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string) ([]model.FieldNote, error) {
-	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType)
+func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time) ([]model.FieldNote, error) {
+	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType, startDate, endDate)
 }
 
 // ListProviders 列出所有大模型提供商

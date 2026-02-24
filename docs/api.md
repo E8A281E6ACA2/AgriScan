@@ -145,6 +145,8 @@ Web/跨端 Base64 方式：
 | offset | int | 0 | 偏移量 |
 | category | string | - | 过滤分类（crop/disease/pest/weed/other） |
 | crop_type | string | - | 过滤作物类型 |
+| start_date | string | - | 开始日期（YYYY-MM-DD） |
+| end_date | string | - | 结束日期（YYYY-MM-DD） |
 
 **响应示例:**
 ```json
@@ -183,6 +185,12 @@ Web/跨端 Base64 方式：
 | offset | int | 0 | 偏移量 |
 | category | string | - | 过滤分类（crop/disease/pest/weed/other） |
 | crop_type | string | - | 过滤作物类型 |
+| start_date | string | - | 开始日期（YYYY-MM-DD） |
+| end_date | string | - | 结束日期（YYYY-MM-DD） |
+| fields | string | - | 选择导出字段（逗号分隔） |
+
+可选字段：
+`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text`
 
 返回 `text/csv` 文件。
 

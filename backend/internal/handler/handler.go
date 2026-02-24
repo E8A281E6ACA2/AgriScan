@@ -3,10 +3,12 @@ package handler
 import (
 	"agri-scan/internal/model"
 	"agri-scan/internal/service"
+	"fmt"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -349,11 +351,19 @@ func (h *Handler) GetNotes(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	category := c.DefaultQuery("category", "")
 	cropType := c.DefaultQuery("crop_type", "")
+	startDateStr := c.DefaultQuery("start_date", "")
+	endDateStr := c.DefaultQuery("end_date", "")
 
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
-	notes, err := h.svc.GetNotes(uint(userID), limit, offset, category, cropType)
+	startDate, endDate, err := parseDateRange(startDateStr, endDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	notes, err := h.svc.GetNotes(uint(userID), limit, offset, category, cropType, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -380,13 +390,22 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	category := c.DefaultQuery("category", "")
 	cropType := c.DefaultQuery("crop_type", "")
+	startDateStr := c.DefaultQuery("start_date", "")
+	endDateStr := c.DefaultQuery("end_date", "")
+	fields := c.DefaultQuery("fields", "")
 
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
+	startDate, endDate, err := parseDateRange(startDateStr, endDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=notes.csv")
-	if err := h.svc.ExportNotesCSV(c.Writer, uint(userID), limit, offset, category, cropType); err != nil {
+	if err := h.svc.ExportNotesCSV(c.Writer, uint(userID), limit, offset, category, cropType, startDate, endDate, fields); err != nil {
 		c.Status(http.StatusInternalServerError)
 	}
 }
@@ -418,4 +437,32 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 // GetFile 获取上传的文件
 func GetFile(c *gin.Context, key string) (*multipart.FileHeader, error) {
 	return c.FormFile(key)
+}
+
+func parseDateRange(start, end string) (*time.Time, *time.Time, error) {
+	if start == "" && end == "" {
+		return nil, nil, nil
+	}
+	var startTime *time.Time
+	var endTime *time.Time
+	if start != "" {
+		t, err := time.ParseInLocation("2006-01-02", start, time.Local)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid start_date")
+		}
+		startTime = &t
+	}
+	if end != "" {
+		t, err := time.ParseInLocation("2006-01-02", end, time.Local)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid end_date")
+		}
+		// endDate 取到次日 0 点（左闭右开）
+		t = t.Add(24 * time.Hour)
+		endTime = &t
+	}
+	if startTime != nil && endTime != nil && !startTime.Before(*endTime) {
+		return nil, nil, fmt.Errorf("invalid date range")
+	}
+	return startTime, endTime, nil
 }

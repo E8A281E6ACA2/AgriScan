@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../utils/export_helper.dart';
 
@@ -15,6 +16,9 @@ class _NotesPageState extends State<NotesPage> {
   List<Note> _notes = [];
   String _category = 'all';
   String _cropType = 'all';
+  DateTime? _startDate;
+  DateTime? _endDate;
+  static final DateFormat _dateFmt = DateFormat('yyyy-MM-dd');
 
   static const List<String> _categories = [
     'all',
@@ -34,6 +38,23 @@ class _NotesPageState extends State<NotesPage> {
     'tomato',
   ];
 
+  static const List<String> _fieldOptions = [
+    'id',
+    'created_at',
+    'image_id',
+    'result_id',
+    'image_url',
+    'category',
+    'crop_type',
+    'confidence',
+    'description',
+    'growth_stage',
+    'possible_issue',
+    'provider',
+    'note',
+    'raw_text',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +68,8 @@ class _NotesPageState extends State<NotesPage> {
       final res = await api.getNotes(
         category: _category == 'all' ? null : _category,
         cropType: _cropType == 'all' ? null : _cropType,
+        startDate: _startDate == null ? null : _dateFmt.format(_startDate!),
+        endDate: _endDate == null ? null : _dateFmt.format(_endDate!),
       );
       setState(() => _notes = res.results);
     } catch (e) {
@@ -67,7 +90,7 @@ class _NotesPageState extends State<NotesPage> {
         title: const Text('手记'),
         actions: [
           IconButton(
-            onPressed: _exportNotes,
+            onPressed: _showExportDialog,
             icon: const Icon(Icons.download),
             tooltip: '导出CSV',
           ),
@@ -113,6 +136,42 @@ class _NotesPageState extends State<NotesPage> {
                       _loadNotes();
                     },
                   ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _pickDate(isStart: true),
+                    child: Text(_startDate == null
+                        ? '开始日期'
+                        : _dateFmt.format(_startDate!)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _pickDate(isStart: false),
+                    child: Text(_endDate == null
+                        ? '结束日期'
+                        : _dateFmt.format(_endDate!)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _startDate = null;
+                      _endDate = null;
+                    });
+                    _loadNotes();
+                  },
+                  icon: const Icon(Icons.clear),
+                  tooltip: '清除日期',
                 ),
               ],
             ),
@@ -207,7 +266,71 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  Future<void> _exportNotes() async {
+  Future<void> _showExportDialog() async {
+    final selected = Set<String>.from(_fieldOptions);
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('选择导出字段'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: _fieldOptions.map((f) {
+                    final checked = selected.contains(f);
+                    return CheckboxListTile(
+                      value: checked,
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          if (val == true) {
+                            selected.add(f);
+                          } else {
+                            selected.remove(f);
+                          }
+                        });
+                      },
+                      title: Text(f),
+                      dense: true,
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => setStateDialog(() {
+                    selected
+                      ..clear()
+                      ..addAll(_fieldOptions);
+                  }),
+                  child: const Text('全选'),
+                ),
+                TextButton(
+                  onPressed: () => setStateDialog(() => selected.clear()),
+                  child: const Text('清空'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _exportNotes(selected.toList());
+                  },
+                  child: const Text('导出'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _exportNotes(List<String> fields) async {
     final api = context.read<ApiService>();
     try {
       final params = <String, dynamic>{
@@ -219,6 +342,15 @@ class _NotesPageState extends State<NotesPage> {
       }
       if (_cropType != 'all') {
         params['crop_type'] = _cropType;
+      }
+      if (_startDate != null) {
+        params['start_date'] = _dateFmt.format(_startDate!);
+      }
+      if (_endDate != null) {
+        params['end_date'] = _dateFmt.format(_endDate!);
+      }
+      if (fields.isNotEmpty) {
+        params['fields'] = fields.join(',');
       }
 
       final bytes = await api.exportNotes(params);
@@ -235,5 +367,25 @@ class _NotesPageState extends State<NotesPage> {
         );
       }
     }
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final initial = isStart ? (_startDate ?? now) : (_endDate ?? now);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _startDate = picked;
+      } else {
+        _endDate = picked;
+      }
+    });
+    _loadNotes();
   }
 }

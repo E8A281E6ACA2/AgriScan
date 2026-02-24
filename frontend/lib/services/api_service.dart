@@ -93,6 +93,8 @@ class ApiService {
     int offset = 0,
     String? category,
     String? cropType,
+    String? startDate,
+    String? endDate,
   }) async {
     final params = <String, dynamic>{
       'limit': limit,
@@ -103,6 +105,12 @@ class ApiService {
     }
     if (cropType != null && cropType.isNotEmpty) {
       params['crop_type'] = cropType;
+    }
+    if (startDate != null && startDate.isNotEmpty) {
+      params['start_date'] = startDate;
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      params['end_date'] = endDate;
     }
 
     final response = await _dio.get('/notes', queryParameters: params);
@@ -153,6 +161,7 @@ class UploadResponse {
 }
 
 class RecognizeResponse {
+  final String? rawText;
   final int resultId;
   final int imageId;
   final String cropType;
@@ -164,6 +173,7 @@ class RecognizeResponse {
   final String? imageUrl;
   
   RecognizeResponse({
+    this.rawText,
     required this.resultId,
     required this.imageId,
     required this.cropType,
@@ -177,6 +187,7 @@ class RecognizeResponse {
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
     return RecognizeResponse(
+      rawText: json['raw_text'],
       resultId: json['result_id'] ?? json['id'] ?? 0,
       imageId: json['image_id'] ?? json['imageId'] ?? 0,
       cropType: json['crop_type'],

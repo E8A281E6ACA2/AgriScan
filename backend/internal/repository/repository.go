@@ -3,6 +3,7 @@ package repository
 import (
 	"agri-scan/internal/model"
 	"fmt"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -88,7 +89,7 @@ func (r *Repository) CreateNote(note *model.FieldNote) error {
 	return r.db.Create(note).Error
 }
 
-func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, cropType string) ([]model.FieldNote, error) {
+func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time) ([]model.FieldNote, error) {
 	var notes []model.FieldNote
 	query := r.db.Where("user_id = ?", userID)
 	if category != "" {
@@ -96,6 +97,12 @@ func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, 
 	}
 	if cropType != "" {
 		query = query.Where("crop_type = ?", cropType)
+	}
+	if startDate != nil {
+		query = query.Where("created_at >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("created_at < ?", *endDate)
 	}
 	err := query.Order("created_at DESC").
 		Limit(limit).
