@@ -71,6 +71,34 @@
 
 ---
 
+### 0.1 管理后台
+
+Header: `X-Admin-Token`
+
+**GET** `/admin/users`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| q | string | - | 关键字（邮箱/昵称） |
+
+**PUT** `/admin/users/:id`
+
+```json
+{
+  "plan": "silver",
+  "status": "active",
+  "quota_total": 5000,
+  "quota_used": 100,
+  "ad_credits": 0
+}
+```
+
+**POST** `/admin/users/:id/purge`
+
+按用户当前档次的留存天数清理手记。
+
 ### 1. 上传图片
 
 **POST** `/upload`

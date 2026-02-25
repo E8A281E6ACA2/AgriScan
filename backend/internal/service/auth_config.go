@@ -10,7 +10,6 @@ type AuthConfig struct {
 	OTPMinutes        int
 	SessionDays       int
 	FreeRetentionDays int
-	PaidRetentionDays int
 	FreeQuotaTotal    int
 	DebugOTP          bool
 	PlanSilver        PlanSetting
@@ -25,7 +24,6 @@ func loadAuthConfig() AuthConfig {
 		OTPMinutes:        getEnvInt("AUTH_OTP_MINUTES", 10),
 		SessionDays:       getEnvInt("AUTH_SESSION_DAYS", 30),
 		FreeRetentionDays: getEnvInt("AUTH_FREE_RETENTION_DAYS", 7),
-		PaidRetentionDays: getEnvInt("AUTH_PAID_RETENTION_DAYS", 90),
 		FreeQuotaTotal:    getEnvInt("AUTH_FREE_QUOTA_TOTAL", 0),
 		DebugOTP:          getEnvBool("AUTH_DEBUG_OTP", true),
 		PlanSilver: PlanSetting{

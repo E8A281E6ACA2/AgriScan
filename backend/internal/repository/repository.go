@@ -172,6 +172,11 @@ func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, 
 	return notes, err
 }
 
+func (r *Repository) PurgeNotesBefore(userID uint, cutoff time.Time) (int64, error) {
+	res := r.db.Where("user_id = ? AND created_at < ?", userID, cutoff).Delete(&model.FieldNote{})
+	return res.RowsAffected, res.Error
+}
+
 func (r *Repository) GetUserByOpenID(openID string) (*model.User, error) {
 	var user model.User
 	err := r.db.Where("open_id = ?", openID).First(&user).Error

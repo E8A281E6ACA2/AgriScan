@@ -67,6 +67,14 @@ class HomePage extends StatelessWidget {
                 color: Colors.teal,
                 onTap: () => Navigator.pushNamed(context, '/notes'),
               ),
+              const SizedBox(height: 16),
+              _buildFeatureButton(
+                context,
+                icon: Icons.admin_panel_settings,
+                label: '管理后台',
+                color: Colors.grey,
+                onTap: () => Navigator.pushNamed(context, '/admin'),
+              ),
               const Spacer(),
               // 底部信息
               Text(

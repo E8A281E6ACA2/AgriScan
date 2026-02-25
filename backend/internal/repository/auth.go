@@ -142,3 +142,14 @@ func (r *Repository) TransferUserData(fromUserID, toUserID uint) error {
 	}
 	return nil
 }
+
+func (r *Repository) ListUsers(limit, offset int, keyword string) ([]model.User, error) {
+	var users []model.User
+	query := r.db.Model(&model.User{})
+	if keyword != "" {
+		kw := "%" + keyword + "%"
+		query = query.Where("email ILIKE ? OR nickname ILIKE ?", kw, kw)
+	}
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&users).Error
+	return users, err
+}

@@ -34,6 +34,15 @@ type Entitlements struct {
 	RetentionDays      int
 }
 
+type UserUpdate struct {
+	Plan          string
+	QuotaTotal    int
+	QuotaUsed     int
+	Status        string
+	AdCredits     int
+	RetentionDays int
+}
+
 func (s *Service) GetUserByToken(token string) (*model.User, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, gorm.ErrRecordNotFound
@@ -47,6 +56,40 @@ func (s *Service) GetUserByToken(token string) (*model.User, error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	return s.repo.GetUserByID(session.UserID)
+}
+
+func (s *Service) GetUserByID(id uint) (*model.User, error) {
+	return s.repo.GetUserByID(id)
+}
+
+func (s *Service) ListUsers(limit, offset int, keyword string) ([]model.User, error) {
+	return s.repo.ListUsers(limit, offset, keyword)
+}
+
+func (s *Service) UpdateUserByID(id uint, update UserUpdate) (*model.User, error) {
+	user, err := s.repo.GetUserByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if update.Plan != "" {
+		user.Plan = update.Plan
+	}
+	if update.Status != "" {
+		user.Status = update.Status
+	}
+	if update.QuotaTotal >= 0 {
+		user.QuotaTotal = update.QuotaTotal
+	}
+	if update.QuotaUsed >= 0 {
+		user.QuotaUsed = update.QuotaUsed
+	}
+	if update.AdCredits >= 0 {
+		user.AdCredits = update.AdCredits
+	}
+	if err := s.repo.UpdateUser(user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (s *Service) EnsureDeviceUser(deviceID string) (*model.User, error) {
@@ -358,6 +401,18 @@ func (s *Service) getPlanSetting(plan string) PlanSetting {
 			RequireAd:     true,
 		}
 	}
+}
+
+func (s *Service) PurgeUserNotesByRetention(user *model.User) (int64, error) {
+	if user == nil || user.ID == 0 {
+		return 0, fmt.Errorf("user required")
+	}
+	cfg := s.getPlanSetting(user.Plan)
+	if cfg.RetentionDays <= 0 {
+		cfg.RetentionDays = s.auth.FreeRetentionDays
+	}
+	cutoff := time.Now().AddDate(0, 0, -cfg.RetentionDays)
+	return s.repo.PurgeNotesBefore(user.ID, cutoff)
 }
 
 func (s *Service) sendOTPEmail(email, code string) error {

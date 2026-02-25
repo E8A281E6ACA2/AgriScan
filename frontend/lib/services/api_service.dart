@@ -173,6 +173,36 @@ class ApiService {
     return Entitlements.fromJson(response.data);
   }
 
+  Future<List<AdminUser>> adminListUsers({int limit = 20, int offset = 0, String? q, required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/users',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (q != null && q.isNotEmpty) 'q': q,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminUser.fromJson(e)).toList();
+  }
+
+  Future<AdminUser> adminUpdateUser(int id, AdminUserUpdate update, {required String adminToken}) async {
+    final response = await _dio.put(
+      '/admin/users/$id',
+      data: update.toJson(),
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    return AdminUser.fromJson(response.data);
+  }
+
+  Future<void> adminPurgeUser(int id, {required String adminToken}) async {
+    await _dio.post(
+      '/admin/users/$id/purge',
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+  }
+
   Future<List<String>> getTags({String? category}) async {
     final response = await _dio.get('/tags', queryParameters: {
       if (category != null && category.isNotEmpty) 'category': category,
@@ -538,4 +568,60 @@ class AuthResponse {
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     return AuthResponse(token: json['token'] ?? '');
   }
+}
+
+class AdminUser {
+  final int id;
+  final String email;
+  final String plan;
+  final String status;
+  final int quotaTotal;
+  final int quotaUsed;
+  final int adCredits;
+
+  AdminUser({
+    required this.id,
+    required this.email,
+    required this.plan,
+    required this.status,
+    required this.quotaTotal,
+    required this.quotaUsed,
+    required this.adCredits,
+  });
+
+  factory AdminUser.fromJson(Map<String, dynamic> json) {
+    return AdminUser(
+      id: json['id'] ?? 0,
+      email: json['email'] ?? '',
+      plan: json['plan'] ?? 'free',
+      status: json['status'] ?? 'active',
+      quotaTotal: json['quota_total'] ?? 0,
+      quotaUsed: json['quota_used'] ?? 0,
+      adCredits: json['ad_credits'] ?? 0,
+    );
+  }
+}
+
+class AdminUserUpdate {
+  final String? plan;
+  final String? status;
+  final int? quotaTotal;
+  final int? quotaUsed;
+  final int? adCredits;
+
+  AdminUserUpdate({
+    this.plan,
+    this.status,
+    this.quotaTotal,
+    this.quotaUsed,
+    this.adCredits,
+  });
+
+  Map<String, dynamic> toJson() => {
+        if (plan != null) 'plan': plan,
+        if (status != null) 'status': status,
+        if (quotaTotal != null) 'quota_total': quotaTotal,
+        if (quotaUsed != null) 'quota_used': quotaUsed,
+        if (adCredits != null) 'ad_credits': adCredits,
+      };
 }
