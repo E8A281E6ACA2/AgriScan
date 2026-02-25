@@ -282,6 +282,9 @@ func (s *Service) VerifyEmailOTP(email, code, deviceID string) (*model.User, str
 			Status:     "active",
 			QuotaTotal: s.auth.FreeQuotaTotal,
 		}
+		if count, err := s.repo.CountRealUsers(); err == nil && count == 0 {
+			user.IsAdmin = true
+		}
 		if err := s.repo.CreateUser(user); err != nil {
 			return nil, "", err
 		}

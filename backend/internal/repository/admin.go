@@ -77,6 +77,14 @@ func (r *Repository) CountNotesByLabelStatus(status string) (int64, error) {
 	return c, err
 }
 
+func (r *Repository) CountRealUsers() (int64, error) {
+	var c int64
+	err := r.db.Model(&model.User{}).
+		Where("status <> ? AND email NOT LIKE ?", "guest", "device:%").
+		Count(&c).Error
+	return c, err
+}
+
 // Label queue
 func (r *Repository) ListLabelNotes(limit, offset int, status, category, cropType string) ([]model.FieldNote, error) {
 	var items []model.FieldNote

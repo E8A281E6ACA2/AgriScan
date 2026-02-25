@@ -87,7 +87,9 @@
 
 ### 0.1 管理后台
 
-Header: `X-Admin-Token`
+Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
+
+说明：首个完成邮箱登录的用户自动成为管理员。
 
 **GET** `/admin/users`
 

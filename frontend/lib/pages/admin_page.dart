@@ -49,14 +49,10 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadUsers() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) {
-      _toast('请输入管理员 Token');
-      return;
-    }
     setState(() => _loading = true);
     try {
       final users = await api.adminListUsers(
-        adminToken: token,
+        adminToken: token.isEmpty ? null : token,
         q: _searchController.text.trim(),
       );
       setState(() => _users = users);
@@ -70,9 +66,8 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadStats() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     try {
-      final stats = await api.adminStats(adminToken: token);
+      final stats = await api.adminStats(adminToken: token.isEmpty ? null : token);
       if (mounted) setState(() => _stats = stats);
     } catch (e) {
       _toast('统计加载失败: $e');
@@ -121,15 +116,11 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadMembershipRequests() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) {
-      _toast('请输入管理员 Token');
-      return;
-    }
     setState(() => _loading = true);
     try {
       final status = _reqStatusController.text.trim();
       final items = await api.adminListMembershipRequests(
-        adminToken: token,
+        adminToken: token.isEmpty ? null : token,
         status: status.isEmpty ? null : status,
       );
       setState(() => _requests = items);
@@ -143,10 +134,9 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _approveRequest(MembershipRequest req) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     setState(() => _loading = true);
     try {
-      await api.adminApproveMembershipRequest(req.id, plan: req.plan, adminToken: token);
+      await api.adminApproveMembershipRequest(req.id, plan: req.plan, adminToken: token.isEmpty ? null : token);
       _toast('已通过');
       await _loadMembershipRequests();
     } catch (e) {
@@ -160,7 +150,7 @@ class _AdminPageState extends State<AdminPage> {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
     final user = _selected;
-    if (token.isEmpty || user == null) return;
+    if (user == null) return;
     final delta = int.tryParse(_quotaDeltaController.text) ?? 0;
     if (delta <= 0) {
       _toast('请输入正确的充值额度');
@@ -168,7 +158,7 @@ class _AdminPageState extends State<AdminPage> {
     }
     setState(() => _loading = true);
     try {
-      final updated = await api.adminAddQuota(user.id, delta: delta, adminToken: token);
+      final updated = await api.adminAddQuota(user.id, delta: delta, adminToken: token.isEmpty ? null : token);
       _selectUser(updated);
       await _loadUsers();
       _toast('充值成功');
@@ -182,10 +172,9 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _rejectRequest(MembershipRequest req) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     setState(() => _loading = true);
     try {
-      await api.adminRejectMembershipRequest(req.id, adminToken: token);
+      await api.adminRejectMembershipRequest(req.id, adminToken: token.isEmpty ? null : token);
       _toast('已拒绝');
       await _loadMembershipRequests();
     } catch (e) {
@@ -198,14 +187,10 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadEmailLogs() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) {
-      _toast('请输入管理员 Token');
-      return;
-    }
     setState(() => _loading = true);
     try {
       final logs = await api.adminListEmailLogs(
-        adminToken: token,
+        adminToken: token.isEmpty ? null : token,
         email: _logEmailController.text.trim(),
       );
       setState(() => _logs = logs);
@@ -219,10 +204,9 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadAuditLogs() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final items = await api.adminAuditLogs(adminToken: token);
+      final items = await api.adminAuditLogs(adminToken: token.isEmpty ? null : token);
       setState(() => _audits = items);
     } catch (e) {
       _toast('审计日志失败: $e');
@@ -234,10 +218,9 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadLabelQueue() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final items = await api.adminLabelQueue(adminToken: token);
+      final items = await api.adminLabelQueue(adminToken: token.isEmpty ? null : token);
       setState(() => _labelNotes = items);
     } catch (e) {
       _toast('标注队列失败: $e');
@@ -249,10 +232,9 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _loadEval() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final summary = await api.adminEvalSummary(adminToken: token);
+      final summary = await api.adminEvalSummary(adminToken: token.isEmpty ? null : token);
       setState(() => _eval = summary);
     } catch (e) {
       _toast('评测加载失败: $e');
@@ -264,9 +246,8 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _exportUsers() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     try {
-      final bytes = await api.adminExportUsers(adminToken: token);
+      final bytes = await api.adminExportUsers(adminToken: token.isEmpty ? null : token);
       final path = await saveBytesAsFile('users.csv', bytes);
       _toast('导出成功: $path');
     } catch (e) {
@@ -277,9 +258,8 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _exportNotes() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     try {
-      final bytes = await api.adminExportNotes(adminToken: token);
+      final bytes = await api.adminExportNotes(adminToken: token.isEmpty ? null : token);
       final path = await saveBytesAsFile('notes_admin.csv', bytes);
       _toast('导出成功: $path');
     } catch (e) {
@@ -290,9 +270,8 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _exportFeedback() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     try {
-      final bytes = await api.adminExportFeedback(adminToken: token);
+      final bytes = await api.adminExportFeedback(adminToken: token.isEmpty ? null : token);
       final path = await saveBytesAsFile('feedback.csv', bytes);
       _toast('导出成功: $path');
     } catch (e) {
@@ -303,7 +282,6 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _labelNote(AdminLabelNote note) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     final categoryController = TextEditingController(text: note.category);
     final cropController = TextEditingController(text: note.cropType);
     final tagsController = TextEditingController(text: note.labelTags);
@@ -349,7 +327,7 @@ class _AdminPageState extends State<AdminPage> {
         cropType: cropController.text.trim(),
         tags: tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
         note: noteController.text.trim(),
-        adminToken: token,
+        adminToken: token.isEmpty ? null : token,
       );
       _toast('标注成功');
       await _loadLabelQueue();
@@ -361,9 +339,8 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _reviewLabel(AdminLabelNote note, String status) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
-    if (token.isEmpty) return;
     try {
-      await api.adminReviewLabel(note.id, status: status, adminToken: token);
+      await api.adminReviewLabel(note.id, status: status, adminToken: token.isEmpty ? null : token);
       _toast('已${status == 'approved' ? '通过' : '拒绝'}');
       await _loadLabelQueue();
     } catch (e) {
@@ -375,10 +352,10 @@ class _AdminPageState extends State<AdminPage> {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
     final user = _selected;
-    if (token.isEmpty || user == null) return;
+    if (user == null) return;
     setState(() => _loading = true);
     try {
-      await api.adminPurgeUser(user.id, adminToken: token);
+      await api.adminPurgeUser(user.id, adminToken: token.isEmpty ? null : token);
       _toast('清理完成');
     } catch (e) {
       _toast('清理失败: $e');
@@ -402,7 +379,7 @@ class _AdminPageState extends State<AdminPage> {
             TextField(
               controller: _tokenController,
               decoration: const InputDecoration(
-                labelText: '管理员 Token',
+                labelText: '管理员 Token（可选）',
               ),
             ),
             const SizedBox(height: 8),
@@ -476,9 +453,10 @@ class _AdminPageState extends State<AdminPage> {
                         ? const Center(child: CircularProgressIndicator())
                         : ListView(
                             children: _users.map((u) {
+                              final adminTag = u.isAdmin ? ' | admin' : '';
                               return ListTile(
                                 title: Text(u.email),
-                                subtitle: Text('${u.plan} | used ${u.quotaUsed}'),
+                                subtitle: Text('${u.plan} | used ${u.quotaUsed}$adminTag'),
                                 selected: _selected?.id == u.id,
                                 onTap: () => _selectUser(u),
                               );

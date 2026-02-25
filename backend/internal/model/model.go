@@ -17,6 +17,7 @@ type User struct {
 	Avatar      string         `gorm:"size:512" json:"avatar"`
 	Plan        string         `gorm:"size:16;index;default:free" json:"plan"`
 	Status      string         `gorm:"size:16;default:active" json:"status"`
+	IsAdmin     bool           `gorm:"index;default:false" json:"is_admin"`
 	QuotaTotal  int            `json:"quota_total"`
 	QuotaUsed   int            `json:"quota_used"`
 	AdCredits   int            `json:"ad_credits"`

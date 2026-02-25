@@ -173,7 +173,14 @@ class ApiService {
     return Entitlements.fromJson(response.data);
   }
 
-  Future<List<AdminUser>> adminListUsers({int limit = 20, int offset = 0, String? q, required String adminToken}) async {
+  Options _adminOptions(String? adminToken) {
+    if (adminToken == null || adminToken.isEmpty) {
+      return Options();
+    }
+    return Options(headers: {'X-Admin-Token': adminToken});
+  }
+
+  Future<List<AdminUser>> adminListUsers({int limit = 20, int offset = 0, String? q, String? adminToken}) async {
     final response = await _dio.get(
       '/admin/users',
       queryParameters: {
@@ -181,25 +188,25 @@ class ApiService {
         'offset': offset,
         if (q != null && q.isNotEmpty) 'q': q,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => AdminUser.fromJson(e)).toList();
   }
 
-  Future<AdminUser> adminUpdateUser(int id, AdminUserUpdate update, {required String adminToken}) async {
+  Future<AdminUser> adminUpdateUser(int id, AdminUserUpdate update, {String? adminToken}) async {
     final response = await _dio.put(
       '/admin/users/$id',
       data: update.toJson(),
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     return AdminUser.fromJson(response.data);
   }
 
-  Future<void> adminPurgeUser(int id, {required String adminToken}) async {
+  Future<void> adminPurgeUser(int id, {String? adminToken}) async {
     await _dio.post(
       '/admin/users/$id/purge',
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
   }
 
@@ -207,7 +214,7 @@ class ApiService {
     int limit = 50,
     int offset = 0,
     String? email,
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.get(
       '/admin/email-logs',
@@ -216,7 +223,7 @@ class ApiService {
         'offset': offset,
         if (email != null && email.isNotEmpty) 'email': email,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => EmailLog.fromJson(e)).toList();
@@ -244,7 +251,7 @@ class ApiService {
     int limit = 50,
     int offset = 0,
     String? status,
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.get(
       '/admin/membership-requests',
@@ -253,7 +260,7 @@ class ApiService {
         'offset': offset,
         if (status != null && status.isNotEmpty) 'status': status,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => MembershipRequest.fromJson(e)).toList();
@@ -263,7 +270,7 @@ class ApiService {
     int id, {
     String? plan,
     int? quotaTotal,
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.post(
       '/admin/membership-requests/$id/approve',
@@ -271,71 +278,71 @@ class ApiService {
         if (plan != null && plan.isNotEmpty) 'plan': plan,
         if (quotaTotal != null) 'quota_total': quotaTotal,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     return AdminUser.fromJson(response.data);
   }
 
   Future<void> adminRejectMembershipRequest(
     int id, {
-    required String adminToken,
+    String? adminToken,
   }) async {
     await _dio.post(
       '/admin/membership-requests/$id/reject',
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
   }
 
   Future<AdminUser> adminAddQuota(
     int id, {
     required int delta,
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.post(
       '/admin/users/$id/quota',
       data: {'delta': delta},
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     return AdminUser.fromJson(response.data);
   }
 
-  Future<Uint8List> adminExportUsers({required String adminToken}) async {
+  Future<Uint8List> adminExportUsers({String? adminToken}) async {
     final response = await _dio.get(
       '/admin/export/users',
       options: Options(
-        headers: {'X-Admin-Token': adminToken},
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
         responseType: ResponseType.bytes,
       ),
     );
     return Uint8List.fromList(response.data);
   }
 
-  Future<Uint8List> adminExportNotes({required String adminToken}) async {
+  Future<Uint8List> adminExportNotes({String? adminToken}) async {
     final response = await _dio.get(
       '/admin/export/notes',
       options: Options(
-        headers: {'X-Admin-Token': adminToken},
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
         responseType: ResponseType.bytes,
       ),
     );
     return Uint8List.fromList(response.data);
   }
 
-  Future<Uint8List> adminExportFeedback({required String adminToken}) async {
+  Future<Uint8List> adminExportFeedback({String? adminToken}) async {
     final response = await _dio.get(
       '/admin/export/feedback',
       options: Options(
-        headers: {'X-Admin-Token': adminToken},
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
         responseType: ResponseType.bytes,
       ),
     );
     return Uint8List.fromList(response.data);
   }
 
-  Future<AdminStats> adminStats({required String adminToken}) async {
+  Future<AdminStats> adminStats({String? adminToken}) async {
     final response = await _dio.get(
       '/admin/stats',
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     return AdminStats.fromJson(response.data);
   }
@@ -344,7 +351,7 @@ class ApiService {
     int limit = 50,
     int offset = 0,
     String? action,
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.get(
       '/admin/audit-logs',
@@ -353,7 +360,7 @@ class ApiService {
         'offset': offset,
         if (action != null && action.isNotEmpty) 'action': action,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => AdminAuditLog.fromJson(e)).toList();
@@ -363,7 +370,7 @@ class ApiService {
     int limit = 20,
     int offset = 0,
     String status = 'pending',
-    required String adminToken,
+    String? adminToken,
   }) async {
     final response = await _dio.get(
       '/admin/labels',
@@ -372,7 +379,7 @@ class ApiService {
         'offset': offset,
         'status': status,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => AdminLabelNote.fromJson(e)).toList();
@@ -384,7 +391,7 @@ class ApiService {
     required String cropType,
     required List<String> tags,
     String? note,
-    required String adminToken,
+    String? adminToken,
   }) async {
     await _dio.post(
       '/admin/labels/$id',
@@ -394,7 +401,7 @@ class ApiService {
         'tags': tags,
         if (note != null && note.isNotEmpty) 'note': note,
       },
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
   }
 
@@ -402,20 +409,20 @@ class ApiService {
     int id, {
     required String status,
     String reviewer = 'admin',
-    required String adminToken,
+    String? adminToken,
   }) async {
     await _dio.post(
       '/admin/labels/$id/review',
       data: {'status': status, 'reviewer': reviewer},
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
   }
 
-  Future<EvalSummary> adminEvalSummary({int days = 30, required String adminToken}) async {
+  Future<EvalSummary> adminEvalSummary({int days = 30, String? adminToken}) async {
     final response = await _dio.get(
       '/admin/eval/summary',
       queryParameters: {'days': days},
-      options: Options(headers: {'X-Admin-Token': adminToken}),
+      options: _adminOptions(adminToken),
     );
     return EvalSummary.fromJson(response.data);
   }
@@ -792,6 +799,7 @@ class AdminUser {
   final String email;
   final String plan;
   final String status;
+  final bool isAdmin;
   final int quotaTotal;
   final int quotaUsed;
   final int adCredits;
@@ -801,6 +809,7 @@ class AdminUser {
     required this.email,
     required this.plan,
     required this.status,
+    required this.isAdmin,
     required this.quotaTotal,
     required this.quotaUsed,
     required this.adCredits,
@@ -812,6 +821,7 @@ class AdminUser {
       email: json['email'] ?? '',
       plan: json['plan'] ?? 'free',
       status: json['status'] ?? 'active',
+      isAdmin: json['is_admin'] ?? false,
       quotaTotal: json['quota_total'] ?? 0,
       quotaUsed: json['quota_used'] ?? 0,
       adCredits: json['ad_credits'] ?? 0,

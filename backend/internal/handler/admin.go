@@ -16,11 +16,15 @@ func (h *Handler) requireAdmin(c *gin.Context) bool {
 	if adminToken == "" {
 		adminToken = "admin-token"
 	}
-	if token == "" || token != adminToken {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return false
+	if token != "" && token == adminToken {
+		return true
 	}
-	return true
+	user, err := h.svc.GetUserByToken(strings.TrimSpace(c.GetHeader("X-Auth-Token")))
+	if err == nil && user != nil && user.IsAdmin {
+		return true
+	}
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	return false
 }
 
 // GET /api/v1/admin/users
