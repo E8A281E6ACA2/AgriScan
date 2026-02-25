@@ -505,6 +505,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 	{
 		v1.GET("/admin/users", h.AdminListUsers)
 		v1.GET("/admin/stats", h.AdminStats)
+		v1.GET("/admin/metrics", h.AdminMetrics)
 		v1.GET("/admin/settings", h.AdminSettings)
 		v1.PUT("/admin/settings/:key", h.AdminUpdateSetting)
 		v1.GET("/admin/plan-settings", h.AdminPlanSettings)
@@ -521,6 +522,8 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/admin/labels/:id", h.AdminLabelNote)
 		v1.POST("/admin/labels/:id/review", h.AdminReviewLabel)
 		v1.GET("/admin/eval/summary", h.AdminEvalSummary)
+		v1.POST("/admin/eval/runs", h.AdminCreateEvalRun)
+		v1.GET("/admin/eval/runs", h.AdminListEvalRuns)
 		v1.GET("/admin/export/eval", h.AdminExportEval)
 		v1.GET("/admin/export/users", h.AdminExportUsers)
 		v1.GET("/admin/export/notes", h.AdminExportNotes)

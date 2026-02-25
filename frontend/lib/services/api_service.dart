@@ -163,6 +163,11 @@ class ApiService {
     return AuthResponse.fromJson(response.data);
   }
 
+  Future<void> logout() async {
+    await _dio.post('/auth/logout');
+    setAuthToken(null);
+  }
+
   Future<Entitlements> getEntitlements() async {
     final response = await _dio.get('/entitlements');
     return Entitlements.fromJson(response.data);
@@ -409,6 +414,15 @@ class ApiService {
     return AdminStats.fromJson(response.data);
   }
 
+  Future<AdminMetrics> adminMetrics({int days = 30, String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/metrics',
+      queryParameters: {'days': days},
+      options: _adminOptions(adminToken),
+    );
+    return AdminMetrics.fromJson(response.data);
+  }
+
   Future<List<AdminAuditLog>> adminAuditLogs({
     int limit = 50,
     int offset = 0,
@@ -487,6 +501,25 @@ class ApiService {
       options: _adminOptions(adminToken),
     );
     return EvalSummary.fromJson(response.data);
+  }
+
+  Future<EvalRun> adminCreateEvalRun({int days = 30, String? adminToken}) async {
+    final response = await _dio.post(
+      '/admin/eval/runs',
+      queryParameters: {'days': days},
+      options: _adminOptions(adminToken),
+    );
+    return EvalRun.fromJson(response.data);
+  }
+
+  Future<List<EvalRun>> adminEvalRuns({int limit = 20, int offset = 0, String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/eval/runs',
+      queryParameters: {'limit': limit, 'offset': offset},
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => EvalRun.fromJson(e)).toList();
   }
 
   Future<List<String>> getTags({String? category}) async {
@@ -1107,6 +1140,70 @@ class AdminStats {
   }
 }
 
+class AdminMetrics {
+  final List<DayCount> resultsByDay;
+  final List<NamedCount> usersByPlan;
+  final List<NamedCount> usersByStatus;
+  final List<NamedCount> resultsByProvider;
+  final List<NamedCount> resultsByCrop;
+  final int feedbackTotal;
+  final int feedbackCorrect;
+  final double feedbackAccuracy;
+
+  AdminMetrics({
+    required this.resultsByDay,
+    required this.usersByPlan,
+    required this.usersByStatus,
+    required this.resultsByProvider,
+    required this.resultsByCrop,
+    required this.feedbackTotal,
+    required this.feedbackCorrect,
+    required this.feedbackAccuracy,
+  });
+
+  factory AdminMetrics.fromJson(Map<String, dynamic> json) {
+    List<dynamic> listOrEmpty(dynamic v) => v is List ? v : [];
+    return AdminMetrics(
+      resultsByDay: listOrEmpty(json['results_by_day']).map((e) => DayCount.fromJson(e)).toList(),
+      usersByPlan: listOrEmpty(json['users_by_plan']).map((e) => NamedCount.fromJson(e)).toList(),
+      usersByStatus: listOrEmpty(json['users_by_status']).map((e) => NamedCount.fromJson(e)).toList(),
+      resultsByProvider: listOrEmpty(json['results_by_provider']).map((e) => NamedCount.fromJson(e)).toList(),
+      resultsByCrop: listOrEmpty(json['results_by_crop']).map((e) => NamedCount.fromJson(e)).toList(),
+      feedbackTotal: json['feedback_total'] ?? 0,
+      feedbackCorrect: json['feedback_correct'] ?? 0,
+      feedbackAccuracy: (json['feedback_accuracy'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class DayCount {
+  final String day;
+  final int count;
+
+  DayCount({required this.day, required this.count});
+
+  factory DayCount.fromJson(Map<String, dynamic> json) {
+    return DayCount(
+      day: json['day'] ?? '',
+      count: json['count'] ?? 0,
+    );
+  }
+}
+
+class NamedCount {
+  final String name;
+  final int count;
+
+  NamedCount({required this.name, required this.count});
+
+  factory NamedCount.fromJson(Map<String, dynamic> json) {
+    return NamedCount(
+      name: json['name'] ?? '',
+      count: json['count'] ?? 0,
+    );
+  }
+}
+
 class AdminAuditLog {
   final int id;
   final String action;
@@ -1201,6 +1298,35 @@ class EvalSummary {
       accuracy: (json['accuracy'] ?? 0).toDouble(),
       byCrop: cropList.map((e) => EvalCropStat.fromJson(e)).toList(),
       confusions: confusionList.map((e) => EvalConfusion.fromJson(e)).toList(),
+    );
+  }
+}
+
+class EvalRun {
+  final int id;
+  final String createdAt;
+  final int days;
+  final int total;
+  final int correct;
+  final double accuracy;
+
+  EvalRun({
+    required this.id,
+    required this.createdAt,
+    required this.days,
+    required this.total,
+    required this.correct,
+    required this.accuracy,
+  });
+
+  factory EvalRun.fromJson(Map<String, dynamic> json) {
+    return EvalRun(
+      id: json['id'] ?? 0,
+      createdAt: (json['created_at'] ?? '').toString(),
+      days: json['days'] ?? 0,
+      total: json['total'] ?? 0,
+      correct: json['correct'] ?? 0,
+      accuracy: (json['accuracy'] ?? 0).toDouble(),
     );
   }
 }

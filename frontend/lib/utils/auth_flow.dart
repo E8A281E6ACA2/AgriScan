@@ -26,6 +26,10 @@ Future<bool> ensureRecognitionAllowed(BuildContext context, ApiService api) asyn
   return true;
 }
 
+Future<bool> startLoginFlow(BuildContext context, ApiService api) async {
+  return _loginFlow(context, api);
+}
+
 Future<bool> _loginFlow(BuildContext context, ApiService api) async {
   final email = await _promptText(context, title: '邮箱登录', hint: '请输入邮箱');
   if (email == null || email.isEmpty) return false;

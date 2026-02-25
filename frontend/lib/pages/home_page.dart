@@ -1,8 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class HomePage extends StatelessWidget {
+import '../services/api_service.dart';
+import '../utils/auth_flow.dart';
+
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Entitlements? _ent;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntitlements();
+  }
+
+  Future<void> _loadEntitlements() async {
+    final api = context.read<ApiService>();
+    setState(() => _loading = true);
+    try {
+      final ent = await api.getEntitlements();
+      if (mounted) setState(() => _ent = ent);
+    } catch (_) {
+      if (mounted) setState(() => _ent = null);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _login() async {
+    final api = context.read<ApiService>();
+    final ok = await startLoginFlow(context, api);
+    if (ok) {
+      await _loadEntitlements();
+    }
+  }
+
+  Future<void> _logout() async {
+    final api = context.read<ApiService>();
+    final prefs = await SharedPreferences.getInstance();
+    await api.logout();
+    await prefs.remove('auth_token');
+    await _loadEntitlements();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +60,6 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-              // Logo 和标题
               Icon(
                 Icons.eco,
                 size: 80,
@@ -23,19 +69,20 @@ class HomePage extends StatelessWidget {
               Text(
                 'AgriScan',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
                 '智能作物识别',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                      color: Colors.grey[600],
+                    ),
               ),
+              const SizedBox(height: 16),
+              _buildEntCard(),
               const Spacer(),
-              // 功能按钮
               _buildFeatureButton(
                 context,
                 icon: Icons.camera_alt,
@@ -84,7 +131,6 @@ class HomePage extends StatelessWidget {
                 onTap: () => Navigator.pushNamed(context, '/admin'),
               ),
               const Spacer(),
-              // 底部信息
               Text(
                 'V1.0.0',
                 style: TextStyle(color: Colors.grey[400]),
@@ -96,7 +142,55 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-  
+
+  Widget _buildEntCard() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final ent = _ent;
+    final isLoggedIn = ent != null && ent.userId > 0;
+    final title = isLoggedIn ? '已登录 · ${ent!.plan}' : '游客模式';
+    final detail = isLoggedIn
+        ? '剩余额度 ${ent!.quotaRemaining}'
+        : '匿名剩余 ${ent?.anonymousRemaining ?? 0} 次';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  onPressed: _loading ? null : _loadEntitlements,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            Text(detail),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (!isLoggedIn)
+                  ElevatedButton(
+                    onPressed: _loading ? null : _login,
+                    child: const Text('邮箱登录'),
+                  ),
+                if (isLoggedIn)
+                  OutlinedButton(
+                    onPressed: _loading ? null : _logout,
+                    child: const Text('退出登录'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFeatureButton(
     BuildContext context, {
     required IconData icon,

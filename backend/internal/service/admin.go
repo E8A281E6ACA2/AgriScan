@@ -23,6 +23,27 @@ type AdminStats struct {
 	LabelApproved     int64 `json:"label_approved"`
 }
 
+type AdminMetrics struct {
+	ResultsByDay      []DayCount   `json:"results_by_day"`
+	UsersByPlan       []NamedCount `json:"users_by_plan"`
+	UsersByStatus     []NamedCount `json:"users_by_status"`
+	ResultsByProvider []NamedCount `json:"results_by_provider"`
+	ResultsByCrop     []NamedCount `json:"results_by_crop"`
+	FeedbackTotal     int64        `json:"feedback_total"`
+	FeedbackCorrect   int64        `json:"feedback_correct"`
+	FeedbackAccuracy  float64      `json:"feedback_accuracy"`
+}
+
+type DayCount struct {
+	Day   string `json:"day"`
+	Count int64  `json:"count"`
+}
+
+type NamedCount struct {
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
 type EvalSummary struct {
 	Total      int64           `json:"total"`
 	Correct    int64           `json:"correct"`
@@ -60,6 +81,17 @@ type EvalDatasetRow struct {
 	CreatedAt     string  `json:"created_at"`
 }
 
+type EvalRunView struct {
+	ID         uint            `json:"id"`
+	CreatedAt  string          `json:"created_at"`
+	Days       int             `json:"days"`
+	Total      int64           `json:"total"`
+	Correct    int64           `json:"correct"`
+	Accuracy   float64         `json:"accuracy"`
+	ByCrop     []EvalCropStat  `json:"by_crop"`
+	Confusions []EvalConfusion `json:"confusions"`
+}
+
 func (s *Service) GetAdminStats() (AdminStats, error) {
 	var stats AdminStats
 	var err error
@@ -92,6 +124,78 @@ func (s *Service) GetAdminStats() (AdminStats, error) {
 		return stats, err
 	}
 	return stats, nil
+}
+
+func (s *Service) GetAdminMetrics(days int) (AdminMetrics, error) {
+	if days <= 0 {
+		days = 30
+	}
+	since := time.Now().AddDate(0, 0, -days+1)
+	db := s.repo.DB()
+	metrics := AdminMetrics{}
+
+	var daily []DayCount
+	if err := db.Model(&model.RecognitionResult{}).
+		Select("to_char(created_at, 'YYYY-MM-DD') as day, count(*) as count").
+		Where("created_at >= ?", since).
+		Group("day").
+		Order("day").
+		Scan(&daily).Error; err != nil {
+		return metrics, err
+	}
+	dayMap := map[string]int64{}
+	for _, d := range daily {
+		dayMap[d.Day] = d.Count
+	}
+	resultsByDay := make([]DayCount, 0, days)
+	for i := 0; i < days; i++ {
+		day := since.AddDate(0, 0, i).Format("2006-01-02")
+		resultsByDay = append(resultsByDay, DayCount{Day: day, Count: dayMap[day]})
+	}
+	metrics.ResultsByDay = resultsByDay
+
+	if err := db.Model(&model.User{}).
+		Select("plan as name, count(*) as count").
+		Group("plan").
+		Order("count desc").
+		Scan(&metrics.UsersByPlan).Error; err != nil {
+		return metrics, err
+	}
+	if err := db.Model(&model.User{}).
+		Select("status as name, count(*) as count").
+		Group("status").
+		Order("count desc").
+		Scan(&metrics.UsersByStatus).Error; err != nil {
+		return metrics, err
+	}
+	if err := db.Model(&model.RecognitionResult{}).
+		Select("provider as name, count(*) as count").
+		Where("provider <> ''").
+		Group("provider").
+		Order("count desc").
+		Limit(10).
+		Scan(&metrics.ResultsByProvider).Error; err != nil {
+		return metrics, err
+	}
+	if err := db.Model(&model.RecognitionResult{}).
+		Select("crop_type as name, count(*) as count").
+		Where("crop_type <> ''").
+		Group("crop_type").
+		Order("count desc").
+		Limit(10).
+		Scan(&metrics.ResultsByCrop).Error; err != nil {
+		return metrics, err
+	}
+	if err := db.Model(&model.UserFeedback{}).Count(&metrics.FeedbackTotal).Error; err != nil {
+		return metrics, err
+	}
+	if err := db.Model(&model.UserFeedback{}).Where("is_correct = ?", true).Count(&metrics.FeedbackCorrect).Error; err != nil {
+		return metrics, err
+	}
+	if metrics.FeedbackTotal > 0 {
+		metrics.FeedbackAccuracy = float64(metrics.FeedbackCorrect) / float64(metrics.FeedbackTotal)
+	}
+	return metrics, nil
 }
 
 func (s *Service) RecordAdminAudit(action, targetType string, targetID uint, detail, ip string) {
@@ -225,6 +329,67 @@ func (s *Service) GetEvalSummary(days int) (EvalSummary, error) {
 		confusionList = confusionList[:20]
 	}
 	return EvalSummary{Total: total, Correct: correct, Accuracy: acc, ByCrop: byCrop, Confusions: confusionList}, nil
+}
+
+func (s *Service) CreateEvalRun(days int) (EvalRunView, error) {
+	if days <= 0 {
+		days = 30
+	}
+	summary, err := s.GetEvalSummary(days)
+	if err != nil {
+		return EvalRunView{}, err
+	}
+	byCrop, _ := json.Marshal(summary.ByCrop)
+	confusions, _ := json.Marshal(summary.Confusions)
+	run := &model.EvalRun{
+		Days:       days,
+		Total:      summary.Total,
+		Correct:    summary.Correct,
+		Accuracy:   summary.Accuracy,
+		ByCrop:     string(byCrop),
+		Confusions: string(confusions),
+	}
+	if err := s.repo.CreateEvalRun(run); err != nil {
+		return EvalRunView{}, err
+	}
+	return EvalRunView{
+		ID:         run.ID,
+		CreatedAt:  run.CreatedAt.Format("2006-01-02 15:04:05"),
+		Days:       run.Days,
+		Total:      run.Total,
+		Correct:    run.Correct,
+		Accuracy:   run.Accuracy,
+		ByCrop:     summary.ByCrop,
+		Confusions: summary.Confusions,
+	}, nil
+}
+
+func (s *Service) ListEvalRuns(limit, offset int) ([]EvalRunView, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	items, err := s.repo.ListEvalRuns(limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]EvalRunView, 0, len(items))
+	for _, item := range items {
+		var byCrop []EvalCropStat
+		var confusions []EvalConfusion
+		_ = json.Unmarshal([]byte(item.ByCrop), &byCrop)
+		_ = json.Unmarshal([]byte(item.Confusions), &confusions)
+		out = append(out, EvalRunView{
+			ID:         item.ID,
+			CreatedAt:  item.CreatedAt.Format("2006-01-02 15:04:05"),
+			Days:       item.Days,
+			Total:      item.Total,
+			Correct:    item.Correct,
+			Accuracy:   item.Accuracy,
+			ByCrop:     byCrop,
+			Confusions: confusions,
+		})
+	}
+	return out, nil
 }
 
 func (s *Service) ExportEvalDatasetCSV(w io.Writer, start, end *time.Time) error {

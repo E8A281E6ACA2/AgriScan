@@ -154,6 +154,12 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 
 返回统计汇总。
 
+**GET** `/admin/metrics`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 统计天数 |
+
 **GET** `/admin/settings`
 
 **PUT** `/admin/settings/:key`
@@ -231,6 +237,19 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 - total / correct / accuracy
 - by_crop：按标注作物统计准确率
 - confusions：Top N 混淆对（actual->predicted）
+
+**POST** `/admin/eval/runs`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 评测天数 |
+
+**GET** `/admin/eval/runs`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
 
 **GET** `/admin/export/eval`
 

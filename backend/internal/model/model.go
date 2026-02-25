@@ -202,6 +202,19 @@ type AdminAuditLog struct {
 	IP         string         `gorm:"size:64" json:"ip"`
 }
 
+type EvalRun struct {
+	ID         uint           `gorm:"primarykey" json:"id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	Days       int            `json:"days"`
+	Total      int64          `json:"total"`
+	Correct    int64          `json:"correct"`
+	Accuracy   float64        `json:"accuracy"`
+	ByCrop     string         `gorm:"type:text" json:"by_crop"`
+	Confusions string         `gorm:"type:text" json:"confusions"`
+}
+
 type UserSession struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`

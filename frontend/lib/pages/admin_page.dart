@@ -20,6 +20,8 @@ class _AdminPageState extends State<AdminPage> {
   final _quotaController = TextEditingController();
   final _usedController = TextEditingController();
   final _creditsController = TextEditingController();
+  final _metricsDaysController = TextEditingController(text: '30');
+  final _evalDaysController = TextEditingController(text: '30');
 
   bool _loading = false;
   List<AdminUser> _users = [];
@@ -29,8 +31,10 @@ class _AdminPageState extends State<AdminPage> {
   List<AdminLabelNote> _labelNotes = [];
   List<PlanSetting> _planSettings = [];
   List<AppSetting> _settings = [];
+  List<EvalRun> _evalRuns = [];
   AdminStats? _stats;
   EvalSummary? _eval;
+  AdminMetrics? _metrics;
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
@@ -46,6 +50,8 @@ class _AdminPageState extends State<AdminPage> {
     _quotaController.dispose();
     _usedController.dispose();
     _creditsController.dispose();
+    _metricsDaysController.dispose();
+    _evalDaysController.dispose();
     super.dispose();
   }
 
@@ -74,6 +80,21 @@ class _AdminPageState extends State<AdminPage> {
       if (mounted) setState(() => _stats = stats);
     } catch (e) {
       _toast('统计加载失败: $e');
+    }
+  }
+
+  Future<void> _loadMetrics() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_metricsDaysController.text) ?? 30;
+    setState(() => _loading = true);
+    try {
+      final metrics = await api.adminMetrics(days: days, adminToken: token.isEmpty ? null : token);
+      if (mounted) setState(() => _metrics = metrics);
+    } catch (e) {
+      _toast('指标加载失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -424,6 +445,36 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _loadEvalRuns() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminEvalRuns(adminToken: token.isEmpty ? null : token);
+      setState(() => _evalRuns = items);
+    } catch (e) {
+      _toast('评测快照失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _createEvalRun() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_evalDaysController.text) ?? 30;
+    setState(() => _loading = true);
+    try {
+      await api.adminCreateEvalRun(days: days, adminToken: token.isEmpty ? null : token);
+      _toast('已生成');
+      await _loadEvalRuns();
+    } catch (e) {
+      _toast('生成失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _exportUsers() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -643,6 +694,67 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
               ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('运营指标', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: TextField(
+                            controller: _metricsDaysController,
+                            decoration: const InputDecoration(labelText: '天数'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _loading ? null : _loadMetrics,
+                          child: const Text('刷新指标'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (_metrics != null) ...[
+                      Text('反馈正确率 ${(100 * _metrics!.feedbackAccuracy).toStringAsFixed(2)}%'),
+                      const SizedBox(height: 8),
+                      const Text('近况(识别次数/天)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        children: _metrics!.resultsByDay.map((d) => Chip(label: Text('${d.day}:${d.count}'))).toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('用户分布', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        children: _metrics!.usersByPlan.map((n) => Chip(label: Text('${n.name}:${n.count}'))).toList(),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        children: _metrics!.usersByStatus.map((n) => Chip(label: Text('${n.name}:${n.count}'))).toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('识别提供商', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      ..._metrics!.resultsByProvider.map((n) => Text('${n.name}: ${n.count}')).toList(),
+                      const SizedBox(height: 8),
+                      const Text('识别作物 Top', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      ..._metrics!.resultsByCrop.map((n) => Text('${n.name}: ${n.count}')).toList(),
+                    ],
+                  ],
+                ),
+              ),
+            ),
             Row(
               children: [
                 Expanded(
@@ -981,6 +1093,40 @@ class _AdminPageState extends State<AdminPage> {
                                     }).toList(),
                                   ],
                                 ),
+                              const SizedBox(height: 12),
+                              const Text('评测快照', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _evalDaysController,
+                                      decoration: const InputDecoration(labelText: '天数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _createEvalRun,
+                                    child: const Text('生成快照'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadEvalRuns,
+                                    child: const Text('刷新快照'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._evalRuns.map((r) {
+                                return ListTile(
+                                  dense: true,
+                                  title: Text('Run#${r.id} · ${r.createdAt}'),
+                                  subtitle: Text('days ${r.days} · total ${r.total} · correct ${r.correct}'),
+                                  trailing: Text('${(100 * r.accuracy).toStringAsFixed(2)}%'),
+                                );
+                              }).toList(),
                             ],
                           ),
                   ),

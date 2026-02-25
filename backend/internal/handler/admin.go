@@ -59,6 +59,21 @@ func (h *Handler) AdminStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// GET /api/v1/admin/metrics
+func (h *Handler) AdminMetrics(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	daysStr := c.DefaultQuery("days", "30")
+	days, _ := strconv.Atoi(daysStr)
+	metrics, err := h.svc.GetAdminMetrics(days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, metrics)
+}
+
 // GET /api/v1/admin/settings
 func (h *Handler) AdminSettings(c *gin.Context) {
 	if !h.requireAdmin(c) {
@@ -456,6 +471,39 @@ func (h *Handler) AdminEvalSummary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, summary)
+}
+
+// POST /api/v1/admin/eval/runs
+func (h *Handler) AdminCreateEvalRun(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	daysStr := c.DefaultQuery("days", "30")
+	days, _ := strconv.Atoi(daysStr)
+	run, err := h.svc.CreateEvalRun(days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("create_eval_run", "eval_run", run.ID, "create", c.ClientIP())
+	c.JSON(http.StatusOK, run)
+}
+
+// GET /api/v1/admin/eval/runs
+func (h *Handler) AdminListEvalRuns(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+	items, err := h.svc.ListEvalRuns(limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
 }
 
 // GET /api/v1/admin/export/eval
