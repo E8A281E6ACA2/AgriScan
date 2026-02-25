@@ -505,6 +505,8 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 	{
 		v1.GET("/admin/users", h.AdminListUsers)
 		v1.GET("/admin/stats", h.AdminStats)
+		v1.GET("/admin/settings", h.AdminSettings)
+		v1.PUT("/admin/settings/:key", h.AdminUpdateSetting)
 		v1.GET("/admin/plan-settings", h.AdminPlanSettings)
 		v1.PUT("/admin/plan-settings/:code", h.AdminUpdatePlanSetting)
 		v1.PUT("/admin/users/:id", h.AdminUpdateUser)

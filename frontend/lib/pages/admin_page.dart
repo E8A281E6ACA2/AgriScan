@@ -28,6 +28,7 @@ class _AdminPageState extends State<AdminPage> {
   List<AdminAuditLog> _audits = [];
   List<AdminLabelNote> _labelNotes = [];
   List<PlanSetting> _planSettings = [];
+  List<AppSetting> _settings = [];
   AdminStats? _stats;
   EvalSummary? _eval;
   AdminUser? _selected;
@@ -240,6 +241,75 @@ class _AdminPageState extends State<AdminPage> {
       setState(() => _planSettings = items);
     } catch (e) {
       _toast('会员配置失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminSettings(adminToken: token.isEmpty ? null : token);
+      setState(() => _settings = items);
+    } catch (e) {
+      _toast('系统配置失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editSetting(AppSetting setting) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    dynamic newValue = setting.value;
+    final controller = TextEditingController(text: setting.value);
+    bool boolValue = setting.value.toLowerCase() == 'true' || setting.value == '1';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('编辑 ${setting.key}'),
+          content: setting.type == 'bool'
+              ? StatefulBuilder(
+                  builder: (context, setState) {
+                    return SwitchListTile(
+                      value: boolValue,
+                      onChanged: (v) => setState(() => boolValue = v),
+                      title: Text(setting.description.isEmpty ? setting.key : setting.description),
+                    );
+                  },
+                )
+              : TextField(
+                  controller: controller,
+                  decoration: InputDecoration(labelText: setting.description),
+                  keyboardType: setting.type == 'int' ? TextInputType.number : TextInputType.text,
+                ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('保存')),
+          ],
+        );
+      },
+    );
+    if (ok != true) return;
+    if (setting.type == 'bool') {
+      newValue = boolValue;
+    } else {
+      newValue = controller.text.trim();
+    }
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdateSetting(
+        setting.key,
+        AppSettingUpdate(value: newValue),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已保存');
+      await _loadSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -750,6 +820,37 @@ class _AdminPageState extends State<AdminPage> {
                                             ],
                                           )
                                         : const SizedBox.shrink(),
+                                  ),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('系统配置', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loading ? null : _loadSettings,
+                                child: const Text('刷新配置'),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._settings.map((s) {
+                                final value = s.type == 'bool'
+                                    ? (s.value.toLowerCase() == 'true' || s.value == '1' ? '是' : '否')
+                                    : s.value;
+                                return Card(
+                                  child: ListTile(
+                                    title: Text(s.description.isEmpty ? s.key : s.description),
+                                    subtitle: Text('key: ${s.key}'),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(value),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _editSetting(s),
+                                          icon: const Icon(Icons.edit),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               }).toList(),

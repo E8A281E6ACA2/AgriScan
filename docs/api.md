@@ -154,6 +154,20 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 
 返回统计汇总。
 
+**GET** `/admin/settings`
+
+**PUT** `/admin/settings/:key`
+
+```json
+{
+  "value": "3"
+}
+```
+
+说明：
+- `auth_anon_limit` 匿名识别次数上限（int）
+- `auth_anonymous_require_ad` 匿名识别是否必须看广告（bool）
+
 **GET** `/admin/plan-settings`
 
 **PUT** `/admin/plan-settings/:code`

@@ -133,6 +133,15 @@ type Tag struct {
 	Active    bool           `gorm:"index" json:"active"`
 }
 
+type AppSetting struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Key       string         `gorm:"size:64;uniqueIndex" json:"key"`
+	Value     string         `gorm:"type:text" json:"value"`
+}
+
 type PlanSetting struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
 	CreatedAt     time.Time      `json:"created_at"`

@@ -59,6 +59,69 @@ func (h *Handler) AdminStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// GET /api/v1/admin/settings
+func (h *Handler) AdminSettings(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	items, err := h.svc.GetAppSettings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items})
+}
+
+// PUT /api/v1/admin/settings/:key
+func (h *Handler) AdminUpdateSetting(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	key := strings.TrimSpace(c.Param("key"))
+	if key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid key"})
+		return
+	}
+	var req struct {
+		Value interface{} `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if req.Value == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "value required"})
+		return
+	}
+	value := ""
+	switch v := req.Value.(type) {
+	case string:
+		value = v
+	case bool:
+		if v {
+			value = "true"
+		} else {
+			value = "false"
+		}
+	case float64:
+		if v < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})
+			return
+		}
+		value = strconv.FormatInt(int64(v), 10)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})
+		return
+	}
+	item, err := h.svc.UpdateAppSetting(key, value)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("update_setting", "setting", 0, key, c.ClientIP())
+	c.JSON(http.StatusOK, item)
+}
+
 // GET /api/v1/admin/plan-settings
 func (h *Handler) AdminPlanSettings(c *gin.Context) {
 	if !h.requireAdmin(c) {

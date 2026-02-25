@@ -383,13 +383,15 @@ func (s *Service) GetEntitlements(user *model.User, deviceID string) (Entitlemen
 		return ent, fmt.Errorf("device_id required")
 	}
 	usage := s.ensureDeviceUsage(deviceID)
-	ent.AnonymousRemaining = s.auth.AnonLimit - usage.RecognizeCount
+	anonLimit := s.getSettingInt(settingAnonLimit, s.auth.AnonLimit)
+	anonRequireAd := s.getSettingBool(settingAnonRequireAd, true)
+	ent.AnonymousRemaining = anonLimit - usage.RecognizeCount
 	if ent.AnonymousRemaining < 0 {
 		ent.AnonymousRemaining = 0
 	}
-	ent.RequireLogin = usage.RecognizeCount >= s.auth.AnonLimit
+	ent.RequireLogin = anonLimit <= 0 || usage.RecognizeCount >= anonLimit
 	ent.AdCredits = usage.AdCredits
-	ent.RequireAd = !ent.RequireLogin && usage.AdCredits <= 0
+	ent.RequireAd = anonRequireAd && !ent.RequireLogin && usage.AdCredits <= 0
 	return ent, nil
 }
 
@@ -418,13 +420,16 @@ func (s *Service) ConsumeRecognition(user *model.User, deviceID string) error {
 		return ErrLoginRequired
 	}
 	usage := s.ensureDeviceUsage(deviceID)
-	if usage.RecognizeCount >= s.auth.AnonLimit {
+	anonLimit := s.getSettingInt(settingAnonLimit, s.auth.AnonLimit)
+	if anonLimit <= 0 || usage.RecognizeCount >= anonLimit {
 		return ErrLoginRequired
 	}
-	if ok, err := s.repo.DecrementDeviceAdCredits(deviceID); err != nil {
-		return err
-	} else if !ok {
-		return ErrAdRequired
+	if s.getSettingBool(settingAnonRequireAd, true) {
+		if ok, err := s.repo.DecrementDeviceAdCredits(deviceID); err != nil {
+			return err
+		} else if !ok {
+			return ErrAdRequired
+		}
 	}
 	_ = s.repo.IncrementDeviceRecognize(deviceID)
 	return nil

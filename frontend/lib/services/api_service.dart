@@ -367,6 +367,28 @@ class ApiService {
     return PlanSetting.fromJson(response.data);
   }
 
+  Future<List<AppSetting>> adminSettings({String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/settings',
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AppSetting.fromJson(e)).toList();
+  }
+
+  Future<AppSetting> adminUpdateSetting(
+    String key,
+    AppSettingUpdate update, {
+    String? adminToken,
+  }) async {
+    final response = await _dio.put(
+      '/admin/settings/$key',
+      data: update.toJson(),
+      options: _adminOptions(adminToken),
+    );
+    return AppSetting.fromJson(response.data);
+  }
+
   Future<Uint8List> adminExportEval({String format = 'csv', String? adminToken}) async {
     final response = await _dio.get(
       '/admin/export/eval',
@@ -875,6 +897,37 @@ class PlanSettingUpdate {
         if (retentionDays != null) 'retention_days': retentionDays,
         if (requireAd != null) 'require_ad': requireAd,
       };
+}
+
+class AppSetting {
+  final String key;
+  final String value;
+  final String type;
+  final String description;
+
+  AppSetting({
+    required this.key,
+    required this.value,
+    required this.type,
+    required this.description,
+  });
+
+  factory AppSetting.fromJson(Map<String, dynamic> json) {
+    return AppSetting(
+      key: json['key'] ?? '',
+      value: json['value']?.toString() ?? '',
+      type: json['type'] ?? '',
+      description: json['description'] ?? '',
+    );
+  }
+}
+
+class AppSettingUpdate {
+  final dynamic value;
+
+  AppSettingUpdate({required this.value});
+
+  Map<String, dynamic> toJson() => {'value': value};
 }
 
 class AuthResponse {
