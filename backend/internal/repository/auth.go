@@ -68,6 +68,12 @@ func (r *Repository) ListEmailLogs(limit, offset int, email string) ([]model.Ema
 	return items, err
 }
 
+func (r *Repository) IncrementUserQuotaTotal(userID uint, delta int) error {
+	return r.db.Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("quota_total", gorm.Expr("quota_total + ?", delta)).Error
+}
+
 // Membership requests
 func (r *Repository) CreateMembershipRequest(req *model.MembershipRequest) error {
 	return r.db.Create(req).Error

@@ -15,6 +15,7 @@ class _AdminPageState extends State<AdminPage> {
   final _searchController = TextEditingController();
   final _logEmailController = TextEditingController();
   final _reqStatusController = TextEditingController(text: 'pending');
+  final _quotaDeltaController = TextEditingController(text: '1000');
   final _quotaController = TextEditingController();
   final _usedController = TextEditingController();
   final _creditsController = TextEditingController();
@@ -33,6 +34,7 @@ class _AdminPageState extends State<AdminPage> {
     _searchController.dispose();
     _logEmailController.dispose();
     _reqStatusController.dispose();
+    _quotaDeltaController.dispose();
     _quotaController.dispose();
     _usedController.dispose();
     _creditsController.dispose();
@@ -132,6 +134,29 @@ class _AdminPageState extends State<AdminPage> {
       await _loadMembershipRequests();
     } catch (e) {
       _toast('操作失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _addQuota() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final user = _selected;
+    if (token.isEmpty || user == null) return;
+    final delta = int.tryParse(_quotaDeltaController.text) ?? 0;
+    if (delta <= 0) {
+      _toast('请输入正确的充值额度');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final updated = await api.adminAddQuota(user.id, delta: delta, adminToken: token);
+      _selectUser(updated);
+      await _loadUsers();
+      _toast('充值成功');
+    } catch (e) {
+      _toast('充值失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -299,10 +324,21 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   OutlinedButton(
+                                    onPressed: _loading ? null : _addQuota,
+                                    child: const Text('充值额度'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
                                     onPressed: _loading ? null : _purgeUser,
                                     child: const Text('按留存清理'),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _quotaDeltaController,
+                                decoration: const InputDecoration(labelText: '充值额度（增量）'),
+                                keyboardType: TextInputType.number,
                               ),
                               const SizedBox(height: 24),
                               const Divider(),

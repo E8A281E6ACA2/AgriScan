@@ -140,6 +140,14 @@ Header: `X-Admin-Token`
 
 **POST** `/admin/membership-requests/:id/reject`
 
+**POST** `/admin/users/:id/quota`
+
+```json
+{
+  "delta": 1000
+}
+```
+
 **留存说明**
 - 列表/导出接口默认仅返回留存期内数据
 - 服务端会按间隔自动清理（`RETENTION_PURGE_*`）

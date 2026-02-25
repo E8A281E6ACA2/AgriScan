@@ -192,3 +192,29 @@ func (h *Handler) AdminRejectMembership(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
+
+// POST /api/v1/admin/users/:id/quota
+func (h *Handler) AdminAddQuota(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Delta int `json:"delta" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Delta <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid delta"})
+		return
+	}
+	user, err := h.svc.AddUserQuota(uint(id), req.Delta)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}

@@ -138,6 +138,16 @@ func (s *Service) RejectMembershipRequest(id uint) error {
 	return s.repo.UpdateMembershipRequestStatus(req.ID, "rejected")
 }
 
+func (s *Service) AddUserQuota(userID uint, delta int) (*model.User, error) {
+	if delta <= 0 {
+		return nil, fmt.Errorf("invalid delta")
+	}
+	if err := s.repo.IncrementUserQuotaTotal(userID, delta); err != nil {
+		return nil, err
+	}
+	return s.repo.GetUserByID(userID)
+}
+
 func (s *Service) UpdateUserByID(id uint, update UserUpdate) (*model.User, error) {
 	user, err := s.repo.GetUserByID(id)
 	if err != nil {

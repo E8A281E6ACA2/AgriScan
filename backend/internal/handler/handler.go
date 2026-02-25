@@ -510,6 +510,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/membership-requests", h.AdminMembershipRequests)
 		v1.POST("/admin/membership-requests/:id/approve", h.AdminApproveMembership)
 		v1.POST("/admin/membership-requests/:id/reject", h.AdminRejectMembership)
+		v1.POST("/admin/users/:id/quota", h.AdminAddQuota)
 		v1.POST("/auth/anonymous", h.AuthAnonymous)
 		v1.POST("/auth/send-otp", h.SendOTP)
 		v1.POST("/auth/verify-otp", h.VerifyOTP)

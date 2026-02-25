@@ -279,6 +279,19 @@ class ApiService {
     );
   }
 
+  Future<AdminUser> adminAddQuota(
+    int id, {
+    required int delta,
+    required String adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/users/$id/quota',
+      data: {'delta': delta},
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    return AdminUser.fromJson(response.data);
+  }
+
   Future<List<String>> getTags({String? category}) async {
     final response = await _dio.get('/tags', queryParameters: {
       if (category != null && category.isNotEmpty) 'category': category,
