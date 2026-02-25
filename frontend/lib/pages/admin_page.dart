@@ -279,6 +279,30 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _exportEvalCsv() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportEval(format: 'csv', adminToken: token.isEmpty ? null : token);
+      final path = await saveBytesAsFile('eval_dataset.csv', bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _exportEvalJson() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportEval(format: 'json', adminToken: token.isEmpty ? null : token);
+      final path = await saveBytesAsFile('eval_dataset.json', bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
   Future<void> _labelNote(AdminLabelNote note) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -403,6 +427,16 @@ class _AdminPageState extends State<AdminPage> {
                 ElevatedButton(
                   onPressed: _loading ? null : _exportFeedback,
                   child: const Text('导出反馈'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _loading ? null : _exportEvalCsv,
+                  child: const Text('导出评测CSV'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _loading ? null : _exportEvalJson,
+                  child: const Text('导出评测JSON'),
                 ),
               ],
             ),
@@ -671,9 +705,40 @@ class _AdminPageState extends State<AdminPage> {
                               ),
                               const SizedBox(height: 8),
                               if (_eval != null)
-                                ListTile(
-                                  title: Text('总样本 ${_eval!.total}，正确 ${_eval!.correct}'),
-                                  subtitle: Text('准确率 ${(100 * _eval!.accuracy).toStringAsFixed(2)}%'),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ListTile(
+                                      title: Text('总样本 ${_eval!.total}，正确 ${_eval!.correct}'),
+                                      subtitle: Text('准确率 ${(100 * _eval!.accuracy).toStringAsFixed(2)}%'),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text('按作物准确率', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    ..._eval!.byCrop.take(10).map((s) {
+                                      return ListTile(
+                                        dense: true,
+                                        title: Text(s.cropType),
+                                        subtitle: Text('样本 ${s.total} · 正确 ${s.correct}'),
+                                        trailing: Text('${(100 * s.accuracy).toStringAsFixed(1)}%'),
+                                      );
+                                    }).toList(),
+                                    if (_eval!.byCrop.length > 10)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 4),
+                                        child: Text('仅显示前 10'),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    const Text('Top 混淆对', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    ..._eval!.confusions.map((c) {
+                                      return ListTile(
+                                        dense: true,
+                                        title: Text('${c.actual} -> ${c.predicted}'),
+                                        trailing: Text('${c.count}'),
+                                      );
+                                    }).toList(),
+                                  ],
                                 ),
                             ],
                           ),

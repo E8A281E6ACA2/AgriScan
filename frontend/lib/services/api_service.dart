@@ -339,6 +339,18 @@ class ApiService {
     return Uint8List.fromList(response.data);
   }
 
+  Future<Uint8List> adminExportEval({String format = 'csv', String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/export/eval',
+      queryParameters: {'format': format},
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
   Future<AdminStats> adminStats({String? adminToken}) async {
     final response = await _dio.get(
       '/admin/stats',
@@ -1023,18 +1035,69 @@ class EvalSummary {
   final int total;
   final int correct;
   final double accuracy;
+  final List<EvalCropStat> byCrop;
+  final List<EvalConfusion> confusions;
 
   EvalSummary({
     required this.total,
     required this.correct,
     required this.accuracy,
+    required this.byCrop,
+    required this.confusions,
   });
 
   factory EvalSummary.fromJson(Map<String, dynamic> json) {
+    final cropList = json['by_crop'] as List? ?? [];
+    final confusionList = json['confusions'] as List? ?? [];
     return EvalSummary(
       total: json['total'] ?? 0,
       correct: json['correct'] ?? 0,
       accuracy: (json['accuracy'] ?? 0).toDouble(),
+      byCrop: cropList.map((e) => EvalCropStat.fromJson(e)).toList(),
+      confusions: confusionList.map((e) => EvalConfusion.fromJson(e)).toList(),
+    );
+  }
+}
+
+class EvalCropStat {
+  final String cropType;
+  final int total;
+  final int correct;
+  final double accuracy;
+
+  EvalCropStat({
+    required this.cropType,
+    required this.total,
+    required this.correct,
+    required this.accuracy,
+  });
+
+  factory EvalCropStat.fromJson(Map<String, dynamic> json) {
+    return EvalCropStat(
+      cropType: json['crop_type'] ?? '',
+      total: json['total'] ?? 0,
+      correct: json['correct'] ?? 0,
+      accuracy: (json['accuracy'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class EvalConfusion {
+  final String actual;
+  final String predicted;
+  final int count;
+
+  EvalConfusion({
+    required this.actual,
+    required this.predicted,
+    required this.count,
+  });
+
+  factory EvalConfusion.fromJson(Map<String, dynamic> json) {
+    return EvalConfusion(
+      actual: json['actual'] ?? '',
+      predicted: json['predicted'] ?? '',
+      count: json['count'] ?? 0,
     );
   }
 }

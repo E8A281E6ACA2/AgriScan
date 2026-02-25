@@ -3,8 +3,10 @@ package service
 import (
 	"agri-scan/internal/model"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -22,10 +24,40 @@ type AdminStats struct {
 }
 
 type EvalSummary struct {
-	Total       int64   `json:"total"`
-	Correct     int64   `json:"correct"`
-	Accuracy    float64 `json:"accuracy"`
-	TotalByCrop int64   `json:"total_by_crop"`
+	Total      int64           `json:"total"`
+	Correct    int64           `json:"correct"`
+	Accuracy   float64         `json:"accuracy"`
+	ByCrop     []EvalCropStat  `json:"by_crop"`
+	Confusions []EvalConfusion `json:"confusions"`
+}
+
+type EvalCropStat struct {
+	CropType string  `json:"crop_type"`
+	Total    int64   `json:"total"`
+	Correct  int64   `json:"correct"`
+	Accuracy float64 `json:"accuracy"`
+}
+
+type EvalConfusion struct {
+	Actual    string `json:"actual"`
+	Predicted string `json:"predicted"`
+	Count     int64  `json:"count"`
+}
+
+type EvalDatasetRow struct {
+	ID            uint    `json:"id"`
+	UserID        uint    `json:"user_id"`
+	ImageID       uint    `json:"image_id"`
+	ResultID      *uint   `json:"result_id"`
+	ImageURL      string  `json:"image_url"`
+	Category      string  `json:"category"`
+	CropType      string  `json:"crop_type"`
+	Confidence    float64 `json:"confidence"`
+	LabelCategory string  `json:"label_category"`
+	LabelCropType string  `json:"label_crop_type"`
+	LabelTags     string  `json:"label_tags"`
+	LabelNote     string  `json:"label_note"`
+	CreatedAt     string  `json:"created_at"`
 }
 
 func (s *Service) GetAdminStats() (AdminStats, error) {
@@ -113,8 +145,10 @@ func (s *Service) GetEvalSummary(days int) (EvalSummary, error) {
 	offset := 0
 	var total int64
 	var correct int64
+	cropStats := map[string]*EvalCropStat{}
+	confusions := map[string]map[string]int64{}
 	for {
-		items, err := s.repo.ListApprovedLabels(limit, offset, &since)
+		items, err := s.repo.ListApprovedLabels(limit, offset, &since, nil)
 		if err != nil {
 			return EvalSummary{}, err
 		}
@@ -126,9 +160,20 @@ func (s *Service) GetEvalSummary(days int) (EvalSummary, error) {
 				continue
 			}
 			total++
+			stat, ok := cropStats[n.LabelCropType]
+			if !ok {
+				stat = &EvalCropStat{CropType: n.LabelCropType}
+				cropStats[n.LabelCropType] = stat
+			}
+			stat.Total++
 			if n.LabelCropType == n.CropType {
 				correct++
+				stat.Correct++
 			}
+			if _, ok := confusions[n.LabelCropType]; !ok {
+				confusions[n.LabelCropType] = map[string]int64{}
+			}
+			confusions[n.LabelCropType][n.CropType]++
 		}
 		offset += len(items)
 	}
@@ -136,7 +181,130 @@ func (s *Service) GetEvalSummary(days int) (EvalSummary, error) {
 	if total > 0 {
 		acc = float64(correct) / float64(total)
 	}
-	return EvalSummary{Total: total, Correct: correct, Accuracy: acc, TotalByCrop: total}, nil
+	byCrop := make([]EvalCropStat, 0, len(cropStats))
+	for _, stat := range cropStats {
+		if stat.Total > 0 {
+			stat.Accuracy = float64(stat.Correct) / float64(stat.Total)
+		}
+		byCrop = append(byCrop, *stat)
+	}
+	sort.Slice(byCrop, func(i, j int) bool {
+		if byCrop[i].Total == byCrop[j].Total {
+			return byCrop[i].CropType < byCrop[j].CropType
+		}
+		return byCrop[i].Total > byCrop[j].Total
+	})
+	confusionList := make([]EvalConfusion, 0, 32)
+	for actual, preds := range confusions {
+		for predicted, count := range preds {
+			if actual == predicted {
+				continue
+			}
+			confusionList = append(confusionList, EvalConfusion{Actual: actual, Predicted: predicted, Count: count})
+		}
+	}
+	sort.Slice(confusionList, func(i, j int) bool {
+		if confusionList[i].Count == confusionList[j].Count {
+			if confusionList[i].Actual == confusionList[j].Actual {
+				return confusionList[i].Predicted < confusionList[j].Predicted
+			}
+			return confusionList[i].Actual < confusionList[j].Actual
+		}
+		return confusionList[i].Count > confusionList[j].Count
+	})
+	if len(confusionList) > 20 {
+		confusionList = confusionList[:20]
+	}
+	return EvalSummary{Total: total, Correct: correct, Accuracy: acc, ByCrop: byCrop, Confusions: confusionList}, nil
+}
+
+func (s *Service) ExportEvalDatasetCSV(w io.Writer, start, end *time.Time) error {
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	_ = writer.Write([]string{"id", "user_id", "image_id", "result_id", "image_url", "category", "crop_type", "confidence", "label_category", "label_crop_type", "label_tags", "label_note", "created_at"})
+	limit := 1000
+	offset := 0
+	for {
+		items, err := s.repo.ListApprovedLabels(limit, offset, start, end)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, n := range items {
+			resultID := ""
+			if n.ResultID != nil {
+				resultID = strconv.FormatUint(uint64(*n.ResultID), 10)
+			}
+			_ = writer.Write([]string{
+				strconv.FormatUint(uint64(n.ID), 10),
+				strconv.FormatUint(uint64(n.UserID), 10),
+				strconv.FormatUint(uint64(n.ImageID), 10),
+				resultID,
+				n.ImageURL,
+				n.Category,
+				n.CropType,
+				strconv.FormatFloat(n.Confidence, 'f', 4, 64),
+				n.LabelCategory,
+				n.LabelCropType,
+				n.LabelTags,
+				n.LabelNote,
+				n.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		offset += len(items)
+	}
+	return writer.Error()
+}
+
+func (s *Service) ExportEvalDatasetJSON(w io.Writer, start, end *time.Time) error {
+	encoder := json.NewEncoder(w)
+	_, err := io.WriteString(w, "[")
+	if err != nil {
+		return err
+	}
+	limit := 1000
+	offset := 0
+	first := true
+	for {
+		items, err := s.repo.ListApprovedLabels(limit, offset, start, end)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, n := range items {
+			row := EvalDatasetRow{
+				ID:            n.ID,
+				UserID:        n.UserID,
+				ImageID:       n.ImageID,
+				ResultID:      n.ResultID,
+				ImageURL:      n.ImageURL,
+				Category:      n.Category,
+				CropType:      n.CropType,
+				Confidence:    n.Confidence,
+				LabelCategory: n.LabelCategory,
+				LabelCropType: n.LabelCropType,
+				LabelTags:     n.LabelTags,
+				LabelNote:     n.LabelNote,
+				CreatedAt:     n.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			if err := encoder.Encode(row); err != nil {
+				return err
+			}
+			first = false
+		}
+		offset += len(items)
+	}
+	_, err = io.WriteString(w, "]")
+	return err
 }
 
 func (s *Service) ExportAdminUsersCSV(w io.Writer, start, end *time.Time) error {

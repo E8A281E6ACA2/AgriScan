@@ -517,6 +517,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/admin/labels/:id", h.AdminLabelNote)
 		v1.POST("/admin/labels/:id/review", h.AdminReviewLabel)
 		v1.GET("/admin/eval/summary", h.AdminEvalSummary)
+		v1.GET("/admin/export/eval", h.AdminExportEval)
 		v1.GET("/admin/export/users", h.AdminExportUsers)
 		v1.GET("/admin/export/notes", h.AdminExportNotes)
 		v1.GET("/admin/export/feedback", h.AdminExportFeedback)

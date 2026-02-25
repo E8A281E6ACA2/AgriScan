@@ -196,6 +196,19 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 |------|------|--------|------|
 | days | int | 30 | 评测天数 |
 
+返回字段：
+- total / correct / accuracy
+- by_crop：按标注作物统计准确率
+- confusions：Top N 混淆对（actual->predicted）
+
+**GET** `/admin/export/eval`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
 **GET** `/admin/export/users`  
 **GET** `/admin/export/notes`  
 **GET** `/admin/export/feedback`

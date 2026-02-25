@@ -111,11 +111,14 @@ func (r *Repository) UpdateLabelNote(noteID uint, fields map[string]interface{})
 }
 
 // Evaluation
-func (r *Repository) ListApprovedLabels(limit, offset int, since *time.Time) ([]model.FieldNote, error) {
+func (r *Repository) ListApprovedLabels(limit, offset int, start, end *time.Time) ([]model.FieldNote, error) {
 	var items []model.FieldNote
 	query := r.db.Model(&model.FieldNote{}).Where("label_status = ?", "approved")
-	if since != nil {
-		query = query.Where("created_at >= ?", *since)
+	if start != nil {
+		query = query.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("created_at < ?", *end)
 	}
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
 	return items, err

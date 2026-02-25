@@ -354,6 +354,32 @@ func (h *Handler) AdminEvalSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, summary)
 }
 
+// GET /api/v1/admin/export/eval
+func (h *Handler) AdminExportEval(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=eval_dataset.json")
+		if err := h.svc.ExportEvalDatasetJSON(c.Writer, startDate, endDate); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=eval_dataset.csv")
+	if err := h.svc.ExportEvalDatasetCSV(c.Writer, startDate, endDate); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
 // GET /api/v1/admin/export/users
 func (h *Handler) AdminExportUsers(c *gin.Context) {
 	if !h.requireAdmin(c) {
