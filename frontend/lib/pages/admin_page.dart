@@ -14,6 +14,7 @@ class _AdminPageState extends State<AdminPage> {
   final _tokenController = TextEditingController();
   final _searchController = TextEditingController();
   final _logEmailController = TextEditingController();
+  final _reqStatusController = TextEditingController(text: 'pending');
   final _quotaController = TextEditingController();
   final _usedController = TextEditingController();
   final _creditsController = TextEditingController();
@@ -21,6 +22,7 @@ class _AdminPageState extends State<AdminPage> {
   bool _loading = false;
   List<AdminUser> _users = [];
   List<EmailLog> _logs = [];
+  List<MembershipRequest> _requests = [];
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
@@ -30,6 +32,7 @@ class _AdminPageState extends State<AdminPage> {
     _tokenController.dispose();
     _searchController.dispose();
     _logEmailController.dispose();
+    _reqStatusController.dispose();
     _quotaController.dispose();
     _usedController.dispose();
     _creditsController.dispose();
@@ -91,6 +94,60 @@ class _AdminPageState extends State<AdminPage> {
       _toast('保存成功');
     } catch (e) {
       _toast('保存失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMembershipRequests() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) {
+      _toast('请输入管理员 Token');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final status = _reqStatusController.text.trim();
+      final items = await api.adminListMembershipRequests(
+        adminToken: token,
+        status: status.isEmpty ? null : status,
+      );
+      setState(() => _requests = items);
+    } catch (e) {
+      _toast('拉取申请失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _approveRequest(MembershipRequest req) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      await api.adminApproveMembershipRequest(req.id, plan: req.plan, adminToken: token);
+      _toast('已通过');
+      await _loadMembershipRequests();
+    } catch (e) {
+      _toast('操作失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _rejectRequest(MembershipRequest req) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      await api.adminRejectMembershipRequest(req.id, adminToken: token);
+      _toast('已拒绝');
+      await _loadMembershipRequests();
+    } catch (e) {
+      _toast('操作失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -274,6 +331,50 @@ class _AdminPageState extends State<AdminPage> {
                                   title: Text('${log.email}  (${log.status})'),
                                   subtitle: Text(log.error.isEmpty ? log.createdAt : '${log.createdAt} | ${log.error}'),
                                   trailing: Text(log.code),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('会员申请', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _reqStatusController,
+                                      decoration: const InputDecoration(labelText: '状态(pending/approved/rejected)'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadMembershipRequests,
+                                    child: const Text('查询'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._requests.map((req) {
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('User ${req.userId} · ${req.plan} · ${req.status}'),
+                                    subtitle: Text(req.note.isEmpty ? req.createdAt : '${req.createdAt} | ${req.note}'),
+                                    trailing: req.status == 'pending'
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                onPressed: _loading ? null : () => _approveRequest(req),
+                                                icon: const Icon(Icons.check, color: Colors.green),
+                                              ),
+                                              IconButton(
+                                                onPressed: _loading ? null : () => _rejectRequest(req),
+                                                icon: const Icon(Icons.close, color: Colors.red),
+                                              ),
+                                            ],
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
                                 );
                               }).toList(),
                             ],

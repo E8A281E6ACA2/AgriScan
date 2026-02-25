@@ -206,6 +206,28 @@ func (h *Handler) RewardAd(c *gin.Context) {
 	c.JSON(http.StatusOK, ent)
 }
 
+// POST /api/v1/membership/request
+func (h *Handler) MembershipRequest(c *gin.Context) {
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Plan string `json:"plan" binding:"required"`
+		Note string `json:"note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	item, err := h.svc.CreateMembershipRequest(actor.UserID, req.Plan, req.Note)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
 func (h *Handler) svcAuthDebug() bool {
 	return h.svc.IsDebugOTP()
 }

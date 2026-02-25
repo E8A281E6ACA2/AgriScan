@@ -73,6 +73,71 @@ func (s *Service) ListEmailLogs(limit, offset int, email string) ([]model.EmailL
 	return s.repo.ListEmailLogs(limit, offset, email)
 }
 
+func (s *Service) CreateMembershipRequest(userID uint, plan, note string) (*model.MembershipRequest, error) {
+	plan = strings.TrimSpace(strings.ToLower(plan))
+	if plan == "" || plan == "free" {
+		return nil, fmt.Errorf("invalid plan")
+	}
+	if _, err := s.repo.GetPendingMembershipRequestByUser(userID); err == nil {
+		return nil, fmt.Errorf("pending request exists")
+	}
+	item := &model.MembershipRequest{
+		UserID: userID,
+		Plan:   plan,
+		Status: "pending",
+		Note:   note,
+	}
+	if err := s.repo.CreateMembershipRequest(item); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (s *Service) ListMembershipRequests(limit, offset int, status string) ([]model.MembershipRequest, error) {
+	return s.repo.ListMembershipRequests(limit, offset, status)
+}
+
+func (s *Service) ApproveMembershipRequest(id uint, plan string, quotaTotal *int) (*model.User, error) {
+	req, err := s.repo.GetMembershipRequestByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if req.Status != "pending" {
+		return nil, fmt.Errorf("request not pending")
+	}
+	if plan == "" {
+		plan = req.Plan
+	}
+	cfg := s.getPlanSetting(plan)
+	quota := cfg.QuotaTotal
+	if quotaTotal != nil && *quotaTotal >= 0 {
+		quota = *quotaTotal
+	}
+	user, err := s.UpdateUserByID(req.UserID, UserUpdate{
+		Plan:       plan,
+		QuotaTotal: quota,
+		QuotaUsed:  0,
+		Status:     "active",
+		AdCredits:  0,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_ = s.repo.UpdateMembershipRequestStatus(req.ID, "approved")
+	return user, nil
+}
+
+func (s *Service) RejectMembershipRequest(id uint) error {
+	req, err := s.repo.GetMembershipRequestByID(id)
+	if err != nil {
+		return err
+	}
+	if req.Status != "pending" {
+		return fmt.Errorf("request not pending")
+	}
+	return s.repo.UpdateMembershipRequestStatus(req.ID, "rejected")
+}
+
 func (s *Service) UpdateUserByID(id uint, update UserUpdate) (*model.User, error) {
 	user, err := s.repo.GetUserByID(id)
 	if err != nil {

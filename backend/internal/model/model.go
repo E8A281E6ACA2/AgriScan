@@ -147,6 +147,17 @@ type EmailLog struct {
 	Error     string         `gorm:"type:text" json:"error"`
 }
 
+type MembershipRequest struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	UserID    uint           `gorm:"index" json:"user_id"`
+	Plan      string         `gorm:"size:16;index" json:"plan"`
+	Status    string         `gorm:"size:16;index" json:"status"` // pending/approved/rejected
+	Note      string         `gorm:"type:text" json:"note"`
+}
+
 type UserSession struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`

@@ -24,6 +24,7 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.User{},
 		&model.EmailOTP{},
 		&model.EmailLog{},
+		&model.MembershipRequest{},
 		&model.UserSession{},
 		&model.Device{},
 		&model.DeviceUsage{},

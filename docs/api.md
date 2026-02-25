@@ -72,6 +72,19 @@
 
 ---
 
+### 0.2 会员申请
+
+**POST** `/membership/request`
+
+```json
+{
+  "plan": "silver",
+  "note": "需要更高额度"
+}
+```
+
+---
+
 ### 0.1 管理后台
 
 Header: `X-Admin-Token`
@@ -107,6 +120,25 @@ Header: `X-Admin-Token`
 | limit | int | 50 | 分页大小 |
 | offset | int | 0 | 偏移 |
 | email | string | - | 按邮箱过滤 |
+
+**GET** `/admin/membership-requests`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 50 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| status | string | - | pending/approved/rejected |
+
+**POST** `/admin/membership-requests/:id/approve`
+
+```json
+{
+  "plan": "gold",
+  "quota_total": 20000
+}
+```
+
+**POST** `/admin/membership-requests/:id/reject`
 
 **留存说明**
 - 列表/导出接口默认仅返回留存期内数据

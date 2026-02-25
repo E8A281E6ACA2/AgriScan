@@ -131,3 +131,64 @@ func (h *Handler) AdminEmailLogs(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
 }
+
+// GET /api/v1/admin/membership-requests
+func (h *Handler) AdminMembershipRequests(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+	status := strings.TrimSpace(c.DefaultQuery("status", ""))
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+
+	items, err := h.svc.ListMembershipRequests(limit, offset, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// POST /api/v1/admin/membership-requests/:id/approve
+func (h *Handler) AdminApproveMembership(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Plan       string `json:"plan"`
+		QuotaTotal *int   `json:"quota_total"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	user, err := h.svc.ApproveMembershipRequest(uint(id), strings.TrimSpace(req.Plan), req.QuotaTotal)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
+
+// POST /api/v1/admin/membership-requests/:id/reject
+func (h *Handler) AdminRejectMembership(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.RejectMembershipRequest(uint(id)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}

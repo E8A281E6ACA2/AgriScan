@@ -222,6 +222,63 @@ class ApiService {
     return list.map((e) => EmailLog.fromJson(e)).toList();
   }
 
+  Future<MembershipRequest> createMembershipRequest({
+    required String plan,
+    String? note,
+  }) async {
+    final response = await _dio.post('/membership/request', data: {
+      'plan': plan,
+      if (note != null && note.isNotEmpty) 'note': note,
+    });
+    return MembershipRequest.fromJson(response.data);
+  }
+
+  Future<List<MembershipRequest>> adminListMembershipRequests({
+    int limit = 50,
+    int offset = 0,
+    String? status,
+    required String adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/membership-requests',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => MembershipRequest.fromJson(e)).toList();
+  }
+
+  Future<AdminUser> adminApproveMembershipRequest(
+    int id, {
+    String? plan,
+    int? quotaTotal,
+    required String adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/membership-requests/$id/approve',
+      data: {
+        if (plan != null && plan.isNotEmpty) 'plan': plan,
+        if (quotaTotal != null) 'quota_total': quotaTotal,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    return AdminUser.fromJson(response.data);
+  }
+
+  Future<void> adminRejectMembershipRequest(
+    int id, {
+    required String adminToken,
+  }) async {
+    await _dio.post(
+      '/admin/membership-requests/$id/reject',
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+  }
+
   Future<List<String>> getTags({String? category}) async {
     final response = await _dio.get('/tags', queryParameters: {
       if (category != null && category.isNotEmpty) 'category': category,
@@ -669,6 +726,35 @@ class EmailLog {
       code: json['code'] ?? '',
       status: json['status'] ?? '',
       error: json['error'] ?? '',
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class MembershipRequest {
+  final int id;
+  final int userId;
+  final String plan;
+  final String status;
+  final String note;
+  final String createdAt;
+
+  MembershipRequest({
+    required this.id,
+    required this.userId,
+    required this.plan,
+    required this.status,
+    required this.note,
+    required this.createdAt,
+  });
+
+  factory MembershipRequest.fromJson(Map<String, dynamic> json) {
+    return MembershipRequest(
+      id: json['id'] ?? 0,
+      userId: json['user_id'] ?? 0,
+      plan: json['plan'] ?? '',
+      status: json['status'] ?? '',
+      note: json['note'] ?? '',
       createdAt: (json['created_at'] ?? '').toString(),
     );
   }

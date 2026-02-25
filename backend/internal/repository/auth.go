@@ -68,6 +68,37 @@ func (r *Repository) ListEmailLogs(limit, offset int, email string) ([]model.Ema
 	return items, err
 }
 
+// Membership requests
+func (r *Repository) CreateMembershipRequest(req *model.MembershipRequest) error {
+	return r.db.Create(req).Error
+}
+
+func (r *Repository) GetPendingMembershipRequestByUser(userID uint) (*model.MembershipRequest, error) {
+	var req model.MembershipRequest
+	err := r.db.Where("user_id = ? AND status = ?", userID, "pending").Order("created_at DESC").First(&req).Error
+	return &req, err
+}
+
+func (r *Repository) ListMembershipRequests(limit, offset int, status string) ([]model.MembershipRequest, error) {
+	var items []model.MembershipRequest
+	query := r.db.Model(&model.MembershipRequest{})
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
+	return items, err
+}
+
+func (r *Repository) UpdateMembershipRequestStatus(id uint, status string) error {
+	return r.db.Model(&model.MembershipRequest{}).Where("id = ?", id).Update("status", status).Error
+}
+
+func (r *Repository) GetMembershipRequestByID(id uint) (*model.MembershipRequest, error) {
+	var req model.MembershipRequest
+	err := r.db.First(&req, id).Error
+	return &req, err
+}
+
 func (r *Repository) GetValidEmailOTP(email, code string, now time.Time) (*model.EmailOTP, error) {
 	var otp model.EmailOTP
 	err := r.db.Where("email = ? AND code = ? AND used_at IS NULL AND expires_at > ?", email, code, now).First(&otp).Error
