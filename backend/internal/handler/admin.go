@@ -112,3 +112,22 @@ func (h *Handler) AdminPurgeUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"purged": count})
 }
+
+// GET /api/v1/admin/email-logs
+func (h *Handler) AdminEmailLogs(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+	email := strings.TrimSpace(c.DefaultQuery("email", ""))
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+
+	items, err := h.svc.ListEmailLogs(limit, offset, email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}

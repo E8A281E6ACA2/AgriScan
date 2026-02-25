@@ -54,6 +54,20 @@ func (r *Repository) GetLatestEmailOTP(email string) (*model.EmailOTP, error) {
 	return &otp, err
 }
 
+func (r *Repository) CreateEmailLog(logItem *model.EmailLog) error {
+	return r.db.Create(logItem).Error
+}
+
+func (r *Repository) ListEmailLogs(limit, offset int, email string) ([]model.EmailLog, error) {
+	var items []model.EmailLog
+	query := r.db.Model(&model.EmailLog{})
+	if email != "" {
+		query = query.Where("email = ?", email)
+	}
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
+	return items, err
+}
+
 func (r *Repository) GetValidEmailOTP(email, code string, now time.Time) (*model.EmailOTP, error) {
 	var otp model.EmailOTP
 	err := r.db.Where("email = ? AND code = ? AND used_at IS NULL AND expires_at > ?", email, code, now).First(&otp).Error

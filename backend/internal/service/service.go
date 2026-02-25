@@ -27,6 +27,7 @@ type Service struct {
 type StorageInterface interface {
 	Upload(ctx context.Context, key string, reader io.Reader) (string, error)
 	GenerateKey(userID uint, filename string) string
+	Delete(ctx context.Context, key string) error
 }
 
 // NewService 创建服务

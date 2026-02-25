@@ -2,12 +2,14 @@ package service
 
 import (
 	"agri-scan/internal/model"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/smtp"
+	urlpkg "net/url"
 	"strings"
 	"time"
 
@@ -65,6 +67,10 @@ func (s *Service) GetUserByID(id uint) (*model.User, error) {
 
 func (s *Service) ListUsers(limit, offset int, keyword string) ([]model.User, error) {
 	return s.repo.ListUsers(limit, offset, keyword)
+}
+
+func (s *Service) ListEmailLogs(limit, offset int, email string) ([]model.EmailLog, error) {
+	return s.repo.ListEmailLogs(limit, offset, email)
 }
 
 func (s *Service) UpdateUserByID(id uint, update UserUpdate) (*model.User, error) {
@@ -155,10 +161,24 @@ func (s *Service) SendEmailOTP(email string) (string, error) {
 	if err := s.repo.CreateEmailOTP(otp); err != nil {
 		return "", err
 	}
-	if !s.auth.DebugOTP {
+	status := "sent"
+	errMsg := ""
+	if s.auth.DebugOTP {
+		status = "debug"
+	} else {
 		if err := s.sendOTPEmail(email, code); err != nil {
-			return "", err
+			status = "failed"
+			errMsg = err.Error()
 		}
+	}
+	_ = s.repo.CreateEmailLog(&model.EmailLog{
+		Email:  email,
+		Code:   code,
+		Status: status,
+		Error:  errMsg,
+	})
+	if status == "failed" {
+		return "", fmt.Errorf(errMsg)
 	}
 	return code, nil
 }
@@ -416,6 +436,33 @@ func (s *Service) PurgeUserNotesByRetention(user *model.User) (int64, error) {
 		cfg.RetentionDays = s.auth.FreeRetentionDays
 	}
 	cutoff := time.Now().AddDate(0, 0, -cfg.RetentionDays)
+	if s.storage != nil {
+		batch := s.auth.RetentionPurgeBatchSize
+		if batch <= 0 {
+			batch = 200
+		}
+		offset := 0
+		for {
+			images, err := s.repo.ListImagesBefore(user.ID, cutoff, batch, offset)
+			if err != nil {
+				return 0, err
+			}
+			if len(images) == 0 {
+				break
+			}
+			for _, img := range images {
+				key := extractObjectKey(img.OriginalURL)
+				if key == "" {
+					continue
+				}
+				if err := s.storage.Delete(context.Background(), key); err != nil {
+					// 不阻断清理流程
+					continue
+				}
+			}
+			offset += len(images)
+		}
+	}
 	var total int64
 	if n, err := s.repo.PurgeNotesBefore(user.ID, cutoff); err != nil {
 		return total, err
@@ -433,6 +480,25 @@ func (s *Service) PurgeUserNotesByRetention(user *model.User) (int64, error) {
 		total += n
 	}
 	return total, nil
+}
+
+func extractObjectKey(url string) string {
+	u := strings.TrimSpace(url)
+	if u == "" {
+		return ""
+	}
+	if strings.HasPrefix(u, "agriscan/") {
+		return u
+	}
+	if idx := strings.Index(u, "agriscan/"); idx >= 0 {
+		return u[idx:]
+	}
+	if strings.Contains(u, "://") {
+		if parsed, err := urlpkg.Parse(u); err == nil {
+			return strings.TrimPrefix(parsed.Path, "/")
+		}
+	}
+	return strings.TrimPrefix(u, "/")
 }
 
 func (s *Service) sendOTPEmail(email, code string) error {

@@ -23,6 +23,7 @@ func NewRepository(dsn string) (*Repository, error) {
 	err = db.AutoMigrate(
 		&model.User{},
 		&model.EmailOTP{},
+		&model.EmailLog{},
 		&model.UserSession{},
 		&model.Device{},
 		&model.DeviceUsage{},
@@ -192,6 +193,16 @@ func (r *Repository) PurgeResultsBefore(userID uint, cutoff time.Time) (int64, e
 func (r *Repository) PurgeImagesBefore(userID uint, cutoff time.Time) (int64, error) {
 	res := r.db.Where("user_id = ? AND created_at < ?", userID, cutoff).Delete(&model.Image{})
 	return res.RowsAffected, res.Error
+}
+
+func (r *Repository) ListImagesBefore(userID uint, cutoff time.Time, limit, offset int) ([]model.Image, error) {
+	var items []model.Image
+	err := r.db.Where("user_id = ? AND created_at < ?", userID, cutoff).
+		Order("created_at ASC").
+		Limit(limit).
+		Offset(offset).
+		Find(&items).Error
+	return items, err
 }
 
 func (r *Repository) GetUserByOpenID(openID string) (*model.User, error) {

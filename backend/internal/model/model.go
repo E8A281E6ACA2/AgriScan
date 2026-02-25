@@ -136,6 +136,17 @@ type EmailOTP struct {
 	UsedAt    *time.Time     `json:"used_at"`
 }
 
+type EmailLog struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Email     string         `gorm:"index;size:128" json:"email"`
+	Code      string         `gorm:"size:10" json:"code"`
+	Status    string         `gorm:"size:16" json:"status"` // sent/failed/debug
+	Error     string         `gorm:"type:text" json:"error"`
+}
+
 type UserSession struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`

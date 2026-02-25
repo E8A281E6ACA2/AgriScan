@@ -506,6 +506,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/users", h.AdminListUsers)
 		v1.PUT("/admin/users/:id", h.AdminUpdateUser)
 		v1.POST("/admin/users/:id/purge", h.AdminPurgeUser)
+		v1.GET("/admin/email-logs", h.AdminEmailLogs)
 		v1.POST("/auth/anonymous", h.AuthAnonymous)
 		v1.POST("/auth/send-otp", h.SendOTP)
 		v1.POST("/auth/verify-otp", h.VerifyOTP)
