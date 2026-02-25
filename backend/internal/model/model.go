@@ -91,6 +91,13 @@ type FieldNote struct {
 	FeedbackNote     string         `gorm:"type:text" json:"feedback_note"`
 	FeedbackCategory string         `gorm:"size:16;index" json:"feedback_category"`
 	FeedbackTags     string         `gorm:"type:text" json:"feedback_tags"`
+	LabelStatus      string         `gorm:"size:16;index" json:"label_status"` // pending/labeled/approved/rejected
+	LabelCategory    string         `gorm:"size:16;index" json:"label_category"`
+	LabelCropType    string         `gorm:"size:64;index" json:"label_crop_type"`
+	LabelTags        string         `gorm:"type:text" json:"label_tags"`
+	LabelNote        string         `gorm:"type:text" json:"label_note"`
+	ReviewedBy       string         `gorm:"size:64" json:"reviewed_by"`
+	ReviewedAt       *time.Time     `json:"reviewed_at"`
 }
 
 type ExportTemplate struct {
@@ -156,6 +163,18 @@ type MembershipRequest struct {
 	Plan      string         `gorm:"size:16;index" json:"plan"`
 	Status    string         `gorm:"size:16;index" json:"status"` // pending/approved/rejected
 	Note      string         `gorm:"type:text" json:"note"`
+}
+
+type AdminAuditLog struct {
+	ID         uint           `gorm:"primarykey" json:"id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	Action     string         `gorm:"size:64;index" json:"action"`
+	TargetType string         `gorm:"size:64;index" json:"target_type"`
+	TargetID   uint           `gorm:"index" json:"target_id"`
+	Detail     string         `gorm:"type:text" json:"detail"`
+	IP         string         `gorm:"size:64" json:"ip"`
 }
 
 type UserSession struct {

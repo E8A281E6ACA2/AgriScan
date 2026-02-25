@@ -148,6 +148,56 @@ Header: `X-Admin-Token`
 }
 ```
 
+**GET** `/admin/stats`
+
+返回统计汇总。
+
+**GET** `/admin/audit-logs`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 50 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| action | string | - | 操作类型 |
+
+**GET** `/admin/labels`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| status | string | pending | pending/labeled/approved/rejected |
+
+**POST** `/admin/labels/:id`
+
+```json
+{
+  "category": "crop",
+  "crop_type": "wheat",
+  "tags": ["病害", "锈病"],
+  "note": "人工标注"
+}
+```
+
+**POST** `/admin/labels/:id/review`
+
+```json
+{
+  "status": "approved",
+  "reviewer": "admin"
+}
+```
+
+**GET** `/admin/eval/summary`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 评测天数 |
+
+**GET** `/admin/export/users`  
+**GET** `/admin/export/notes`  
+**GET** `/admin/export/feedback`
+
 ---
 
 ### 0.3 支付占位

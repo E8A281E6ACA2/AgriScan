@@ -245,13 +245,14 @@ func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note str
 	}
 
 	item := &model.FieldNote{
-		UserID:   userID,
-		ImageID:  imageID,
-		ResultID: resultID,
-		ImageURL: img.OriginalURL,
-		Note:     note,
-		Category: category,
-		Tags:     strings.Join(tags, ","),
+		UserID:      userID,
+		ImageID:     imageID,
+		ResultID:    resultID,
+		ImageURL:    img.OriginalURL,
+		Note:        note,
+		Category:    category,
+		Tags:        strings.Join(tags, ","),
+		LabelStatus: "pending",
 	}
 	if result != nil {
 		item.RawText = result.RawText

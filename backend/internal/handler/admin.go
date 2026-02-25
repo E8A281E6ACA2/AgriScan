@@ -42,6 +42,19 @@ func (h *Handler) AdminListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
 }
 
+// GET /api/v1/admin/stats
+func (h *Handler) AdminStats(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	stats, err := h.svc.GetAdminStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
 // PUT /api/v1/admin/users/:id
 func (h *Handler) AdminUpdateUser(c *gin.Context) {
 	if !h.requireAdmin(c) {
@@ -86,6 +99,7 @@ func (h *Handler) AdminUpdateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.svc.RecordAdminAudit("update_user", "user", uint(id), "update", c.ClientIP())
 	c.JSON(http.StatusOK, user)
 }
 
@@ -110,6 +124,7 @@ func (h *Handler) AdminPurgeUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.svc.RecordAdminAudit("purge_user", "user", uint(id), "retention purge", c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{"purged": count})
 }
 
@@ -125,6 +140,24 @@ func (h *Handler) AdminEmailLogs(c *gin.Context) {
 	offset, _ := strconv.Atoi(offsetStr)
 
 	items, err := h.svc.ListEmailLogs(limit, offset, email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// GET /api/v1/admin/audit-logs
+func (h *Handler) AdminAuditLogs(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+	action := strings.TrimSpace(c.DefaultQuery("action", ""))
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+	items, err := h.svc.ListAdminAuditLogs(limit, offset, action)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -172,6 +205,7 @@ func (h *Handler) AdminApproveMembership(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	h.svc.RecordAdminAudit("approve_membership", "membership_request", uint(id), "approve", c.ClientIP())
 	c.JSON(http.StatusOK, user)
 }
 
@@ -190,6 +224,7 @@ func (h *Handler) AdminRejectMembership(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	h.svc.RecordAdminAudit("reject_membership", "membership_request", uint(id), "reject", c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -216,5 +251,152 @@ func (h *Handler) AdminAddQuota(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.svc.RecordAdminAudit("add_quota", "user", uint(id), "delta", c.ClientIP())
 	c.JSON(http.StatusOK, user)
+}
+
+// GET /api/v1/admin/labels
+func (h *Handler) AdminLabelQueue(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+	status := c.DefaultQuery("status", "pending")
+	category := c.DefaultQuery("category", "")
+	cropType := c.DefaultQuery("crop_type", "")
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+	items, err := h.svc.ListLabelNotes(limit, offset, status, category, cropType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// POST /api/v1/admin/labels/:id
+func (h *Handler) AdminLabelNote(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Category string   `json:"category"`
+		CropType string   `json:"crop_type"`
+		Tags     []string `json:"tags"`
+		Note     string   `json:"note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := h.svc.UpdateLabelNote(uint(id), req.Category, req.CropType, req.Tags, req.Note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("label_note", "note", uint(id), "label", c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// POST /api/v1/admin/labels/:id/review
+func (h *Handler) AdminReviewLabel(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Status   string `json:"status"`
+		Reviewer string `json:"reviewer"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	reviewer := strings.TrimSpace(req.Reviewer)
+	if reviewer == "" {
+		reviewer = "admin"
+	}
+	if err := h.svc.ReviewLabelNote(uint(id), strings.TrimSpace(req.Status), reviewer); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("review_label", "note", uint(id), req.Status, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// GET /api/v1/admin/eval/summary
+func (h *Handler) AdminEvalSummary(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	daysStr := c.DefaultQuery("days", "30")
+	days, _ := strconv.Atoi(daysStr)
+	summary, err := h.svc.GetEvalSummary(days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, summary)
+}
+
+// GET /api/v1/admin/export/users
+func (h *Handler) AdminExportUsers(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=users.csv")
+	if err := h.svc.ExportAdminUsersCSV(c.Writer, startDate, endDate); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// GET /api/v1/admin/export/notes
+func (h *Handler) AdminExportNotes(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=notes_admin.csv")
+	if err := h.svc.ExportAdminNotesCSV(c.Writer, startDate, endDate); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// GET /api/v1/admin/export/feedback
+func (h *Handler) AdminExportFeedback(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=feedback.csv")
+	if err := h.svc.ExportAdminFeedbackCSV(c.Writer, startDate, endDate); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
 }
