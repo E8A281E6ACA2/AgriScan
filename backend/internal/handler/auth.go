@@ -103,6 +103,10 @@ func (h *Handler) SendOTP(c *gin.Context) {
 
 	code, err := h.svc.SendEmailOTP(req.Email)
 	if err != nil {
+		if errors.Is(err, service.ErrTooManyRequests) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too_many_requests"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

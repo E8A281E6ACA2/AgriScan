@@ -29,6 +29,7 @@
   "email": "you@example.com"
 }
 ```
+说明：同邮箱 60 秒内限发 1 次。
 
 **POST** `/auth/verify-otp`
 
@@ -98,6 +99,10 @@ Header: `X-Admin-Token`
 **POST** `/admin/users/:id/purge`
 
 按用户当前档次的留存天数清理手记。
+
+**留存说明**
+- 列表/导出接口默认仅返回留存期内数据
+- 服务端会按间隔自动清理（`RETENTION_PURGE_*`）
 
 ### 1. 上传图片
 

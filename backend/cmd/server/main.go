@@ -7,6 +7,7 @@ import (
 	"agri-scan/internal/repository"
 	"agri-scan/internal/service"
 	"agri-scan/pkg/storage"
+	"context"
 	"fmt"
 	"log"
 
@@ -102,6 +103,7 @@ func main() {
 
 	// 初始化服务
 	svc := service.NewService(repo, provider, stor)
+	svc.StartRetentionWorker(context.Background())
 
 	// 初始化处理器
 	h := handler.NewHandler(svc)

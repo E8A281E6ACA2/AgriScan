@@ -48,6 +48,12 @@ func (r *Repository) CreateEmailOTP(otp *model.EmailOTP) error {
 	return r.db.Create(otp).Error
 }
 
+func (r *Repository) GetLatestEmailOTP(email string) (*model.EmailOTP, error) {
+	var otp model.EmailOTP
+	err := r.db.Where("email = ?", email).Order("created_at DESC").First(&otp).Error
+	return &otp, err
+}
+
 func (r *Repository) GetValidEmailOTP(email, code string, now time.Time) (*model.EmailOTP, error) {
 	var otp model.EmailOTP
 	err := r.db.Where("email = ? AND code = ? AND used_at IS NULL AND expires_at > ?", email, code, now).First(&otp).Error

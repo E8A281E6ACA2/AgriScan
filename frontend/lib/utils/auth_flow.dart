@@ -33,7 +33,10 @@ Future<bool> _loginFlow(BuildContext context, ApiService api) async {
   try {
     await api.sendOTP(email);
   } catch (e) {
-    _showToast(context, '发送验证码失败: $e');
+    final msg = e.toString().contains('too_many_requests')
+        ? '发送过于频繁，请稍后再试'
+        : '发送验证码失败: $e';
+    _showToast(context, msg);
     return false;
   }
 

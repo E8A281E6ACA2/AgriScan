@@ -6,16 +6,19 @@ import (
 )
 
 type AuthConfig struct {
-	AnonLimit         int
-	OTPMinutes        int
-	SessionDays       int
-	FreeRetentionDays int
-	FreeQuotaTotal    int
-	DebugOTP          bool
-	PlanSilver        PlanSetting
-	PlanGold          PlanSetting
-	PlanDiamond       PlanSetting
-	SMTP              SMTPConfig
+	AnonLimit                   int
+	OTPMinutes                  int
+	SessionDays                 int
+	FreeRetentionDays           int
+	FreeQuotaTotal              int
+	DebugOTP                    bool
+	PlanSilver                  PlanSetting
+	PlanGold                    PlanSetting
+	PlanDiamond                 PlanSetting
+	SMTP                        SMTPConfig
+	RetentionPurgeEnabled       bool
+	RetentionPurgeIntervalHours int
+	RetentionPurgeBatchSize     int
 }
 
 func loadAuthConfig() AuthConfig {
@@ -52,6 +55,9 @@ func loadAuthConfig() AuthConfig {
 			From:       os.Getenv("FLOWAPI_SMTP_FROM"),
 			Token:      os.Getenv("FLOWAPI_SMTP_TOKEN"),
 		},
+		RetentionPurgeEnabled:       getEnvBool("RETENTION_PURGE_ENABLED", true),
+		RetentionPurgeIntervalHours: getEnvInt("RETENTION_PURGE_INTERVAL_HOURS", 24),
+		RetentionPurgeBatchSize:     getEnvInt("RETENTION_PURGE_BATCH_SIZE", 200),
 	}
 }
 

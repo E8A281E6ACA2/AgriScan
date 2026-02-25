@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	ErrLoginRequired = errors.New("login_required")
-	ErrAdRequired    = errors.New("ad_required")
-	ErrQuotaExceeded = errors.New("quota_exceeded")
-	ErrInvalidOTP    = errors.New("invalid_otp")
+	ErrLoginRequired   = errors.New("login_required")
+	ErrAdRequired      = errors.New("ad_required")
+	ErrQuotaExceeded   = errors.New("quota_exceeded")
+	ErrInvalidOTP      = errors.New("invalid_otp")
+	ErrTooManyRequests = errors.New("too_many_requests")
 )
 
 type Entitlements struct {
@@ -138,6 +139,9 @@ func (s *Service) SendEmailOTP(email string) (string, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
 	if email == "" || !strings.Contains(email, "@") {
 		return "", fmt.Errorf("invalid email")
+	}
+	if last, err := s.repo.GetLatestEmailOTP(email); err == nil && last != nil && time.Since(last.CreatedAt) < time.Minute {
+		return "", ErrTooManyRequests
 	}
 	code, err := randomDigits(6)
 	if err != nil {
@@ -412,7 +416,23 @@ func (s *Service) PurgeUserNotesByRetention(user *model.User) (int64, error) {
 		cfg.RetentionDays = s.auth.FreeRetentionDays
 	}
 	cutoff := time.Now().AddDate(0, 0, -cfg.RetentionDays)
-	return s.repo.PurgeNotesBefore(user.ID, cutoff)
+	var total int64
+	if n, err := s.repo.PurgeNotesBefore(user.ID, cutoff); err != nil {
+		return total, err
+	} else {
+		total += n
+	}
+	if n, err := s.repo.PurgeResultsBefore(user.ID, cutoff); err != nil {
+		return total, err
+	} else {
+		total += n
+	}
+	if n, err := s.repo.PurgeImagesBefore(user.ID, cutoff); err != nil {
+		return total, err
+	} else {
+		total += n
+	}
+	return total, nil
 }
 
 func (s *Service) sendOTPEmail(email, code string) error {

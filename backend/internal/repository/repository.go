@@ -116,11 +116,15 @@ func (r *Repository) GetResultByID(id uint) (*model.RecognitionResult, error) {
 	return &result, err
 }
 
-func (r *Repository) GetResultsByUserID(userID uint, limit, offset int) ([]model.RecognitionResult, error) {
+func (r *Repository) GetResultsByUserID(userID uint, limit, offset int, startDate *time.Time) ([]model.RecognitionResult, error) {
 	var results []model.RecognitionResult
-	err := r.db.
+	query := r.db.
 		Joins("JOIN images ON images.id = recognition_results.image_id").
-		Where("images.user_id = ?", userID).
+		Where("images.user_id = ?", userID)
+	if startDate != nil {
+		query = query.Where("recognition_results.created_at >= ?", *startDate)
+	}
+	err := query.
 		Order("recognition_results.created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -174,6 +178,19 @@ func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, 
 
 func (r *Repository) PurgeNotesBefore(userID uint, cutoff time.Time) (int64, error) {
 	res := r.db.Where("user_id = ? AND created_at < ?", userID, cutoff).Delete(&model.FieldNote{})
+	return res.RowsAffected, res.Error
+}
+
+func (r *Repository) PurgeResultsBefore(userID uint, cutoff time.Time) (int64, error) {
+	sub := r.db.Model(&model.Image{}).
+		Select("id").
+		Where("user_id = ? AND created_at < ?", userID, cutoff)
+	res := r.db.Where("image_id IN (?)", sub).Delete(&model.RecognitionResult{})
+	return res.RowsAffected, res.Error
+}
+
+func (r *Repository) PurgeImagesBefore(userID uint, cutoff time.Time) (int64, error) {
+	res := r.db.Where("user_id = ? AND created_at < ?", userID, cutoff).Delete(&model.Image{})
 	return res.RowsAffected, res.Error
 }
 

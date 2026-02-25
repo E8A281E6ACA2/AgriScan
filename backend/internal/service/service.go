@@ -210,8 +210,8 @@ func (s *Service) GetResultByID(id uint) (*model.RecognitionResult, error) {
 }
 
 // GetHistory 获取用户历史记录
-func (s *Service) GetHistory(userID uint, limit, offset int) ([]model.RecognitionResult, error) {
-	return s.repo.GetResultsByUserID(userID, limit, offset)
+func (s *Service) GetHistory(userID uint, limit, offset int, startDate *time.Time) ([]model.RecognitionResult, error) {
+	return s.repo.GetResultsByUserID(userID, limit, offset, startDate)
 }
 
 // SaveFeedback 保存用户反馈

@@ -266,13 +266,28 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		return
 	}
 
+	ent, err := h.svc.GetEntitlements(actor.User, actor.DeviceID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if ent.RequireLogin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login_required"})
+		return
+	}
+
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
 
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
-	results, err := h.svc.GetHistory(actor.UserID, limit, offset)
+	var startDate *time.Time
+	if ent.RetentionDays > 0 {
+		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
+		startDate = &cutoff
+	}
+	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -391,6 +406,22 @@ func (h *Handler) GetNotes(c *gin.Context) {
 		return
 	}
 
+	ent, err := h.svc.GetEntitlements(actor.User, actor.DeviceID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if ent.RequireLogin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login_required"})
+		return
+	}
+	if ent.RetentionDays > 0 {
+		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
+		if startDate == nil || startDate.Before(cutoff) {
+			startDate = &cutoff
+		}
+	}
+
 	notes, err := h.svc.GetNotes(actor.UserID, limit, offset, category, cropType, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -428,6 +459,21 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	ent, err := h.svc.GetEntitlements(actor.User, actor.DeviceID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if ent.RequireLogin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login_required"})
+		return
+	}
+	if ent.RetentionDays > 0 {
+		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
+		if startDate == nil || startDate.Before(cutoff) {
+			startDate = &cutoff
+		}
 	}
 
 	if format == "json" {
