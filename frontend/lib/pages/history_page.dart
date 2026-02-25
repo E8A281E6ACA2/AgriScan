@@ -11,10 +11,13 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+  Entitlements? _entitlements;
+
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    _loadEntitlements();
   }
   
   Future<void> _loadHistory() async {
@@ -32,6 +35,14 @@ class _HistoryPageState extends State<HistoryPage> {
         );
       }
     }
+  }
+
+  Future<void> _loadEntitlements() async {
+    final api = context.read<ApiService>();
+    try {
+      final ent = await api.getEntitlements();
+      if (mounted) setState(() => _entitlements = ent);
+    } catch (_) {}
   }
 
   List<RecognizeResponse> _findSimilar(List<RecognizeResponse> history) {
@@ -68,12 +79,18 @@ class _HistoryPageState extends State<HistoryPage> {
           }
           
           return RefreshIndicator(
-            onRefresh: _loadHistory,
+            onRefresh: () async {
+              await _loadEntitlements();
+              await _loadHistory();
+            },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: history.length,
+              itemCount: history.length + (_entitlements == null ? 0 : 1),
               itemBuilder: (context, index) {
-                final item = history[index];
+                if (_entitlements != null && index == 0) {
+                  return _buildEntitlementsBanner(_entitlements!);
+                }
+                final item = history[index - (_entitlements == null ? 0 : 1)];
                 return _buildHistoryCard(item);
               },
             ),
@@ -280,6 +297,27 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEntitlementsBanner(Entitlements ent) {
+    final isFree = ent.plan == 'free';
+    final title = isFree ? '升级会员，获取更高额度' : '当前会员：${ent.plan}';
+    final subtitle = isFree
+        ? '更高额度与更长留存'
+        : '剩余额度 ${ent.quotaRemaining}，留存 ${ent.retentionDays} 天';
+    return Card(
+      color: isFree ? Colors.orange.shade50 : Colors.green.shade50,
+      child: ListTile(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: isFree
+            ? ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/membership'),
+                child: const Text('升级'),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
