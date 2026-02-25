@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
+import '../utils/export_helper.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -24,6 +25,10 @@ class _AdminPageState extends State<AdminPage> {
   List<AdminUser> _users = [];
   List<EmailLog> _logs = [];
   List<MembershipRequest> _requests = [];
+  List<AdminAuditLog> _audits = [];
+  List<AdminLabelNote> _labelNotes = [];
+  AdminStats? _stats;
+  EvalSummary? _eval;
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
@@ -59,6 +64,18 @@ class _AdminPageState extends State<AdminPage> {
       _toast('拉取用户失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadStats() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    try {
+      final stats = await api.adminStats(adminToken: token);
+      if (mounted) setState(() => _stats = stats);
+    } catch (e) {
+      _toast('统计加载失败: $e');
     }
   }
 
@@ -199,6 +216,161 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _loadAuditLogs() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminAuditLogs(adminToken: token);
+      setState(() => _audits = items);
+    } catch (e) {
+      _toast('审计日志失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadLabelQueue() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminLabelQueue(adminToken: token);
+      setState(() => _labelNotes = items);
+    } catch (e) {
+      _toast('标注队列失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadEval() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final summary = await api.adminEvalSummary(adminToken: token);
+      setState(() => _eval = summary);
+    } catch (e) {
+      _toast('评测加载失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _exportUsers() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    try {
+      final bytes = await api.adminExportUsers(adminToken: token);
+      final path = await saveBytesAsFile('users.csv', bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _exportNotes() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    try {
+      final bytes = await api.adminExportNotes(adminToken: token);
+      final path = await saveBytesAsFile('notes_admin.csv', bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _exportFeedback() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    try {
+      final bytes = await api.adminExportFeedback(adminToken: token);
+      final path = await saveBytesAsFile('feedback.csv', bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _labelNote(AdminLabelNote note) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    final categoryController = TextEditingController(text: note.category);
+    final cropController = TextEditingController(text: note.cropType);
+    final tagsController = TextEditingController(text: note.labelTags);
+    final noteController = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('标注'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(labelText: '类别'),
+              ),
+              TextField(
+                controller: cropController,
+                decoration: const InputDecoration(labelText: '作物'),
+              ),
+              TextField(
+                controller: tagsController,
+                decoration: const InputDecoration(labelText: '标签(逗号)'),
+              ),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(labelText: '备注'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('提交')),
+          ],
+        );
+      },
+    );
+    if (ok != true) return;
+    try {
+      await api.adminLabelNote(
+        note.id,
+        category: categoryController.text.trim(),
+        cropType: cropController.text.trim(),
+        tags: tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+        note: noteController.text.trim(),
+        adminToken: token,
+      );
+      _toast('标注成功');
+      await _loadLabelQueue();
+    } catch (e) {
+      _toast('标注失败: $e');
+    }
+  }
+
+  Future<void> _reviewLabel(AdminLabelNote note, String status) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) return;
+    try {
+      await api.adminReviewLabel(note.id, status: status, adminToken: token);
+      _toast('已${status == 'approved' ? '通过' : '拒绝'}');
+      await _loadLabelQueue();
+    } catch (e) {
+      _toast('审核失败: $e');
+    }
+  }
+
   Future<void> _purgeUser() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -234,6 +406,51 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
             const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: _loading ? null : _loadStats,
+                  child: const Text('刷新统计'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _loading ? null : _exportUsers,
+                  child: const Text('导出用户'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _loading ? null : _exportNotes,
+                  child: const Text('导出手记'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _loading ? null : _exportFeedback,
+                  child: const Text('导出反馈'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_stats != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      _statChip('用户', _stats!.usersTotal),
+                      _statChip('7日活跃', _stats!.usersActive7d),
+                      _statChip('图片', _stats!.imagesTotal),
+                      _statChip('结果', _stats!.resultsTotal),
+                      _statChip('手记', _stats!.notesTotal),
+                      _statChip('反馈', _stats!.feedbackTotal),
+                      _statChip('待审批', _stats!.membershipPending),
+                      _statChip('待标注', _stats!.labelPending),
+                      _statChip('已审核', _stats!.labelApproved),
+                    ],
+                  ),
+                ),
+              ),
             Row(
               children: [
                 Expanded(
@@ -372,6 +589,23 @@ class _AdminPageState extends State<AdminPage> {
                               const SizedBox(height: 16),
                               const Divider(),
                               const SizedBox(height: 8),
+                              const Text('审计日志', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loading ? null : _loadAuditLogs,
+                                child: const Text('刷新审计'),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._audits.map((a) {
+                                return ListTile(
+                                  dense: true,
+                                  title: Text('${a.action} ${a.targetType}#${a.targetId}'),
+                                  subtitle: Text('${a.createdAt} | ${a.ip}'),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
                               const Text('会员申请', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               Row(
@@ -413,6 +647,56 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 );
                               }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('标注队列', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loading ? null : _loadLabelQueue,
+                                child: const Text('刷新队列'),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._labelNotes.map((n) {
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('Note#${n.id} · ${n.cropType}'),
+                                    subtitle: Text('status: ${n.labelStatus}'),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _labelNote(n),
+                                          icon: const Icon(Icons.edit),
+                                        ),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _reviewLabel(n, 'approved'),
+                                          icon: const Icon(Icons.check, color: Colors.green),
+                                        ),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _reviewLabel(n, 'rejected'),
+                                          icon: const Icon(Icons.close, color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('评测汇总', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loading ? null : _loadEval,
+                                child: const Text('刷新评测'),
+                              ),
+                              const SizedBox(height: 8),
+                              if (_eval != null)
+                                ListTile(
+                                  title: Text('总样本 ${_eval!.total}，正确 ${_eval!.correct}'),
+                                  subtitle: Text('准确率 ${(100 * _eval!.accuracy).toStringAsFixed(2)}%'),
+                                ),
                             ],
                           ),
                   ),
@@ -423,5 +707,9 @@ class _AdminPageState extends State<AdminPage> {
         ),
       ),
     );
+  }
+
+  Widget _statChip(String label, int value) {
+    return Chip(label: Text('$label: $value'));
   }
 }

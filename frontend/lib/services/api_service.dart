@@ -299,6 +299,127 @@ class ApiService {
     return AdminUser.fromJson(response.data);
   }
 
+  Future<Uint8List> adminExportUsers({required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/export/users',
+      options: Options(
+        headers: {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<Uint8List> adminExportNotes({required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/export/notes',
+      options: Options(
+        headers: {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<Uint8List> adminExportFeedback({required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/export/feedback',
+      options: Options(
+        headers: {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<AdminStats> adminStats({required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/stats',
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    return AdminStats.fromJson(response.data);
+  }
+
+  Future<List<AdminAuditLog>> adminAuditLogs({
+    int limit = 50,
+    int offset = 0,
+    String? action,
+    required String adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/audit-logs',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (action != null && action.isNotEmpty) 'action': action,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminAuditLog.fromJson(e)).toList();
+  }
+
+  Future<List<AdminLabelNote>> adminLabelQueue({
+    int limit = 20,
+    int offset = 0,
+    String status = 'pending',
+    required String adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/labels',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        'status': status,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminLabelNote.fromJson(e)).toList();
+  }
+
+  Future<void> adminLabelNote(
+    int id, {
+    required String category,
+    required String cropType,
+    required List<String> tags,
+    String? note,
+    required String adminToken,
+  }) async {
+    await _dio.post(
+      '/admin/labels/$id',
+      data: {
+        'category': category,
+        'crop_type': cropType,
+        'tags': tags,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+  }
+
+  Future<void> adminReviewLabel(
+    int id, {
+    required String status,
+    String reviewer = 'admin',
+    required String adminToken,
+  }) async {
+    await _dio.post(
+      '/admin/labels/$id/review',
+      data: {'status': status, 'reviewer': reviewer},
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+  }
+
+  Future<EvalSummary> adminEvalSummary({int days = 30, required String adminToken}) async {
+    final response = await _dio.get(
+      '/admin/eval/summary',
+      queryParameters: {'days': days},
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    return EvalSummary.fromJson(response.data);
+  }
+
   Future<List<String>> getTags({String? category}) async {
     final response = await _dio.get('/tags', queryParameters: {
       if (category != null && category.isNotEmpty) 'category': category,
@@ -776,6 +897,134 @@ class MembershipRequest {
       status: json['status'] ?? '',
       note: json['note'] ?? '',
       createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class AdminStats {
+  final int usersTotal;
+  final int usersActive7d;
+  final int imagesTotal;
+  final int resultsTotal;
+  final int notesTotal;
+  final int feedbackTotal;
+  final int membershipPending;
+  final int labelPending;
+  final int labelApproved;
+
+  AdminStats({
+    required this.usersTotal,
+    required this.usersActive7d,
+    required this.imagesTotal,
+    required this.resultsTotal,
+    required this.notesTotal,
+    required this.feedbackTotal,
+    required this.membershipPending,
+    required this.labelPending,
+    required this.labelApproved,
+  });
+
+  factory AdminStats.fromJson(Map<String, dynamic> json) {
+    return AdminStats(
+      usersTotal: json['users_total'] ?? 0,
+      usersActive7d: json['users_active_7d'] ?? 0,
+      imagesTotal: json['images_total'] ?? 0,
+      resultsTotal: json['results_total'] ?? 0,
+      notesTotal: json['notes_total'] ?? 0,
+      feedbackTotal: json['feedback_total'] ?? 0,
+      membershipPending: json['membership_pending'] ?? 0,
+      labelPending: json['label_pending'] ?? 0,
+      labelApproved: json['label_approved'] ?? 0,
+    );
+  }
+}
+
+class AdminAuditLog {
+  final int id;
+  final String action;
+  final String targetType;
+  final int targetId;
+  final String detail;
+  final String ip;
+  final String createdAt;
+
+  AdminAuditLog({
+    required this.id,
+    required this.action,
+    required this.targetType,
+    required this.targetId,
+    required this.detail,
+    required this.ip,
+    required this.createdAt,
+  });
+
+  factory AdminAuditLog.fromJson(Map<String, dynamic> json) {
+    return AdminAuditLog(
+      id: json['id'] ?? 0,
+      action: json['action'] ?? '',
+      targetType: json['target_type'] ?? '',
+      targetId: json['target_id'] ?? 0,
+      detail: json['detail'] ?? '',
+      ip: json['ip'] ?? '',
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class AdminLabelNote {
+  final int id;
+  final int userId;
+  final int imageId;
+  final String category;
+  final String cropType;
+  final String labelStatus;
+  final String labelCropType;
+  final String labelCategory;
+  final String labelTags;
+
+  AdminLabelNote({
+    required this.id,
+    required this.userId,
+    required this.imageId,
+    required this.category,
+    required this.cropType,
+    required this.labelStatus,
+    required this.labelCropType,
+    required this.labelCategory,
+    required this.labelTags,
+  });
+
+  factory AdminLabelNote.fromJson(Map<String, dynamic> json) {
+    return AdminLabelNote(
+      id: json['id'] ?? 0,
+      userId: json['user_id'] ?? 0,
+      imageId: json['image_id'] ?? 0,
+      category: json['category'] ?? '',
+      cropType: json['crop_type'] ?? '',
+      labelStatus: json['label_status'] ?? '',
+      labelCropType: json['label_crop_type'] ?? '',
+      labelCategory: json['label_category'] ?? '',
+      labelTags: json['label_tags'] ?? '',
+    );
+  }
+}
+
+class EvalSummary {
+  final int total;
+  final int correct;
+  final double accuracy;
+
+  EvalSummary({
+    required this.total,
+    required this.correct,
+    required this.accuracy,
+  });
+
+  factory EvalSummary.fromJson(Map<String, dynamic> json) {
+    return EvalSummary(
+      total: json['total'] ?? 0,
+      correct: json['correct'] ?? 0,
+      accuracy: (json['accuracy'] ?? 0).toDouble(),
     );
   }
 }
