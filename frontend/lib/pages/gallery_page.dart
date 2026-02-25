@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
+import '../utils/auth_flow.dart';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
@@ -56,6 +57,11 @@ class _GalleryPageState extends State<GalleryPage> {
       provider.setCurrentImageBytes(bytes);
 
       provider.setLoading();
+      final allowed = await ensureRecognitionAllowed(context, api);
+      if (!allowed) {
+        provider.setError('识别已取消');
+        return;
+      }
       final uploadRes = await api.uploadImage(
         bytes,
         latitude: position?.latitude,

@@ -23,6 +23,18 @@ class ApiService {
     ));
   }
   
+  void setDeviceId(String deviceId) {
+    _dio.options.headers['X-Device-ID'] = deviceId;
+  }
+
+  void setAuthToken(String? token) {
+    if (token == null || token.isEmpty) {
+      _dio.options.headers.remove('X-Auth-Token');
+      return;
+    }
+    _dio.options.headers['X-Auth-Token'] = token;
+  }
+
   void setUserId(int userId) {
     _dio.options.headers['X-User-ID'] = userId.toString();
   }
@@ -130,6 +142,35 @@ class ApiService {
       options: Options(responseType: ResponseType.bytes),
     );
     return Uint8List.fromList(response.data);
+  }
+
+  Future<void> sendOTP(String email) async {
+    await _dio.post('/auth/send-otp', data: {
+      'email': email,
+    });
+  }
+
+  Future<AuthResponse> verifyOTP({
+    required String email,
+    required String code,
+    String? deviceId,
+  }) async {
+    final response = await _dio.post('/auth/verify-otp', data: {
+      'email': email,
+      'code': code,
+      if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+    });
+    return AuthResponse.fromJson(response.data);
+  }
+
+  Future<Entitlements> getEntitlements() async {
+    final response = await _dio.get('/entitlements');
+    return Entitlements.fromJson(response.data);
+  }
+
+  Future<Entitlements> rewardAd() async {
+    final response = await _dio.post('/usage/reward');
+    return Entitlements.fromJson(response.data);
   }
 
   Future<List<String>> getTags({String? category}) async {
@@ -446,4 +487,55 @@ class ExportTemplateRequest {
         'fields': fields,
         'type': type,
       };
+}
+
+class Entitlements {
+  final int userId;
+  final String plan;
+  final bool requireLogin;
+  final bool requireAd;
+  final int adCredits;
+  final int quotaTotal;
+  final int quotaUsed;
+  final int quotaRemaining;
+  final int anonymousRemaining;
+  final int retentionDays;
+
+  Entitlements({
+    required this.userId,
+    required this.plan,
+    required this.requireLogin,
+    required this.requireAd,
+    required this.adCredits,
+    required this.quotaTotal,
+    required this.quotaUsed,
+    required this.quotaRemaining,
+    required this.anonymousRemaining,
+    required this.retentionDays,
+  });
+
+  factory Entitlements.fromJson(Map<String, dynamic> json) {
+    return Entitlements(
+      userId: json['user_id'] ?? 0,
+      plan: json['plan'] ?? 'free',
+      requireLogin: json['require_login'] ?? false,
+      requireAd: json['require_ad'] ?? false,
+      adCredits: json['ad_credits'] ?? 0,
+      quotaTotal: json['quota_total'] ?? 0,
+      quotaUsed: json['quota_used'] ?? 0,
+      quotaRemaining: json['quota_remaining'] ?? -1,
+      anonymousRemaining: json['anonymous_remaining'] ?? 0,
+      retentionDays: json['retention_days'] ?? 0,
+    );
+  }
+}
+
+class AuthResponse {
+  final String token;
+
+  AuthResponse({required this.token});
+
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(token: json['token'] ?? '');
+  }
 }

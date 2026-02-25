@@ -7,13 +7,20 @@ import (
 )
 
 type User struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-	OpenID    string         `gorm:"uniqueIndex;size:64" json:"open_id"` // 微信 openid
-	Nickname  string         `gorm:"size:128" json:"nickname"`
-	Avatar    string         `gorm:"size:512" json:"avatar"`
+	ID          uint           `gorm:"primarykey" json:"id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	OpenID      string         `gorm:"uniqueIndex;size:64" json:"open_id"` // 微信 openid
+	Email       string         `gorm:"uniqueIndex;size:128" json:"email"`
+	Nickname    string         `gorm:"size:128" json:"nickname"`
+	Avatar      string         `gorm:"size:512" json:"avatar"`
+	Plan        string         `gorm:"size:16;index;default:free" json:"plan"`
+	Status      string         `gorm:"size:16;default:active" json:"status"`
+	QuotaTotal  int            `json:"quota_total"`
+	QuotaUsed   int            `json:"quota_used"`
+	AdCredits   int            `json:"ad_credits"`
+	LastLoginAt *time.Time     `json:"last_login_at"`
 }
 
 type Image struct {
@@ -116,4 +123,44 @@ type Tag struct {
 	Category  string         `gorm:"size:16;index" json:"category"`
 	Name      string         `gorm:"size:64" json:"name"`
 	Active    bool           `gorm:"index" json:"active"`
+}
+
+type EmailOTP struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Email     string         `gorm:"index;size:128" json:"email"`
+	Code      string         `gorm:"size:10" json:"code"`
+	ExpiresAt time.Time      `gorm:"index" json:"expires_at"`
+	UsedAt    *time.Time     `json:"used_at"`
+}
+
+type UserSession struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	UserID    uint           `gorm:"index" json:"user_id"`
+	Token     string         `gorm:"uniqueIndex;size:64" json:"token"`
+	ExpiresAt time.Time      `gorm:"index" json:"expires_at"`
+}
+
+type Device struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	DeviceID  string         `gorm:"uniqueIndex;size:64" json:"device_id"`
+	UserID    uint           `gorm:"index" json:"user_id"`
+}
+
+type DeviceUsage struct {
+	ID             uint           `gorm:"primarykey" json:"id"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+	DeviceID       string         `gorm:"uniqueIndex;size:64" json:"device_id"`
+	RecognizeCount int            `json:"recognize_count"`
+	AdCredits      int            `json:"ad_credits"`
 }

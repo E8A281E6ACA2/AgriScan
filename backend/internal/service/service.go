@@ -21,6 +21,7 @@ type Service struct {
 	repo    *repository.Repository
 	llm     llm.Provider
 	storage StorageInterface
+	auth    AuthConfig
 }
 
 type StorageInterface interface {
@@ -34,6 +35,7 @@ func NewService(repo *repository.Repository, provider llm.Provider, storage Stor
 		repo:    repo,
 		llm:     provider,
 		storage: storage,
+		auth:    loadAuthConfig(),
 	}
 }
 
@@ -97,7 +99,7 @@ func (s *Service) UploadImageBase64(userID uint, base64Data string, lat, lng *fl
 	if err != nil {
 		if strings.HasPrefix(base64Data, "data:") {
 			if comma := strings.Index(base64Data, ","); comma >= 0 {
-				return s.UploadImageBase64(userID, base64Data[comma+1:])
+				return s.UploadImageBase64(userID, base64Data[comma+1:], lat, lng)
 			}
 		}
 		return nil, fmt.Errorf("failed to decode base64: %w", err)

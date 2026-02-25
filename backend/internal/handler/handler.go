@@ -56,13 +56,17 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		return
 	}
 
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		userID = 1
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
 	}
 
-	img, err := h.svc.CreateImageFromURL(uint(userID), req.ImageURL)
+	if err := h.svc.ConsumeRecognition(actor.User, actor.DeviceID); err != nil {
+		mapEntitlementError(c, err)
+		return
+	}
+
+	img, err := h.svc.CreateImageFromURL(actor.UserID, req.ImageURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -79,6 +83,8 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	_, _ = h.svc.CreateNote(actor.UserID, img.ID, &savedResult.ID, "", "crop", nil)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       savedResult.RawText,
@@ -97,12 +103,9 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 // UploadImage 上传图片
 // POST /api/v1/upload
 func (h *Handler) UploadImage(c *gin.Context) {
-	// 从 header 获取用户 ID（实际应从 token 解析）
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		// 默认用户 ID 为 1（测试用）
-		userID = 1
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
 	}
 
 	// 检查是否是 base64 上传
@@ -125,7 +128,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 
 	if imageType == "base64" && imageData != "" {
 		// Base64 上传（Web 端）
-		img, err := h.svc.UploadImageBase64(uint(userID), imageData, lat, lng)
+		img, err := h.svc.UploadImageBase64(actor.UserID, imageData, lat, lng)
 		if err != nil {
 			log.Printf("UploadImageBase64 failed: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -147,7 +150,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	}
 
 	// 上传到对象存储
-	img, err := h.svc.UploadImage(uint(userID), file, lat, lng)
+	img, err := h.svc.UploadImage(actor.UserID, file, lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -172,10 +175,20 @@ func (h *Handler) Recognize(c *gin.Context) {
 		return
 	}
 
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
+	}
+
 	// 获取图片信息
 	img, err := h.svc.GetImage(req.ImageID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
+		return
+	}
+
+	if err := h.svc.ConsumeRecognition(actor.User, actor.DeviceID); err != nil {
+		mapEntitlementError(c, err)
 		return
 	}
 
@@ -194,7 +207,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 	}
 
 	// 自动创建手记
-	_, _ = h.svc.CreateNote(uint(userID), req.ImageID, &savedResult.ID, "", "crop", nil)
+	_, _ = h.svc.CreateNote(actor.UserID, req.ImageID, &savedResult.ID, "", "crop", nil)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       savedResult.RawText,
@@ -248,10 +261,8 @@ func (h *Handler) GetResult(c *gin.Context) {
 // GetHistory 获取历史记录
 // GET /api/v1/history
 func (h *Handler) GetHistory(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 
@@ -261,7 +272,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
-	results, err := h.svc.GetHistory(uint(userID), limit, offset)
+	results, err := h.svc.GetHistory(actor.UserID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -342,13 +353,12 @@ func (h *Handler) CreateNote(c *gin.Context) {
 		return
 	}
 
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		userID = 1
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
 	}
 
-	note, err := h.svc.CreateNote(uint(userID), req.ImageID, req.ResultID, req.Note, req.Category, req.Tags)
+	note, err := h.svc.CreateNote(actor.UserID, req.ImageID, req.ResultID, req.Note, req.Category, req.Tags)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -360,10 +370,8 @@ func (h *Handler) CreateNote(c *gin.Context) {
 // GetNotes 获取手记列表
 // GET /api/v1/notes
 func (h *Handler) GetNotes(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 
@@ -383,7 +391,7 @@ func (h *Handler) GetNotes(c *gin.Context) {
 		return
 	}
 
-	notes, err := h.svc.GetNotes(uint(userID), limit, offset, category, cropType, startDate, endDate)
+	notes, err := h.svc.GetNotes(actor.UserID, limit, offset, category, cropType, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -399,10 +407,8 @@ func (h *Handler) GetNotes(c *gin.Context) {
 // ExportNotes 导出手记 CSV/JSON
 // GET /api/v1/notes/export
 func (h *Handler) ExportNotes(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 
@@ -427,7 +433,7 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	if format == "json" {
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=notes.json")
-		if err := h.svc.ExportNotesJSON(c.Writer, uint(userID), limit, offset, category, cropType, startDate, endDate, fields); err != nil {
+		if err := h.svc.ExportNotesJSON(c.Writer, actor.UserID, limit, offset, category, cropType, startDate, endDate, fields); err != nil {
 			c.Status(http.StatusInternalServerError)
 		}
 		return
@@ -435,7 +441,7 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=notes.csv")
-	if err := h.svc.ExportNotesCSV(c.Writer, uint(userID), limit, offset, category, cropType, startDate, endDate, fields); err != nil {
+	if err := h.svc.ExportNotesCSV(c.Writer, actor.UserID, limit, offset, category, cropType, startDate, endDate, fields); err != nil {
 		c.Status(http.StatusInternalServerError)
 	}
 }
@@ -451,6 +457,12 @@ func (h *Handler) GetLLMProviders(c *gin.Context) {
 func (h *Handler) SetupRoutes(r *gin.Engine) {
 	v1 := r.Group("/api/v1")
 	{
+		v1.POST("/auth/anonymous", h.AuthAnonymous)
+		v1.POST("/auth/send-otp", h.SendOTP)
+		v1.POST("/auth/verify-otp", h.VerifyOTP)
+		v1.POST("/auth/logout", h.Logout)
+		v1.GET("/entitlements", h.GetEntitlements)
+		v1.POST("/usage/reward", h.RewardAd)
 		v1.POST("/upload", h.UploadImage)
 		v1.POST("/recognize", h.Recognize)
 		v1.POST("/recognize-url", h.RecognizeByURL)
@@ -574,15 +586,13 @@ func (h *Handler) GetTags(c *gin.Context) {
 // ExportTemplate handlers
 // GET /api/v1/export-templates?type=notes
 func (h *Handler) GetExportTemplates(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 
 	typ := c.DefaultQuery("type", "notes")
-	items, err := h.svc.GetExportTemplates(uint(userID), typ)
+	items, err := h.svc.GetExportTemplates(actor.UserID, typ)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -592,10 +602,8 @@ func (h *Handler) GetExportTemplates(c *gin.Context) {
 
 // POST /api/v1/export-templates
 func (h *Handler) CreateExportTemplate(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 	var req struct {
@@ -607,7 +615,7 @@ func (h *Handler) CreateExportTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	item, err := h.svc.CreateExportTemplate(uint(userID), req.Type, req.Name, req.Fields)
+	item, err := h.svc.CreateExportTemplate(actor.UserID, req.Type, req.Name, req.Fields)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -617,10 +625,8 @@ func (h *Handler) CreateExportTemplate(c *gin.Context) {
 
 // DELETE /api/v1/export-templates/:id
 func (h *Handler) DeleteExportTemplate(c *gin.Context) {
-	userIDStr := c.GetHeader("X-User-ID")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+	actor, ok := h.requireActor(c)
+	if !ok {
 		return
 	}
 	idStr := c.Param("id")
@@ -629,7 +635,7 @@ func (h *Handler) DeleteExportTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.DeleteExportTemplate(uint(userID), uint(id)); err != nil {
+	if err := h.svc.DeleteExportTemplate(actor.UserID, uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

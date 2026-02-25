@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
+import '../utils/auth_flow.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -58,6 +59,11 @@ class _CameraPageState extends State<CameraPage> {
       provider.setCurrentImageBytes(bytes);
 
       provider.setLoading();
+      final allowed = await ensureRecognitionAllowed(context, api);
+      if (!allowed) {
+        provider.setError('识别已取消');
+        return;
+      }
       final uploadRes = await api.uploadImage(
         bytes,
         latitude: position?.latitude,

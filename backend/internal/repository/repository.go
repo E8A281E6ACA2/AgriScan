@@ -22,6 +22,10 @@ func NewRepository(dsn string) (*Repository, error) {
 	// 自动迁移
 	err = db.AutoMigrate(
 		&model.User{},
+		&model.EmailOTP{},
+		&model.UserSession{},
+		&model.Device{},
+		&model.DeviceUsage{},
 		&model.Image{},
 		&model.RecognitionResult{},
 		&model.UserFeedback{},
@@ -166,11 +170,6 @@ func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, 
 		Offset(offset).
 		Find(&notes).Error
 	return notes, err
-}
-
-// User 操作
-func (r *Repository) CreateUser(user *model.User) error {
-	return r.db.Create(user).Error
 }
 
 func (r *Repository) GetUserByOpenID(openID string) (*model.User, error) {

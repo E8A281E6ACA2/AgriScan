@@ -3,12 +3,72 @@
 ## 基础信息
 
 - 基础URL: `http://localhost:8080/api/v1`
-- 认证方式: Header `X-User-ID`
+- 认证方式:
+  - 匿名设备: Header `X-Device-ID`
+  - 已登录用户: Header `X-Auth-Token`（可选携带 `X-Device-ID` 用于数据迁移）
 - Content-Type: `application/json`
 
 ---
 
 ## 接口列表
+
+### 0. 登录/权限
+
+**POST** `/auth/anonymous`
+
+```json
+{
+  "device_id": "device_xxx"
+}
+```
+
+**POST** `/auth/send-otp`
+
+```json
+{
+  "email": "you@example.com"
+}
+```
+
+**POST** `/auth/verify-otp`
+
+```json
+{
+  "email": "you@example.com",
+  "code": "123456",
+  "device_id": "device_xxx"
+}
+```
+
+响应示例:
+```json
+{
+  "token": "xxxx",
+  "user": { "id": 1, "email": "you@example.com", "plan": "free" }
+}
+```
+
+**GET** `/entitlements`
+
+响应示例:
+```json
+{
+  "user_id": 1,
+  "plan": "free",
+  "require_login": false,
+  "require_ad": true,
+  "ad_credits": 0,
+  "quota_total": 0,
+  "quota_used": 0,
+  "quota_remaining": -1,
+  "anonymous_remaining": 3,
+  "retention_days": 7
+}
+```
+
+**POST** `/usage/reward` 广告奖励
+
+---
 
 ### 1. 上传图片
 
