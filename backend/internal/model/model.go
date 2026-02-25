@@ -133,6 +133,19 @@ type Tag struct {
 	Active    bool           `gorm:"index" json:"active"`
 }
 
+type PlanSetting struct {
+	ID            uint           `gorm:"primarykey" json:"id"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	Code          string         `gorm:"size:16;uniqueIndex" json:"code"`
+	Name          string         `gorm:"size:32" json:"name"`
+	Description   string         `gorm:"type:text" json:"description"`
+	QuotaTotal    int            `json:"quota_total"`
+	RetentionDays int            `json:"retention_days"`
+	RequireAd     bool           `json:"require_ad"`
+}
+
 type EmailOTP struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`

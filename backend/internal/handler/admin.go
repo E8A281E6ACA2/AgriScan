@@ -59,6 +59,43 @@ func (h *Handler) AdminStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// GET /api/v1/admin/plan-settings
+func (h *Handler) AdminPlanSettings(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	items, err := h.svc.GetPlanSettings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items})
+}
+
+// PUT /api/v1/admin/plan-settings/:code
+func (h *Handler) AdminUpdatePlanSetting(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	code := strings.TrimSpace(c.Param("code"))
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
+		return
+	}
+	var req service.PlanSettingUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	item, err := h.svc.UpdatePlanSetting(code, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("update_plan", "plan", 0, code, c.ClientIP())
+	c.JSON(http.StatusOK, item)
+}
+
 // PUT /api/v1/admin/users/:id
 func (h *Handler) AdminUpdateUser(c *gin.Context) {
 	if !h.requireAdmin(c) {

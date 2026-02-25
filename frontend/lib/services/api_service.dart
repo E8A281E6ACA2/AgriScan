@@ -339,6 +339,34 @@ class ApiService {
     return Uint8List.fromList(response.data);
   }
 
+  Future<List<PlanSetting>> getPlans() async {
+    final response = await _dio.get('/plans');
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => PlanSetting.fromJson(e)).toList();
+  }
+
+  Future<List<PlanSetting>> adminPlanSettings({String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/plan-settings',
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => PlanSetting.fromJson(e)).toList();
+  }
+
+  Future<PlanSetting> adminUpdatePlanSetting(
+    String code,
+    PlanSettingUpdate update, {
+    String? adminToken,
+  }) async {
+    final response = await _dio.put(
+      '/admin/plan-settings/$code',
+      data: update.toJson(),
+      options: _adminOptions(adminToken),
+    );
+    return PlanSetting.fromJson(response.data);
+  }
+
   Future<Uint8List> adminExportEval({String format = 'csv', String? adminToken}) async {
     final response = await _dio.get(
       '/admin/export/eval',
@@ -794,6 +822,59 @@ class Entitlements {
       retentionDays: json['retention_days'] ?? 0,
     );
   }
+}
+
+class PlanSetting {
+  final String code;
+  final String name;
+  final String description;
+  final int quotaTotal;
+  final int retentionDays;
+  final bool requireAd;
+
+  PlanSetting({
+    required this.code,
+    required this.name,
+    required this.description,
+    required this.quotaTotal,
+    required this.retentionDays,
+    required this.requireAd,
+  });
+
+  factory PlanSetting.fromJson(Map<String, dynamic> json) {
+    return PlanSetting(
+      code: json['code'] ?? '',
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      quotaTotal: json['quota_total'] ?? 0,
+      retentionDays: json['retention_days'] ?? 0,
+      requireAd: json['require_ad'] ?? false,
+    );
+  }
+}
+
+class PlanSettingUpdate {
+  final String? name;
+  final String? description;
+  final int? quotaTotal;
+  final int? retentionDays;
+  final bool? requireAd;
+
+  PlanSettingUpdate({
+    this.name,
+    this.description,
+    this.quotaTotal,
+    this.retentionDays,
+    this.requireAd,
+  });
+
+  Map<String, dynamic> toJson() => {
+        if (name != null) 'name': name,
+        if (description != null) 'description': description,
+        if (quotaTotal != null) 'quota_total': quotaTotal,
+        if (retentionDays != null) 'retention_days': retentionDays,
+        if (requireAd != null) 'require_ad': requireAd,
+      };
 }
 
 class AuthResponse {

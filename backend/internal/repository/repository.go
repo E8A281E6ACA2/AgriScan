@@ -36,6 +36,7 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.ExportTemplate{},
 		&model.Crop{},
 		&model.Tag{},
+		&model.PlanSetting{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate: %w", err)

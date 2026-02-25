@@ -154,6 +154,20 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 
 返回统计汇总。
 
+**GET** `/admin/plan-settings`
+
+**PUT** `/admin/plan-settings/:code`
+
+```json
+{
+  "name": "白银",
+  "description": "适合频繁识别",
+  "quota_total": 5000,
+  "retention_days": 90,
+  "require_ad": false
+}
+```
+
 **GET** `/admin/audit-logs`
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -556,6 +570,12 @@ Web/跨端 Base64 方式：
   "providers": ["mock", "qwen", "baidu", "openai"]
 }
 ```
+
+---
+
+### 13. 获取会员档次
+
+**GET** `/plans`
 
 ---
 

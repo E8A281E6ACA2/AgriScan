@@ -13,6 +13,7 @@ class MembershipPage extends StatefulWidget {
 class _MembershipPageState extends State<MembershipPage> {
   bool _loading = false;
   Entitlements? _ent;
+  List<PlanSetting> _plans = [];
   final TextEditingController _noteController = TextEditingController();
 
   Future<void> _load() async {
@@ -20,7 +21,11 @@ class _MembershipPageState extends State<MembershipPage> {
     setState(() => _loading = true);
     try {
       final ent = await api.getEntitlements();
-      setState(() => _ent = ent);
+      final plans = await api.getPlans();
+      setState(() {
+        _ent = ent;
+        _plans = plans;
+      });
     } catch (e) {
       _toast('获取权益失败: $e');
     } finally {
@@ -63,11 +68,7 @@ class _MembershipPageState extends State<MembershipPage> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    _buildPlanCard('白银', 'silver', '适合频繁识别', '5000+ 次额度'),
-                    const SizedBox(height: 8),
-                    _buildPlanCard('黄金', 'gold', '更高额度', '20000+ 次额度'),
-                    const SizedBox(height: 8),
-                    _buildPlanCard('钻石', 'diamond', '最高额度', '100000+ 次额度'),
+                    ..._buildPlanCards(),
                     const Divider(height: 24),
                     _buildTile('档次', _ent!.plan),
                     _buildTile('需要登录', _ent!.requireLogin ? '是' : '否'),
@@ -83,6 +84,48 @@ class _MembershipPageState extends State<MembershipPage> {
     );
   }
 
+  List<Widget> _buildPlanCards() {
+    final paidPlans = _plans.where((p) => p.code != 'free').toList();
+    if (paidPlans.isEmpty) {
+      return [
+        _buildPlanCard(PlanSetting(
+          code: 'silver',
+          name: '白银',
+          description: '适合频繁识别',
+          quotaTotal: 5000,
+          retentionDays: 90,
+          requireAd: false,
+        )),
+        const SizedBox(height: 8),
+        _buildPlanCard(PlanSetting(
+          code: 'gold',
+          name: '黄金',
+          description: '更高额度',
+          quotaTotal: 20000,
+          retentionDays: 180,
+          requireAd: false,
+        )),
+        const SizedBox(height: 8),
+        _buildPlanCard(PlanSetting(
+          code: 'diamond',
+          name: '钻石',
+          description: '最高额度',
+          quotaTotal: 100000,
+          retentionDays: 365,
+          requireAd: false,
+        )),
+      ];
+    }
+    final widgets = <Widget>[];
+    for (var i = 0; i < paidPlans.length; i++) {
+      widgets.add(_buildPlanCard(paidPlans[i]));
+      if (i != paidPlans.length - 1) {
+        widgets.add(const SizedBox(height: 8));
+      }
+    }
+    return widgets;
+  }
+
   Widget _buildTile(String label, String value) {
     return ListTile(
       title: Text(label),
@@ -90,24 +133,26 @@ class _MembershipPageState extends State<MembershipPage> {
     );
   }
 
-  Widget _buildPlanCard(String title, String plan, String desc, String quotaHint) {
-    final isCurrent = _ent?.plan == plan;
+  Widget _buildPlanCard(PlanSetting plan) {
+    final isCurrent = _ent?.plan == plan.code;
     return Card(
       child: ListTile(
-        title: Text('$title档', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('$desc · $quotaHint'),
+        title: Text('${plan.name}档', style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          '${plan.description} · ${plan.quotaTotal} 次额度 · 留存 ${plan.retentionDays} 天',
+        ),
         trailing: isCurrent
             ? const Chip(label: Text('当前'))
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ElevatedButton(
-                    onPressed: () => _requestUpgrade(plan),
+                    onPressed: () => _requestUpgrade(plan.code),
                     child: const Text('申请升级'),
                   ),
                   const SizedBox(height: 4),
                   TextButton(
-                    onPressed: () => _checkout(plan),
+                    onPressed: () => _checkout(plan.code),
                     child: const Text('立即购买'),
                   ),
                 ],

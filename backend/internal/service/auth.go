@@ -488,20 +488,15 @@ func (s *Service) DeleteSession(token string) error {
 }
 
 func (s *Service) getPlanSetting(plan string) PlanSetting {
-	switch strings.ToLower(strings.TrimSpace(plan)) {
-	case "silver":
-		return s.auth.PlanSilver
-	case "gold":
-		return s.auth.PlanGold
-	case "diamond":
-		return s.auth.PlanDiamond
-	default:
-		return PlanSetting{
-			Name:          "free",
-			QuotaTotal:    s.auth.FreeQuotaTotal,
-			RetentionDays: s.auth.FreeRetentionDays,
-			RequireAd:     true,
-		}
+	view, err := s.getPlanSettingView(plan)
+	if err != nil {
+		view = s.defaultPlanSettingView("free")
+	}
+	return PlanSetting{
+		Name:          view.Code,
+		QuotaTotal:    view.QuotaTotal,
+		RetentionDays: view.RetentionDays,
+		RequireAd:     view.RequireAd,
 	}
 }
 

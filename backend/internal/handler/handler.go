@@ -505,6 +505,8 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 	{
 		v1.GET("/admin/users", h.AdminListUsers)
 		v1.GET("/admin/stats", h.AdminStats)
+		v1.GET("/admin/plan-settings", h.AdminPlanSettings)
+		v1.PUT("/admin/plan-settings/:code", h.AdminUpdatePlanSetting)
 		v1.PUT("/admin/users/:id", h.AdminUpdateUser)
 		v1.POST("/admin/users/:id/purge", h.AdminPurgeUser)
 		v1.GET("/admin/email-logs", h.AdminEmailLogs)
@@ -537,6 +539,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/history", h.GetHistory)
 		v1.POST("/feedback", h.SubmitFeedback)
 		v1.GET("/providers", h.GetLLMProviders)
+		v1.GET("/plans", h.GetPlans)
 		v1.GET("/crops", h.GetCrops)
 		v1.POST("/notes", h.CreateNote)
 		v1.GET("/notes", h.GetNotes)
@@ -712,6 +715,16 @@ func (h *Handler) DeleteExportTemplate(c *gin.Context) {
 // GET /api/v1/crops
 func (h *Handler) GetCrops(c *gin.Context) {
 	items, err := h.svc.GetCrops()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items})
+}
+
+// GET /api/v1/plans
+func (h *Handler) GetPlans(c *gin.Context) {
+	items, err := h.svc.GetPlanSettings()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

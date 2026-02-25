@@ -27,11 +27,13 @@ class _AdminPageState extends State<AdminPage> {
   List<MembershipRequest> _requests = [];
   List<AdminAuditLog> _audits = [];
   List<AdminLabelNote> _labelNotes = [];
+  List<PlanSetting> _planSettings = [];
   AdminStats? _stats;
   EvalSummary? _eval;
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
+  final bool _enableLabelFlow = false;
 
   @override
   void dispose() {
@@ -224,6 +226,98 @@ class _AdminPageState extends State<AdminPage> {
       setState(() => _labelNotes = items);
     } catch (e) {
       _toast('标注队列失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadPlanSettings() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminPlanSettings(adminToken: token.isEmpty ? null : token);
+      setState(() => _planSettings = items);
+    } catch (e) {
+      _toast('会员配置失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editPlanSetting(PlanSetting plan) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final nameController = TextEditingController(text: plan.name);
+    final descController = TextEditingController(text: plan.description);
+    final quotaController = TextEditingController(text: plan.quotaTotal.toString());
+    final retentionController = TextEditingController(text: plan.retentionDays.toString());
+    bool requireAd = plan.requireAd;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('编辑 ${plan.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: '名称'),
+                ),
+                TextField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: '描述'),
+                ),
+                TextField(
+                  controller: quotaController,
+                  decoration: const InputDecoration(labelText: '额度总数'),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: retentionController,
+                  decoration: const InputDecoration(labelText: '留存天数'),
+                  keyboardType: TextInputType.number,
+                ),
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    return CheckboxListTile(
+                      value: requireAd,
+                      onChanged: (v) => setState(() => requireAd = v ?? false),
+                      title: const Text('需要广告'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('保存')),
+          ],
+        );
+      },
+    );
+    if (ok != true) return;
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdatePlanSetting(
+        plan.code,
+        PlanSettingUpdate(
+          name: nameController.text.trim(),
+          description: descController.text.trim(),
+          quotaTotal: int.tryParse(quotaController.text.trim()),
+          retentionDays: int.tryParse(retentionController.text.trim()),
+          requireAd: requireAd,
+        ),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已保存');
+      await _loadPlanSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -662,38 +756,62 @@ class _AdminPageState extends State<AdminPage> {
                               const SizedBox(height: 16),
                               const Divider(),
                               const SizedBox(height: 8),
-                              const Text('标注队列', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const Text('会员配置', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               ElevatedButton(
-                                onPressed: _loading ? null : _loadLabelQueue,
-                                child: const Text('刷新队列'),
+                                onPressed: _loading ? null : _loadPlanSettings,
+                                child: const Text('刷新配置'),
                               ),
                               const SizedBox(height: 8),
-                              ..._labelNotes.map((n) {
+                              ..._planSettings.map((p) {
                                 return Card(
                                   child: ListTile(
-                                    title: Text('Note#${n.id} · ${n.cropType}'),
-                                    subtitle: Text('status: ${n.labelStatus}'),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          onPressed: _loading ? null : () => _labelNote(n),
-                                          icon: const Icon(Icons.edit),
-                                        ),
-                                        IconButton(
-                                          onPressed: _loading ? null : () => _reviewLabel(n, 'approved'),
-                                          icon: const Icon(Icons.check, color: Colors.green),
-                                        ),
-                                        IconButton(
-                                          onPressed: _loading ? null : () => _reviewLabel(n, 'rejected'),
-                                          icon: const Icon(Icons.close, color: Colors.red),
-                                        ),
-                                      ],
+                                    title: Text('${p.code} · ${p.name}'),
+                                    subtitle: Text('额度 ${p.quotaTotal} · 留存 ${p.retentionDays} 天 · 广告 ${p.requireAd ? "是" : "否"}'),
+                                    trailing: IconButton(
+                                      onPressed: _loading ? null : () => _editPlanSetting(p),
+                                      icon: const Icon(Icons.edit),
                                     ),
                                   ),
                                 );
                               }).toList(),
+                              if (_enableLabelFlow) ...[
+                                const SizedBox(height: 16),
+                                const Divider(),
+                                const SizedBox(height: 8),
+                                const Text('标注队列', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: _loading ? null : _loadLabelQueue,
+                                  child: const Text('刷新队列'),
+                                ),
+                                const SizedBox(height: 8),
+                                ..._labelNotes.map((n) {
+                                  return Card(
+                                    child: ListTile(
+                                      title: Text('Note#${n.id} · ${n.cropType}'),
+                                      subtitle: Text('status: ${n.labelStatus}'),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            onPressed: _loading ? null : () => _labelNote(n),
+                                            icon: const Icon(Icons.edit),
+                                          ),
+                                          IconButton(
+                                            onPressed: _loading ? null : () => _reviewLabel(n, 'approved'),
+                                            icon: const Icon(Icons.check, color: Colors.green),
+                                          ),
+                                          IconButton(
+                                            onPressed: _loading ? null : () => _reviewLabel(n, 'rejected'),
+                                            icon: const Icon(Icons.close, color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
                               const SizedBox(height: 16),
                               const Divider(),
                               const SizedBox(height: 8),
