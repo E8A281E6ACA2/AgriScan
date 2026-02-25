@@ -65,6 +65,7 @@
   "retention_days": 7
 }
 ```
+说明：`plan` 可选值 `free/silver/gold/diamond`。
 
 **POST** `/usage/reward` 广告奖励
 

@@ -3,9 +3,11 @@ package service
 import (
 	"agri-scan/internal/model"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/smtp"
 	"strings"
 	"time"
 
@@ -106,6 +108,11 @@ func (s *Service) SendEmailOTP(email string) (string, error) {
 	if err := s.repo.CreateEmailOTP(otp); err != nil {
 		return "", err
 	}
+	if !s.auth.DebugOTP {
+		if err := s.sendOTPEmail(email, code); err != nil {
+			return "", err
+		}
+	}
 	return code, nil
 }
 
@@ -201,20 +208,25 @@ func (s *Service) GetEntitlements(user *model.User, deviceID string) (Entitlemen
 	}
 
 	if user != nil && user.ID > 0 && !isGuestUser(user) {
-		ent.UserID = user.ID
-		ent.Plan = user.Plan
-		ent.AdCredits = user.AdCredits
-		ent.QuotaTotal = user.QuotaTotal
-		ent.QuotaUsed = user.QuotaUsed
-		if user.Plan == "paid" {
-			ent.RequireAd = false
-			ent.RetentionDays = s.auth.PaidRetentionDays
-		} else {
-			ent.RequireAd = user.AdCredits <= 0
-			ent.RetentionDays = s.auth.FreeRetentionDays
+		planCfg := s.getPlanSetting(user.Plan)
+		quotaTotal := user.QuotaTotal
+		if quotaTotal == 0 {
+			quotaTotal = planCfg.QuotaTotal
 		}
-		if user.QuotaTotal > 0 {
-			ent.QuotaRemaining = user.QuotaTotal - user.QuotaUsed
+
+		ent.UserID = user.ID
+		ent.Plan = planCfg.Name
+		ent.AdCredits = user.AdCredits
+		ent.QuotaTotal = quotaTotal
+		ent.QuotaUsed = user.QuotaUsed
+		ent.RetentionDays = planCfg.RetentionDays
+		if planCfg.RequireAd {
+			ent.RequireAd = user.AdCredits <= 0
+		} else {
+			ent.RequireAd = false
+		}
+		if quotaTotal > 0 {
+			ent.QuotaRemaining = quotaTotal - user.QuotaUsed
 			if ent.QuotaRemaining < 0 {
 				ent.QuotaRemaining = 0
 			}
@@ -238,17 +250,20 @@ func (s *Service) GetEntitlements(user *model.User, deviceID string) (Entitlemen
 
 func (s *Service) ConsumeRecognition(user *model.User, deviceID string) error {
 	if user != nil && user.ID > 0 && !isGuestUser(user) {
-		if user.Plan == "paid" {
-			if user.QuotaTotal > 0 && user.QuotaUsed >= user.QuotaTotal {
-				return ErrQuotaExceeded
-			}
-			_ = s.repo.IncrementUserQuotaUsed(user.ID)
-			return nil
+		planCfg := s.getPlanSetting(user.Plan)
+		quotaTotal := user.QuotaTotal
+		if quotaTotal == 0 {
+			quotaTotal = planCfg.QuotaTotal
 		}
-		if ok, err := s.repo.DecrementUserAdCredits(user.ID); err != nil {
-			return err
-		} else if !ok {
-			return ErrAdRequired
+		if quotaTotal > 0 && user.QuotaUsed >= quotaTotal {
+			return ErrQuotaExceeded
+		}
+		if planCfg.RequireAd {
+			if ok, err := s.repo.DecrementUserAdCredits(user.ID); err != nil {
+				return err
+			} else if !ok {
+				return ErrAdRequired
+			}
 		}
 		_ = s.repo.IncrementUserQuotaUsed(user.ID)
 		return nil
@@ -325,4 +340,88 @@ func (s *Service) DeleteSession(token string) error {
 		return nil
 	}
 	return s.repo.DeleteSessionByToken(token)
+}
+
+func (s *Service) getPlanSetting(plan string) PlanSetting {
+	switch strings.ToLower(strings.TrimSpace(plan)) {
+	case "silver":
+		return s.auth.PlanSilver
+	case "gold":
+		return s.auth.PlanGold
+	case "diamond":
+		return s.auth.PlanDiamond
+	default:
+		return PlanSetting{
+			Name:          "free",
+			QuotaTotal:    s.auth.FreeQuotaTotal,
+			RetentionDays: s.auth.FreeRetentionDays,
+			RequireAd:     true,
+		}
+	}
+}
+
+func (s *Service) sendOTPEmail(email, code string) error {
+	cfg := s.auth.SMTP
+	if cfg.Server == "" || cfg.Account == "" || cfg.Token == "" {
+		return fmt.Errorf("smtp not configured")
+	}
+	from := cfg.From
+	if from == "" {
+		from = cfg.Account
+	}
+	addr := fmt.Sprintf("%s:%d", cfg.Server, cfg.Port)
+
+	var client *smtp.Client
+	var err error
+	if cfg.SSLEnabled {
+		conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: cfg.Server})
+		if err != nil {
+			return err
+		}
+		client, err = smtp.NewClient(conn, cfg.Server)
+		if err != nil {
+			return err
+		}
+	} else {
+		client, err = smtp.Dial(addr)
+		if err != nil {
+			return err
+		}
+	}
+	defer client.Quit()
+
+	auth := smtp.PlainAuth("", cfg.Account, cfg.Token, cfg.Server)
+	if err := client.Auth(auth); err != nil {
+		return err
+	}
+	if err := client.Mail(from); err != nil {
+		return err
+	}
+	if err := client.Rcpt(email); err != nil {
+		return err
+	}
+	w, err := client.Data()
+	if err != nil {
+		return err
+	}
+	msg := buildOTPEmail(from, email, code, s.auth.OTPMinutes)
+	if _, err := w.Write([]byte(msg)); err != nil {
+		_ = w.Close()
+		return err
+	}
+	return w.Close()
+}
+
+func buildOTPEmail(from, to, code string, minutes int) string {
+	subject := "AgriScan 登录验证码"
+	body := fmt.Sprintf("你的验证码是：%s\n有效期 %d 分钟。\n如非本人操作请忽略。", code, minutes)
+	headers := []string{
+		fmt.Sprintf("From: %s", from),
+		fmt.Sprintf("To: %s", to),
+		fmt.Sprintf("Subject: %s", subject),
+		"MIME-Version: 1.0",
+		"Content-Type: text/plain; charset=\"UTF-8\"",
+		"",
+	}
+	return strings.Join(headers, "\r\n") + body
 }
