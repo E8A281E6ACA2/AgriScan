@@ -13,12 +13,14 @@ class AdminPage extends StatefulWidget {
 class _AdminPageState extends State<AdminPage> {
   final _tokenController = TextEditingController();
   final _searchController = TextEditingController();
+  final _logEmailController = TextEditingController();
   final _quotaController = TextEditingController();
   final _usedController = TextEditingController();
   final _creditsController = TextEditingController();
 
   bool _loading = false;
   List<AdminUser> _users = [];
+  List<EmailLog> _logs = [];
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
@@ -27,6 +29,7 @@ class _AdminPageState extends State<AdminPage> {
   void dispose() {
     _tokenController.dispose();
     _searchController.dispose();
+    _logEmailController.dispose();
     _quotaController.dispose();
     _usedController.dispose();
     _creditsController.dispose();
@@ -88,6 +91,27 @@ class _AdminPageState extends State<AdminPage> {
       _toast('保存成功');
     } catch (e) {
       _toast('保存失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadEmailLogs() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    if (token.isEmpty) {
+      _toast('请输入管理员 Token');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final logs = await api.adminListEmailLogs(
+        adminToken: token,
+        email: _logEmailController.text.trim(),
+      );
+      setState(() => _logs = logs);
+    } catch (e) {
+      _toast('拉取邮件日志失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -223,6 +247,35 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 24),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('邮件日志', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _logEmailController,
+                                      decoration: const InputDecoration(labelText: '邮箱（可选）'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadEmailLogs,
+                                    child: const Text('查询'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._logs.map((log) {
+                                return ListTile(
+                                  dense: true,
+                                  title: Text('${log.email}  (${log.status})'),
+                                  subtitle: Text(log.error.isEmpty ? log.createdAt : '${log.createdAt} | ${log.error}'),
+                                  trailing: Text(log.code),
+                                );
+                              }).toList(),
                             ],
                           ),
                   ),

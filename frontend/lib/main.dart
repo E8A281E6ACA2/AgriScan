@@ -12,6 +12,7 @@ import 'pages/history_page.dart';
 import 'pages/gallery_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/admin_page.dart';
+import 'pages/membership_page.dart';
 import 'services/api_service.dart';
 import 'providers/app_provider.dart';
 
@@ -75,6 +76,7 @@ class AgriScanApp extends StatelessWidget {
           '/history': (context) => const HistoryPage(),
           '/notes': (context) => const NotesPage(),
           '/admin': (context) => const AdminPage(),
+          '/membership': (context) => const MembershipPage(),
         },
       ),
     );

@@ -203,6 +203,25 @@ class ApiService {
     );
   }
 
+  Future<List<EmailLog>> adminListEmailLogs({
+    int limit = 50,
+    int offset = 0,
+    String? email,
+    required String adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/email-logs',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (email != null && email.isNotEmpty) 'email': email,
+      },
+      options: Options(headers: {'X-Admin-Token': adminToken}),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => EmailLog.fromJson(e)).toList();
+  }
+
   Future<List<String>> getTags({String? category}) async {
     final response = await _dio.get('/tags', queryParameters: {
       if (category != null && category.isNotEmpty) 'category': category,
@@ -624,4 +643,33 @@ class AdminUserUpdate {
         if (quotaUsed != null) 'quota_used': quotaUsed,
         if (adCredits != null) 'ad_credits': adCredits,
       };
+}
+
+class EmailLog {
+  final int id;
+  final String email;
+  final String code;
+  final String status;
+  final String error;
+  final String createdAt;
+
+  EmailLog({
+    required this.id,
+    required this.email,
+    required this.code,
+    required this.status,
+    required this.error,
+    required this.createdAt,
+  });
+
+  factory EmailLog.fromJson(Map<String, dynamic> json) {
+    return EmailLog(
+      id: json['id'] ?? 0,
+      email: json['email'] ?? '',
+      code: json['code'] ?? '',
+      status: json['status'] ?? '',
+      error: json['error'] ?? '',
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
 }

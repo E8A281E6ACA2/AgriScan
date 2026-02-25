@@ -70,6 +70,14 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 16),
               _buildFeatureButton(
                 context,
+                icon: Icons.card_membership,
+                label: '会员权益',
+                color: Colors.indigo,
+                onTap: () => Navigator.pushNamed(context, '/membership'),
+              ),
+              const SizedBox(height: 16),
+              _buildFeatureButton(
+                context,
                 icon: Icons.admin_panel_settings,
                 label: '管理后台',
                 color: Colors.grey,
