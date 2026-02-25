@@ -34,7 +34,7 @@ class _AdminPageState extends State<AdminPage> {
   AdminUser? _selected;
   String _plan = 'free';
   String _status = 'active';
-  final bool _enableLabelFlow = false;
+  bool _labelFlowEnabled = false;
 
   @override
   void dispose() {
@@ -252,7 +252,11 @@ class _AdminPageState extends State<AdminPage> {
     setState(() => _loading = true);
     try {
       final items = await api.adminSettings(adminToken: token.isEmpty ? null : token);
-      setState(() => _settings = items);
+      final labelOn = items.any((s) => s.key == 'label_flow_enabled' && _isTrue(s.value));
+      setState(() {
+        _settings = items;
+        _labelFlowEnabled = labelOn;
+      });
     } catch (e) {
       _toast('系统配置失败: $e');
     } finally {
@@ -322,6 +326,8 @@ class _AdminPageState extends State<AdminPage> {
     final descController = TextEditingController(text: plan.description);
     final quotaController = TextEditingController(text: plan.quotaTotal.toString());
     final retentionController = TextEditingController(text: plan.retentionDays.toString());
+    final priceController = TextEditingController(text: plan.priceCents.toString());
+    final billingController = TextEditingController(text: plan.billingUnit);
     bool requireAd = plan.requireAd;
     final ok = await showDialog<bool>(
       context: context,
@@ -349,6 +355,15 @@ class _AdminPageState extends State<AdminPage> {
                   controller: retentionController,
                   decoration: const InputDecoration(labelText: '留存天数'),
                   keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(labelText: '价格(分)'),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: billingController,
+                  decoration: const InputDecoration(labelText: '计费周期(month/year/once)'),
                 ),
                 StatefulBuilder(
                   builder: (context, setState) {
@@ -381,6 +396,8 @@ class _AdminPageState extends State<AdminPage> {
           quotaTotal: int.tryParse(quotaController.text.trim()),
           retentionDays: int.tryParse(retentionController.text.trim()),
           requireAd: requireAd,
+          priceCents: int.tryParse(priceController.text.trim()),
+          billingUnit: billingController.text.trim(),
         ),
         adminToken: token.isEmpty ? null : token,
       );
@@ -865,10 +882,15 @@ class _AdminPageState extends State<AdminPage> {
                               ),
                               const SizedBox(height: 8),
                               ..._planSettings.map((p) {
+                                final price = p.priceCents <= 0
+                                    ? '免费'
+                                    : '¥${(p.priceCents / 100).toStringAsFixed(0)}/${p.billingUnit}';
                                 return Card(
                                   child: ListTile(
                                     title: Text('${p.code} · ${p.name}'),
-                                    subtitle: Text('额度 ${p.quotaTotal} · 留存 ${p.retentionDays} 天 · 广告 ${p.requireAd ? "是" : "否"}'),
+                                    subtitle: Text(
+                                      '额度 ${p.quotaTotal} · 留存 ${p.retentionDays} 天 · 广告 ${p.requireAd ? "是" : "否"} · $price',
+                                    ),
                                     trailing: IconButton(
                                       onPressed: _loading ? null : () => _editPlanSetting(p),
                                       icon: const Icon(Icons.edit),
@@ -876,7 +898,7 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 );
                               }).toList(),
-                              if (_enableLabelFlow) ...[
+                              if (_labelFlowEnabled) ...[
                                 const SizedBox(height: 16),
                                 const Divider(),
                                 const SizedBox(height: 8),
@@ -973,5 +995,10 @@ class _AdminPageState extends State<AdminPage> {
 
   Widget _statChip(String label, int value) {
     return Chip(label: Text('$label: $value'));
+  }
+
+  bool _isTrue(String value) {
+    final v = value.toLowerCase();
+    return v == 'true' || v == '1';
   }
 }

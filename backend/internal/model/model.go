@@ -153,6 +153,8 @@ type PlanSetting struct {
 	QuotaTotal    int            `json:"quota_total"`
 	RetentionDays int            `json:"retention_days"`
 	RequireAd     bool           `json:"require_ad"`
+	PriceCents    int            `json:"price_cents"`
+	BillingUnit   string         `gorm:"size:16" json:"billing_unit"` // month/year/once
 }
 
 type EmailOTP struct {

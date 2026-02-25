@@ -108,6 +108,10 @@ func (h *Handler) AdminUpdateSetting(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})
 			return
 		}
+		if v != float64(int64(v)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})
+			return
+		}
 		value = strconv.FormatInt(int64(v), 10)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})

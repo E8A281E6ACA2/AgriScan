@@ -853,6 +853,8 @@ class PlanSetting {
   final int quotaTotal;
   final int retentionDays;
   final bool requireAd;
+  final int priceCents;
+  final String billingUnit;
 
   PlanSetting({
     required this.code,
@@ -861,6 +863,8 @@ class PlanSetting {
     required this.quotaTotal,
     required this.retentionDays,
     required this.requireAd,
+    required this.priceCents,
+    required this.billingUnit,
   });
 
   factory PlanSetting.fromJson(Map<String, dynamic> json) {
@@ -871,6 +875,8 @@ class PlanSetting {
       quotaTotal: json['quota_total'] ?? 0,
       retentionDays: json['retention_days'] ?? 0,
       requireAd: json['require_ad'] ?? false,
+      priceCents: json['price_cents'] ?? 0,
+      billingUnit: json['billing_unit'] ?? '',
     );
   }
 }
@@ -881,6 +887,8 @@ class PlanSettingUpdate {
   final int? quotaTotal;
   final int? retentionDays;
   final bool? requireAd;
+  final int? priceCents;
+  final String? billingUnit;
 
   PlanSettingUpdate({
     this.name,
@@ -888,6 +896,8 @@ class PlanSettingUpdate {
     this.quotaTotal,
     this.retentionDays,
     this.requireAd,
+    this.priceCents,
+    this.billingUnit,
   });
 
   Map<String, dynamic> toJson() => {
@@ -896,6 +906,8 @@ class PlanSettingUpdate {
         if (quotaTotal != null) 'quota_total': quotaTotal,
         if (retentionDays != null) 'retention_days': retentionDays,
         if (requireAd != null) 'require_ad': requireAd,
+        if (priceCents != null) 'price_cents': priceCents,
+        if (billingUnit != null) 'billing_unit': billingUnit,
       };
 }
 

@@ -14,6 +14,8 @@ type PlanSettingView struct {
 	QuotaTotal    int    `json:"quota_total"`
 	RetentionDays int    `json:"retention_days"`
 	RequireAd     bool   `json:"require_ad"`
+	PriceCents    int    `json:"price_cents"`
+	BillingUnit   string `json:"billing_unit"`
 }
 
 type PlanSettingUpdate struct {
@@ -22,6 +24,8 @@ type PlanSettingUpdate struct {
 	QuotaTotal    *int    `json:"quota_total"`
 	RetentionDays *int    `json:"retention_days"`
 	RequireAd     *bool   `json:"require_ad"`
+	PriceCents    *int    `json:"price_cents"`
+	BillingUnit   *string `json:"billing_unit"`
 }
 
 func (s *Service) GetPlanSettings() ([]PlanSettingView, error) {
@@ -48,6 +52,9 @@ func (s *Service) UpdatePlanSetting(code string, update PlanSettingUpdate) (Plan
 	if update.RetentionDays != nil && *update.RetentionDays < 0 {
 		return PlanSettingView{}, errors.New("invalid retention_days")
 	}
+	if update.PriceCents != nil && *update.PriceCents < 0 {
+		return PlanSettingView{}, errors.New("invalid price_cents")
+	}
 	current, err := s.getPlanSettingView(code)
 	if err != nil {
 		return PlanSettingView{}, err
@@ -59,6 +66,8 @@ func (s *Service) UpdatePlanSetting(code string, update PlanSettingUpdate) (Plan
 		"quota_total":    current.QuotaTotal,
 		"retention_days": current.RetentionDays,
 		"require_ad":     current.RequireAd,
+		"price_cents":    current.PriceCents,
+		"billing_unit":   current.BillingUnit,
 	}
 	if update.Name != nil {
 		payload["name"] = strings.TrimSpace(*update.Name)
@@ -74,6 +83,12 @@ func (s *Service) UpdatePlanSetting(code string, update PlanSettingUpdate) (Plan
 	}
 	if update.RequireAd != nil {
 		payload["require_ad"] = *update.RequireAd
+	}
+	if update.PriceCents != nil {
+		payload["price_cents"] = *update.PriceCents
+	}
+	if update.BillingUnit != nil {
+		payload["billing_unit"] = strings.TrimSpace(*update.BillingUnit)
 	}
 	if _, err := s.repo.UpsertPlanSetting(code, payload); err != nil {
 		return PlanSettingView{}, err
@@ -95,6 +110,8 @@ func (s *Service) getPlanSettingView(code string) (PlanSettingView, error) {
 			QuotaTotal:    item.QuotaTotal,
 			RetentionDays: item.RetentionDays,
 			RequireAd:     item.RequireAd,
+			PriceCents:    item.PriceCents,
+			BillingUnit:   item.BillingUnit,
 		}, nil
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,6 +130,8 @@ func (s *Service) defaultPlanSettingView(code string) PlanSettingView {
 			QuotaTotal:    s.auth.PlanSilver.QuotaTotal,
 			RetentionDays: s.auth.PlanSilver.RetentionDays,
 			RequireAd:     s.auth.PlanSilver.RequireAd,
+			PriceCents:    9900,
+			BillingUnit:   "month",
 		}
 	case "gold":
 		return PlanSettingView{
@@ -122,6 +141,8 @@ func (s *Service) defaultPlanSettingView(code string) PlanSettingView {
 			QuotaTotal:    s.auth.PlanGold.QuotaTotal,
 			RetentionDays: s.auth.PlanGold.RetentionDays,
 			RequireAd:     s.auth.PlanGold.RequireAd,
+			PriceCents:    19900,
+			BillingUnit:   "month",
 		}
 	case "diamond":
 		return PlanSettingView{
@@ -131,6 +152,8 @@ func (s *Service) defaultPlanSettingView(code string) PlanSettingView {
 			QuotaTotal:    s.auth.PlanDiamond.QuotaTotal,
 			RetentionDays: s.auth.PlanDiamond.RetentionDays,
 			RequireAd:     s.auth.PlanDiamond.RequireAd,
+			PriceCents:    39900,
+			BillingUnit:   "month",
 		}
 	default:
 		return PlanSettingView{
@@ -140,6 +163,8 @@ func (s *Service) defaultPlanSettingView(code string) PlanSettingView {
 			QuotaTotal:    s.auth.FreeQuotaTotal,
 			RetentionDays: s.auth.FreeRetentionDays,
 			RequireAd:     true,
+			PriceCents:    0,
+			BillingUnit:   "month",
 		}
 	}
 }

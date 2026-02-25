@@ -95,6 +95,8 @@ class _MembershipPageState extends State<MembershipPage> {
           quotaTotal: 5000,
           retentionDays: 90,
           requireAd: false,
+          priceCents: 9900,
+          billingUnit: 'month',
         )),
         const SizedBox(height: 8),
         _buildPlanCard(PlanSetting(
@@ -104,6 +106,8 @@ class _MembershipPageState extends State<MembershipPage> {
           quotaTotal: 20000,
           retentionDays: 180,
           requireAd: false,
+          priceCents: 19900,
+          billingUnit: 'month',
         )),
         const SizedBox(height: 8),
         _buildPlanCard(PlanSetting(
@@ -113,6 +117,8 @@ class _MembershipPageState extends State<MembershipPage> {
           quotaTotal: 100000,
           retentionDays: 365,
           requireAd: false,
+          priceCents: 39900,
+          billingUnit: 'month',
         )),
       ];
     }
@@ -139,7 +145,7 @@ class _MembershipPageState extends State<MembershipPage> {
       child: ListTile(
         title: Text('${plan.name}档', style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
-          '${plan.description} · ${plan.quotaTotal} 次额度 · 留存 ${plan.retentionDays} 天',
+          '${plan.description} · ${plan.quotaTotal} 次额度 · 留存 ${plan.retentionDays} 天 · ${_formatPrice(plan)}',
         ),
         trailing: isCurrent
             ? const Chip(label: Text('当前'))
@@ -181,6 +187,15 @@ class _MembershipPageState extends State<MembershipPage> {
     } catch (_) {
       _toast('支付功能未接入，已占位');
     }
+  }
+
+  String _formatPrice(PlanSetting plan) {
+    if (plan.priceCents <= 0) {
+      return '免费';
+    }
+    final amount = (plan.priceCents / 100).toStringAsFixed(0);
+    final unit = plan.billingUnit.isEmpty ? 'month' : plan.billingUnit;
+    return '¥$amount/$unit';
   }
 
   Future<String?> _promptNote() async {

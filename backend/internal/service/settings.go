@@ -9,6 +9,7 @@ import (
 const (
 	settingAnonLimit     = "auth_anon_limit"
 	settingAnonRequireAd = "auth_anonymous_require_ad"
+	settingLabelEnabled  = "label_flow_enabled"
 )
 
 type SettingItem struct {
@@ -42,6 +43,12 @@ func (s *Service) settingDefs() []settingDef {
 			Type:        "bool",
 			Description: "匿名识别是否必须看广告",
 			Default:     "true",
+		},
+		{
+			Key:         settingLabelEnabled,
+			Type:        "bool",
+			Description: "标注流程开关",
+			Default:     "false",
 		},
 	}
 }

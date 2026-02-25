@@ -167,6 +167,7 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 说明：
 - `auth_anon_limit` 匿名识别次数上限（int）
 - `auth_anonymous_require_ad` 匿名识别是否必须看广告（bool）
+- `label_flow_enabled` 标注流程开关（bool）
 
 **GET** `/admin/plan-settings`
 
@@ -178,7 +179,9 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
   "description": "适合频繁识别",
   "quota_total": 5000,
   "retention_days": 90,
-  "require_ad": false
+  "require_ad": false,
+  "price_cents": 9900,
+  "billing_unit": "month"
 }
 ```
 

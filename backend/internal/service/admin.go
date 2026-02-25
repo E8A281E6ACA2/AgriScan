@@ -109,10 +109,16 @@ func (s *Service) ListAdminAuditLogs(limit, offset int, action string) ([]model.
 }
 
 func (s *Service) ListLabelNotes(limit, offset int, status, category, cropType string) ([]model.FieldNote, error) {
+	if !s.getSettingBool(settingLabelEnabled, false) {
+		return []model.FieldNote{}, nil
+	}
 	return s.repo.ListLabelNotes(limit, offset, status, category, cropType)
 }
 
 func (s *Service) UpdateLabelNote(noteID uint, category, cropType string, tags []string, note string) error {
+	if !s.getSettingBool(settingLabelEnabled, false) {
+		return fmt.Errorf("label flow disabled")
+	}
 	fields := map[string]interface{}{
 		"label_status":    "labeled",
 		"label_category":  category,
@@ -124,6 +130,9 @@ func (s *Service) UpdateLabelNote(noteID uint, category, cropType string, tags [
 }
 
 func (s *Service) ReviewLabelNote(noteID uint, status, reviewer string) error {
+	if !s.getSettingBool(settingLabelEnabled, false) {
+		return fmt.Errorf("label flow disabled")
+	}
 	if status != "approved" && status != "rejected" {
 		return fmt.Errorf("invalid status")
 	}
