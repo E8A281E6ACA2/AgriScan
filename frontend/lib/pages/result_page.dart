@@ -25,6 +25,7 @@ class _ResultPageState extends State<ResultPage> {
   String _feedbackCategory = 'crop';
   final List<String> _feedbackTags = [];
   String? _feedbackCorrectedType;
+  Entitlements? _entitlements;
 
   @override
   void initState() {
@@ -43,6 +44,7 @@ class _ResultPageState extends State<ResultPage> {
         }).catchError((_) {}));
     _loadTags();
     _loadCrops();
+    _loadEntitlements();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_feedbackPrompted) {
         _feedbackPrompted = true;
@@ -73,6 +75,14 @@ class _ResultPageState extends State<ResultPage> {
     } catch (_) {
       if (mounted) setState(() => _availableTags = []);
     }
+  }
+
+  Future<void> _loadEntitlements() async {
+    final api = context.read<ApiService>();
+    try {
+      final ent = await api.getEntitlements();
+      if (mounted) setState(() => _entitlements = ent);
+    } catch (_) {}
   }
   
   final List<String> _commonCrops = [
@@ -216,13 +226,17 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 相似样例
-                if (provider.similar.isNotEmpty) ...[
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_entitlements != null) ...[
+                    _buildMembershipBanner(_entitlements!),
+                    const SizedBox(height: 12),
+                  ],
+                  // 相似样例
+                  if (provider.similar.isNotEmpty) ...[
                   Text(
                     '相似样例（同作物历史）',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -531,6 +545,27 @@ class _ResultPageState extends State<ResultPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMembershipBanner(Entitlements ent) {
+    final isFree = ent.plan == 'free';
+    final title = isFree ? '升级会员，获取更高额度' : '当前会员：${ent.plan}';
+    final subtitle = isFree
+        ? '更高额度与更长留存'
+        : '剩余额度 ${ent.quotaRemaining}，留存 ${ent.retentionDays} 天';
+    return Card(
+      color: isFree ? Colors.orange.shade50 : Colors.green.shade50,
+      child: ListTile(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: isFree
+            ? ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/membership'),
+                child: const Text('升级'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
   
