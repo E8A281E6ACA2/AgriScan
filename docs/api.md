@@ -148,6 +148,21 @@ Header: `X-Admin-Token`
 }
 ```
 
+---
+
+### 0.3 支付占位
+
+**POST** `/payment/checkout`
+
+```json
+{
+  "plan": "gold",
+  "method": "wechat"
+}
+```
+
+**POST** `/payment/webhook`
+
 **留存说明**
 - 列表/导出接口默认仅返回留存期内数据
 - 服务端会按间隔自动清理（`RETENTION_PURGE_*`）

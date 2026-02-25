@@ -233,6 +233,13 @@ class ApiService {
     return MembershipRequest.fromJson(response.data);
   }
 
+  Future<void> paymentCheckout({required String plan, String method = 'wechat'}) async {
+    await _dio.post('/payment/checkout', data: {
+      'plan': plan,
+      'method': method,
+    });
+  }
+
   Future<List<MembershipRequest>> adminListMembershipRequests({
     int limit = 50,
     int offset = 0,

@@ -518,6 +518,8 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/entitlements", h.GetEntitlements)
 		v1.POST("/usage/reward", h.RewardAd)
 		v1.POST("/membership/request", h.MembershipRequest)
+		v1.POST("/payment/checkout", h.PaymentCheckout)
+		v1.POST("/payment/webhook", h.PaymentWebhook)
 		v1.POST("/upload", h.UploadImage)
 		v1.POST("/recognize", h.Recognize)
 		v1.POST("/recognize-url", h.RecognizeByURL)

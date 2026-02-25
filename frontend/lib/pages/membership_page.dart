@@ -98,9 +98,19 @@ class _MembershipPageState extends State<MembershipPage> {
         subtitle: Text('$desc · $quotaHint'),
         trailing: isCurrent
             ? const Chip(label: Text('当前'))
-            : ElevatedButton(
-                onPressed: () => _requestUpgrade(plan),
-                child: const Text('申请升级'),
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _requestUpgrade(plan),
+                    child: const Text('申请升级'),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: () => _checkout(plan),
+                    child: const Text('立即购买'),
+                  ),
+                ],
               ),
       ),
     );
@@ -115,6 +125,16 @@ class _MembershipPageState extends State<MembershipPage> {
       _toast('已提交申请');
     } catch (e) {
       _toast('提交失败: $e');
+    }
+  }
+
+  Future<void> _checkout(String plan) async {
+    final api = context.read<ApiService>();
+    try {
+      await api.paymentCheckout(plan: plan, method: 'wechat');
+      _toast('支付功能未接入，已占位');
+    } catch (_) {
+      _toast('支付功能未接入，已占位');
     }
   }
 
