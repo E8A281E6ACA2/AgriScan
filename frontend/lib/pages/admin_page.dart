@@ -1024,6 +1024,11 @@ class _AdminPageState extends State<AdminPage> {
         adminToken: token.isEmpty ? null : token,
       );
       _toast('已回写(${res.status})');
+      await _loadQCSamples();
+      if (_labelFlowEnabled) {
+        await _loadLabelQueue();
+      }
+      await _loadEval();
     } catch (e) {
       _toast('回写失败: $e');
     } finally {
