@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
+import '../utils/auth_flow.dart';
 
 class MembershipPage extends StatefulWidget {
   const MembershipPage({super.key});
@@ -169,6 +170,8 @@ class _MembershipPageState extends State<MembershipPage> {
 
   Future<void> _requestUpgrade(String plan) async {
     final api = context.read<ApiService>();
+    final ok = await _ensureLogin(api);
+    if (!ok) return;
     final note = await _promptNote();
     if (note == null) return;
     try {
@@ -181,12 +184,25 @@ class _MembershipPageState extends State<MembershipPage> {
 
   Future<void> _checkout(String plan) async {
     final api = context.read<ApiService>();
+    final ok = await _ensureLogin(api);
+    if (!ok) return;
     try {
       await api.paymentCheckout(plan: plan, method: 'wechat');
       _toast('支付功能未接入，已占位');
     } catch (_) {
       _toast('支付功能未接入，已占位');
     }
+  }
+
+  Future<bool> _ensureLogin(ApiService api) async {
+    if (_ent != null && _ent!.userId > 0) {
+      return true;
+    }
+    final ok = await startLoginFlow(context, api);
+    if (ok) {
+      await _load();
+    }
+    return ok;
   }
 
   String _formatPrice(PlanSetting plan) {

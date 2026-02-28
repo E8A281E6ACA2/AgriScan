@@ -215,6 +215,69 @@ type EvalRun struct {
 	Confusions string         `gorm:"type:text" json:"confusions"`
 }
 
+type QCSample struct {
+	ID         uint           `gorm:"primarykey" json:"id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ResultID   uint           `gorm:"uniqueIndex" json:"result_id"`
+	ImageID    uint           `gorm:"index" json:"image_id"`
+	ImageURL   string         `gorm:"size:512" json:"image_url"`
+	CropType   string         `gorm:"size:64;index" json:"crop_type"`
+	Confidence float64        `json:"confidence"`
+	Provider   string         `gorm:"size:32;index" json:"provider"`
+	Reason     string         `gorm:"size:32;index" json:"reason"` // low_confidence/random/feedback_incorrect
+	Status     string         `gorm:"size:16;index" json:"status"` // pending/keep/discard
+	Reviewer   string         `gorm:"size:64" json:"reviewer"`
+	ReviewedAt *time.Time     `json:"reviewed_at"`
+	ReviewNote string         `gorm:"type:text" json:"review_note"`
+}
+
+type EvalSet struct {
+	ID          uint           `gorm:"primarykey" json:"id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	Name        string         `gorm:"size:64" json:"name"`
+	Description string         `gorm:"type:text" json:"description"`
+	Source      string         `gorm:"size:32" json:"source"` // approved_labels
+	Size        int            `json:"size"`
+	Filters     string         `gorm:"type:text" json:"filters"`
+}
+
+type EvalSetItem struct {
+	ID            uint           `gorm:"primarykey" json:"id"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	EvalSetID     uint           `gorm:"index" json:"eval_set_id"`
+	NoteID        uint           `gorm:"index" json:"note_id"`
+	ResultID      *uint          `gorm:"index" json:"result_id"`
+	ImageID       uint           `gorm:"index" json:"image_id"`
+	ImageURL      string         `gorm:"size:512" json:"image_url"`
+	CropTypePred  string         `gorm:"size:64;index" json:"crop_type_pred"`
+	LabelCropType string         `gorm:"size:64;index" json:"label_crop_type"`
+	LabelCategory string         `gorm:"size:16" json:"label_category"`
+	LabelTags     string         `gorm:"type:text" json:"label_tags"`
+	Provider      string         `gorm:"size:32" json:"provider"`
+	Confidence    float64        `json:"confidence"`
+}
+
+type EvalSetRun struct {
+	ID         uint           `gorm:"primarykey" json:"id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	EvalSetID  uint           `gorm:"index" json:"eval_set_id"`
+	Total      int64          `json:"total"`
+	Correct    int64          `json:"correct"`
+	Accuracy   float64        `json:"accuracy"`
+	ByCrop     string         `gorm:"type:text" json:"by_crop"`
+	Confusions string         `gorm:"type:text" json:"confusions"`
+	BaselineID *uint          `gorm:"index" json:"baseline_id"`
+	DeltaAcc   float64        `json:"delta_acc"`
+}
+
 type UserSession struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`

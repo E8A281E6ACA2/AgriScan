@@ -19,7 +19,7 @@ func (s *Service) PurgeAllUsersRetention() (RetentionSummary, error) {
 	}
 	offset := 0
 	for {
-		users, err := s.repo.ListUsers(limit, offset, "")
+		users, err := s.repo.ListUsers(limit, offset, "", "", "")
 		if err != nil {
 			return summary, err
 		}

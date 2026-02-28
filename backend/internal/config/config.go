@@ -97,7 +97,7 @@ func Load() *Config {
 			BaseURL:  getEnv("LOCAL_STORAGE_BASE_URL", ""),
 		},
 		LLM: LLMConfig{
-			Provider:   getEnv("LLM_PROVIDER", "qwen"),
+			Provider:   getEnv("LLM_PROVIDER", "mock"),
 			APIKey:     getEnv("LLM_API_KEY", ""),
 			Endpoint:   getEnv("LLM_ENDPOINT", "https://api.openai.com/v1"),
 			Model:      getEnv("LLM_MODEL", "gpt-4o"),

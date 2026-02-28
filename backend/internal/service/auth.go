@@ -65,8 +65,8 @@ func (s *Service) GetUserByID(id uint) (*model.User, error) {
 	return s.repo.GetUserByID(id)
 }
 
-func (s *Service) ListUsers(limit, offset int, keyword string) ([]model.User, error) {
-	return s.repo.ListUsers(limit, offset, keyword)
+func (s *Service) ListUsers(limit, offset int, keyword, plan, status string) ([]model.User, error) {
+	return s.repo.ListUsers(limit, offset, keyword, plan, status)
 }
 
 func (s *Service) ListEmailLogs(limit, offset int, email string) ([]model.EmailLog, error) {
