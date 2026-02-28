@@ -74,6 +74,18 @@ class _AdminPageState extends State<AdminPage> {
   bool _labelFlowEnabled = false;
   String _filterPlan = '';
   String _filterStatus = '';
+  final List<_LabelTemplate> _labelTemplates = const [
+    _LabelTemplate(label: '病害-锈病', category: 'disease', tags: ['锈病']),
+    _LabelTemplate(label: '病害-白粉病', category: 'disease', tags: ['白粉病']),
+    _LabelTemplate(label: '病害-叶斑病', category: 'disease', tags: ['叶斑病']),
+    _LabelTemplate(label: '虫害-蚜虫', category: 'pest', tags: ['蚜虫']),
+    _LabelTemplate(label: '虫害-螟虫', category: 'pest', tags: ['螟虫']),
+    _LabelTemplate(label: '虫害-红蜘蛛', category: 'pest', tags: ['红蜘蛛']),
+    _LabelTemplate(label: '杂草-稗草', category: 'weed', tags: ['稗草']),
+    _LabelTemplate(label: '杂草-马齿苋', category: 'weed', tags: ['马齿苋']),
+    _LabelTemplate(label: '正常', category: 'crop', tags: ['正常']),
+    _LabelTemplate(label: '清空标签', category: '', tags: []),
+  ];
 
   @override
   void dispose() {
@@ -891,6 +903,49 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  Widget _buildLabelTemplateChips({
+    required TextEditingController categoryController,
+    required TextEditingController tagsController,
+    required TextEditingController noteController,
+  }) {
+    void applyTemplate(_LabelTemplate tpl) {
+      if (tpl.category.isNotEmpty) {
+        categoryController.text = tpl.category;
+      }
+      if (tpl.label == '清空标签') {
+        tagsController.text = '';
+        return;
+      }
+      final existing = tagsController.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      final merged = <String>[];
+      final seen = <String>{};
+      for (final t in [...existing, ...tpl.tags]) {
+        if (t.isEmpty || seen.contains(t)) continue;
+        seen.add(t);
+        merged.add(t);
+      }
+      tagsController.text = merged.join(',');
+      if (tpl.note.isNotEmpty && noteController.text.trim().isEmpty) {
+        noteController.text = tpl.note;
+      }
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _labelTemplates
+          .map((tpl) => OutlinedButton(
+                onPressed: () => applyTemplate(tpl),
+                child: Text(tpl.label),
+              ))
+          .toList(),
+    );
+  }
+
   Future<void> _labelQCSample(QCSample sample) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -908,6 +963,12 @@ class _AdminPageState extends State<AdminPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _buildLabelTemplateChips(
+                  categoryController: categoryController,
+                  tagsController: tagsController,
+                  noteController: noteController,
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: categoryController,
                   decoration: const InputDecoration(labelText: '类别(可选)'),
@@ -1145,6 +1206,12 @@ class _AdminPageState extends State<AdminPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              _buildLabelTemplateChips(
+                categoryController: categoryController,
+                tagsController: tagsController,
+                noteController: noteController,
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: categoryController,
                 decoration: const InputDecoration(labelText: '类别'),
@@ -2198,4 +2265,18 @@ class _AdminPageState extends State<AdminPage> {
     final v = value.toLowerCase();
     return v == 'true' || v == '1';
   }
+}
+
+class _LabelTemplate {
+  final String label;
+  final String category;
+  final List<String> tags;
+  final String note;
+
+  const _LabelTemplate({
+    required this.label,
+    required this.category,
+    required this.tags,
+    this.note = '',
+  });
 }
