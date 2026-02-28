@@ -35,10 +35,12 @@ func (h *Handler) AdminListUsers(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
 	keyword := c.DefaultQuery("q", "")
+	plan := c.DefaultQuery("plan", "")
+	status := c.DefaultQuery("status", "")
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
-	items, err := h.svc.ListUsers(limit, offset, keyword)
+	items, err := h.svc.ListUsers(limit, offset, keyword, plan, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -473,6 +475,266 @@ func (h *Handler) AdminEvalSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, summary)
 }
 
+// POST /api/v1/admin/qc/samples
+func (h *Handler) AdminGenerateQCSamples(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	lowLimit, _ := strconv.Atoi(c.DefaultQuery("low_limit", "0"))
+	randomLimit, _ := strconv.Atoi(c.DefaultQuery("random_limit", "0"))
+	feedbackLimit, _ := strconv.Atoi(c.DefaultQuery("feedback_limit", "0"))
+	threshold, _ := strconv.ParseFloat(c.DefaultQuery("low_conf_threshold", "0.5"), 64)
+	result, err := h.svc.GenerateQCSamples(days, lowLimit, randomLimit, feedbackLimit, threshold)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("qc_generate", "qc_sample", 0, "generate", c.ClientIP())
+	c.JSON(http.StatusOK, result)
+}
+
+// GET /api/v1/admin/qc/samples
+func (h *Handler) AdminListQCSamples(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	status := strings.TrimSpace(c.DefaultQuery("status", ""))
+	reason := strings.TrimSpace(c.DefaultQuery("reason", ""))
+	items, err := h.svc.ListQCSamples(limit, offset, status, reason)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// POST /api/v1/admin/qc/samples/:id/review
+func (h *Handler) AdminReviewQCSample(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req service.QCReviewUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := h.svc.ReviewQCSample(uint(id), req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("qc_review", "qc_sample", uint(id), req.Status, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// POST /api/v1/admin/qc/samples/batch-review
+func (h *Handler) AdminBatchReviewQCSamples(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	var req struct {
+		IDs        []uint `json:"ids"`
+		Status     string `json:"status"`
+		Reviewer   string `json:"reviewer"`
+		ReviewNote string `json:"review_note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	updated, err := h.svc.BatchReviewQCSamples(req.IDs, service.QCReviewUpdate{
+		Status:     req.Status,
+		Reviewer:   req.Reviewer,
+		ReviewNote: req.ReviewNote,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("qc_batch_review", "qc_sample", 0, req.Status, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"updated": updated})
+}
+
+// GET /api/v1/admin/qc/samples/export
+func (h *Handler) AdminExportQCSamples(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	status := strings.TrimSpace(c.DefaultQuery("status", ""))
+	reason := strings.TrimSpace(c.DefaultQuery("reason", ""))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=qc_samples.json")
+		if err := h.svc.ExportQCSamplesJSON(c.Writer, startDate, endDate, status, reason); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=qc_samples.csv")
+	if err := h.svc.ExportQCSamplesCSV(c.Writer, startDate, endDate, status, reason); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// GET /api/v1/admin/results/low-confidence
+func (h *Handler) AdminListLowConfidenceResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	threshold, _ := strconv.ParseFloat(c.DefaultQuery("threshold", "0.5"), 64)
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	items, err := h.svc.ListLowConfidenceResults(days, limit, offset, threshold, provider, cropType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// GET /api/v1/admin/results/failed
+func (h *Handler) AdminListFailedResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	items, err := h.svc.ListFailedResults(days, limit, offset, provider, cropType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// GET /api/v1/admin/results/low-confidence/export
+func (h *Handler) AdminExportLowConfidenceResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	threshold, _ := strconv.ParseFloat(c.DefaultQuery("threshold", "0.5"), 64)
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=low_confidence_results.json")
+		if err := h.svc.ExportLowConfidenceResultsJSON(c.Writer, days, threshold, provider, cropType); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=low_confidence_results.csv")
+	if err := h.svc.ExportLowConfidenceResultsCSV(c.Writer, days, threshold, provider, cropType); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// GET /api/v1/admin/results/failed/export
+func (h *Handler) AdminExportFailedResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=failed_results.json")
+		if err := h.svc.ExportFailedResultsJSON(c.Writer, days, provider, cropType); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=failed_results.csv")
+	if err := h.svc.ExportFailedResultsCSV(c.Writer, days, provider, cropType); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// POST /api/v1/admin/qc/samples/from-results
+func (h *Handler) AdminCreateQCSamplesFromResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	var req struct {
+		IDs    []uint `json:"ids"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		reason = "manual"
+	}
+	created, err := h.svc.CreateQCSamplesFromResults(req.IDs, reason)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("qc_from_results", "qc_sample", 0, reason, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"created": created, "reason": reason})
+}
+
+// POST /api/v1/admin/qc/samples/:id/label
+func (h *Handler) AdminLabelQCSample(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Category string   `json:"category"`
+		CropType string   `json:"crop_type"`
+		Tags     []string `json:"tags"`
+		Note     string   `json:"note"`
+		Approved bool     `json:"approved"`
+		Reviewer string   `json:"reviewer"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	noteID, status, err := h.svc.LabelFromQCSample(uint(id), req.Category, req.CropType, req.Tags, req.Note, req.Approved, req.Reviewer)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("qc_label", "qc_sample", uint(id), status, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"note_id": noteID, "status": status})
+}
+
 // POST /api/v1/admin/eval/runs
 func (h *Handler) AdminCreateEvalRun(c *gin.Context) {
 	if !h.requireAdmin(c) {
@@ -504,6 +766,122 @@ func (h *Handler) AdminListEvalRuns(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// POST /api/v1/admin/eval-sets
+func (h *Handler) AdminCreateEvalSet(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Days        int    `json:"days"`
+		Limit       int    `json:"limit"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	item, err := h.svc.CreateEvalSet(req.Name, req.Description, req.Days, req.Limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("create_eval_set", "eval_set", item.ID, "create", c.ClientIP())
+	c.JSON(http.StatusOK, item)
+}
+
+// GET /api/v1/admin/eval-sets
+func (h *Handler) AdminListEvalSets(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	items, err := h.svc.ListEvalSets(limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// POST /api/v1/admin/eval-sets/:id/run
+func (h *Handler) AdminRunEvalSet(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		BaselineID *uint `json:"baseline_id"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	run, err := h.svc.RunEvalSet(uint(id), req.BaselineID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("run_eval_set", "eval_set", uint(id), "run", c.ClientIP())
+	c.JSON(http.StatusOK, run)
+}
+
+// GET /api/v1/admin/eval-sets/:id/runs
+func (h *Handler) AdminListEvalSetRuns(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	items, err := h.svc.ListEvalSetRuns(uint(id), limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// GET /api/v1/admin/eval-sets/:id/export
+func (h *Handler) AdminExportEvalSet(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=eval_set.json")
+		if err := h.svc.ExportEvalSetJSON(c.Writer, uint(id), startDate, endDate); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=eval_set.csv")
+	if err := h.svc.ExportEvalSetCSV(c.Writer, uint(id), startDate, endDate); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
 }
 
 // GET /api/v1/admin/export/eval

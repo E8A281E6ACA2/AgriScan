@@ -22,6 +22,30 @@ class _AdminPageState extends State<AdminPage> {
   final _creditsController = TextEditingController();
   final _metricsDaysController = TextEditingController(text: '30');
   final _evalDaysController = TextEditingController(text: '30');
+  final _qcDaysController = TextEditingController(text: '30');
+  final _qcLowLimitController = TextEditingController(text: '50');
+  final _qcRandomLimitController = TextEditingController(text: '30');
+  final _qcFeedbackLimitController = TextEditingController(text: '20');
+  final _qcThresholdController = TextEditingController(text: '0.5');
+  final _qcStatusController = TextEditingController(text: 'pending');
+  final _qcReasonController = TextEditingController();
+  final _lowConfDaysController = TextEditingController(text: '30');
+  final _lowConfLimitController = TextEditingController(text: '50');
+  final _lowConfOffsetController = TextEditingController(text: '0');
+  final _lowConfThresholdController = TextEditingController(text: '0.5');
+  final _lowConfReasonController = TextEditingController(text: 'low_confidence');
+  final _lowConfProviderController = TextEditingController();
+  final _lowConfCropController = TextEditingController();
+  final _failedDaysController = TextEditingController(text: '30');
+  final _failedLimitController = TextEditingController(text: '50');
+  final _failedOffsetController = TextEditingController(text: '0');
+  final _failedReasonController = TextEditingController(text: 'failed');
+  final _failedProviderController = TextEditingController();
+  final _failedCropController = TextEditingController();
+  final _evalSetNameController = TextEditingController(text: 'baseline-v1');
+  final _evalSetDescController = TextEditingController();
+  final _evalSetDaysController = TextEditingController(text: '30');
+  final _evalSetLimitController = TextEditingController(text: '200');
 
   bool _loading = false;
   List<AdminUser> _users = [];
@@ -32,6 +56,15 @@ class _AdminPageState extends State<AdminPage> {
   List<PlanSetting> _planSettings = [];
   List<AppSetting> _settings = [];
   List<EvalRun> _evalRuns = [];
+  List<QCSample> _qcSamples = [];
+  List<AdminResultItem> _lowConfResults = [];
+  List<AdminResultItem> _failedResults = [];
+  List<EvalSet> _evalSets = [];
+  List<EvalSetRun> _evalSetRuns = [];
+  EvalSet? _selectedEvalSet;
+  final Set<int> _qcSelected = {};
+  final Set<int> _lowConfSelected = {};
+  final Set<int> _failedSelected = {};
   AdminStats? _stats;
   EvalSummary? _eval;
   AdminMetrics? _metrics;
@@ -39,6 +72,8 @@ class _AdminPageState extends State<AdminPage> {
   String _plan = 'free';
   String _status = 'active';
   bool _labelFlowEnabled = false;
+  String _filterPlan = '';
+  String _filterStatus = '';
 
   @override
   void dispose() {
@@ -52,6 +87,30 @@ class _AdminPageState extends State<AdminPage> {
     _creditsController.dispose();
     _metricsDaysController.dispose();
     _evalDaysController.dispose();
+    _qcDaysController.dispose();
+    _qcLowLimitController.dispose();
+    _qcRandomLimitController.dispose();
+    _qcFeedbackLimitController.dispose();
+    _qcThresholdController.dispose();
+    _qcStatusController.dispose();
+    _qcReasonController.dispose();
+    _lowConfDaysController.dispose();
+    _lowConfLimitController.dispose();
+    _lowConfOffsetController.dispose();
+    _lowConfThresholdController.dispose();
+    _lowConfReasonController.dispose();
+    _lowConfProviderController.dispose();
+    _lowConfCropController.dispose();
+    _failedDaysController.dispose();
+    _failedLimitController.dispose();
+    _failedOffsetController.dispose();
+    _failedReasonController.dispose();
+    _failedProviderController.dispose();
+    _failedCropController.dispose();
+    _evalSetNameController.dispose();
+    _evalSetDescController.dispose();
+    _evalSetDaysController.dispose();
+    _evalSetLimitController.dispose();
     super.dispose();
   }
 
@@ -63,6 +122,8 @@ class _AdminPageState extends State<AdminPage> {
       final users = await api.adminListUsers(
         adminToken: token.isEmpty ? null : token,
         q: _searchController.text.trim(),
+        plan: _filterPlan,
+        status: _filterStatus,
       );
       setState(() => _users = users);
     } catch (e) {
@@ -459,6 +520,456 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _generateQCSamples() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_qcDaysController.text) ?? 30;
+    final lowLimit = int.tryParse(_qcLowLimitController.text) ?? 0;
+    final randomLimit = int.tryParse(_qcRandomLimitController.text) ?? 0;
+    final feedbackLimit = int.tryParse(_qcFeedbackLimitController.text) ?? 0;
+    final threshold = double.tryParse(_qcThresholdController.text) ?? 0.5;
+    setState(() => _loading = true);
+    try {
+      final res = await api.adminGenerateQCSamples(
+        days: days,
+        lowLimit: lowLimit,
+        randomLimit: randomLimit,
+        feedbackLimit: feedbackLimit,
+        lowConfThreshold: threshold,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已生成 ${res.created}/${res.requested}');
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('生成失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadQCSamples() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminListQCSamples(
+        status: _qcStatusController.text.trim(),
+        reason: _qcReasonController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      setState(() => _qcSamples = items);
+    } catch (e) {
+      _toast('质检列表失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reviewQCSample(QCSample sample, String status) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      await api.adminReviewQCSample(
+        sample.id,
+        status: status,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已更新');
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('更新失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _batchReviewQCSamples(String status) async {
+    if (_qcSelected.isEmpty) {
+      _toast('请选择样本');
+      return;
+    }
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final updated = await api.adminBatchReviewQCSamples(
+        ids: _qcSelected.toList(),
+        status: status,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已更新 $updated 条');
+      _qcSelected.clear();
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('批量更新失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _exportQCSamples(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportQCSamples(
+        format: format,
+        status: _qcStatusController.text.trim(),
+        reason: _qcReasonController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'qc_samples.json' : 'qc_samples.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _loadLowConfidenceResults({bool append = false}) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_lowConfDaysController.text) ?? 30;
+    final limit = int.tryParse(_lowConfLimitController.text) ?? 50;
+    final offset = int.tryParse(_lowConfOffsetController.text) ?? 0;
+    final nextOffset = append ? offset + limit : offset;
+    final threshold = double.tryParse(_lowConfThresholdController.text) ?? 0.5;
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminLowConfidenceResults(
+        days: days,
+        limit: limit,
+        offset: nextOffset,
+        threshold: threshold,
+        provider: _lowConfProviderController.text.trim(),
+        cropType: _lowConfCropController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      setState(() {
+        if (append) {
+          if (items.isEmpty) {
+            _toast('没有更多结果');
+          } else {
+            _lowConfResults = [..._lowConfResults, ...items];
+            _lowConfOffsetController.text = nextOffset.toString();
+          }
+        } else {
+          _lowConfResults = items;
+          _lowConfOffsetController.text = nextOffset.toString();
+        }
+        _lowConfSelected.clear();
+      });
+    } catch (e) {
+      _toast('低置信度列表失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadFailedResults({bool append = false}) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_failedDaysController.text) ?? 30;
+    final limit = int.tryParse(_failedLimitController.text) ?? 50;
+    final offset = int.tryParse(_failedOffsetController.text) ?? 0;
+    final nextOffset = append ? offset + limit : offset;
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminFailedResults(
+        days: days,
+        limit: limit,
+        offset: nextOffset,
+        provider: _failedProviderController.text.trim(),
+        cropType: _failedCropController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      setState(() {
+        if (append) {
+          if (items.isEmpty) {
+            _toast('没有更多结果');
+          } else {
+            _failedResults = [..._failedResults, ...items];
+            _failedOffsetController.text = nextOffset.toString();
+          }
+        } else {
+          _failedResults = items;
+          _failedOffsetController.text = nextOffset.toString();
+        }
+        _failedSelected.clear();
+      });
+    } catch (e) {
+      _toast('失败结果列表失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _exportLowConfidenceResults(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportLowConfidenceResults(
+        format: format,
+        days: int.tryParse(_lowConfDaysController.text) ?? 30,
+        threshold: double.tryParse(_lowConfThresholdController.text) ?? 0.5,
+        provider: _lowConfProviderController.text.trim(),
+        cropType: _lowConfCropController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'low_confidence_results.json' : 'low_confidence_results.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _exportFailedResults(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportFailedResults(
+        format: format,
+        days: int.tryParse(_failedDaysController.text) ?? 30,
+        provider: _failedProviderController.text.trim(),
+        cropType: _failedCropController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'failed_results.json' : 'failed_results.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _addLowConfToQC() async {
+    if (_lowConfSelected.isEmpty) {
+      _toast('请选择结果');
+      return;
+    }
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final reason = _lowConfReasonController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final created = await api.adminCreateQCSamplesFromResults(
+        ids: _lowConfSelected.toList(),
+        reason: reason,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已加入质检 $created 条');
+      _lowConfSelected.clear();
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('加入质检失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _addFailedToQC() async {
+    if (_failedSelected.isEmpty) {
+      _toast('请选择结果');
+      return;
+    }
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final reason = _failedReasonController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final created = await api.adminCreateQCSamplesFromResults(
+        ids: _failedSelected.toList(),
+        reason: reason,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已加入质检 $created 条');
+      _failedSelected.clear();
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('加入质检失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _toggleLowConfResult(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _lowConfSelected.add(id);
+      } else {
+        _lowConfSelected.remove(id);
+      }
+    });
+  }
+
+  void _toggleFailedResult(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _failedSelected.add(id);
+      } else {
+        _failedSelected.remove(id);
+      }
+    });
+  }
+
+  void _showResultDetail(AdminResultItem item) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Result#${item.resultId}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.imageUrl.isNotEmpty)
+                  Image.network(item.imageUrl, height: 180, fit: BoxFit.cover)
+                else
+                  const Text('无图片地址'),
+                const SizedBox(height: 8),
+                Text('作物: ${item.cropType.isEmpty ? "未识别" : item.cropType}'),
+                Text('置信度: ${item.confidence.toStringAsFixed(2)}'),
+                Text('来源: ${item.provider}'),
+                Text('时间: ${item.createdAt}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _toggleQCSample(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _qcSelected.add(id);
+      } else {
+        _qcSelected.remove(id);
+      }
+    });
+  }
+
+  void _showQCSampleDetail(QCSample sample) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Result#${sample.resultId}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (sample.imageUrl.isNotEmpty)
+                  Image.network(sample.imageUrl, height: 180, fit: BoxFit.cover)
+                else
+                  const Text('无图片地址'),
+                const SizedBox(height: 8),
+                Text('作物: ${sample.cropType}'),
+                Text('置信度: ${sample.confidence.toStringAsFixed(2)}'),
+                Text('来源: ${sample.provider}'),
+                Text('原因: ${sample.reason}'),
+                Text('状态: ${sample.status}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _labelQCSample(sample);
+              },
+              child: const Text('回写标注'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _labelQCSample(QCSample sample) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final categoryController = TextEditingController();
+    final cropController = TextEditingController(text: sample.cropType);
+    final tagsController = TextEditingController();
+    final noteController = TextEditingController();
+    bool approved = true;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('回写标注'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(labelText: '类别(可选)'),
+                ),
+                TextField(
+                  controller: cropController,
+                  decoration: const InputDecoration(labelText: '作物/对象'),
+                ),
+                TextField(
+                  controller: tagsController,
+                  decoration: const InputDecoration(labelText: '标签(逗号)'),
+                ),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(labelText: '备注'),
+                ),
+                const SizedBox(height: 8),
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    return CheckboxListTile(
+                      value: approved,
+                      onChanged: (v) => setState(() => approved = v ?? true),
+                      title: const Text('直接通过'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('提交')),
+          ],
+        );
+      },
+    );
+    if (ok != true) return;
+    final crop = cropController.text.trim();
+    if (crop.isEmpty) {
+      _toast('请填写作物/对象');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final res = await api.adminLabelQCSample(
+        sample.id,
+        category: categoryController.text.trim(),
+        cropType: crop,
+        tags: tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+        note: noteController.text.trim(),
+        approved: approved,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已回写(${res.status})');
+    } catch (e) {
+      _toast('回写失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _createEvalRun() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -472,6 +983,90 @@ class _AdminPageState extends State<AdminPage> {
       _toast('生成失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadEvalSets() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminEvalSets(adminToken: token.isEmpty ? null : token);
+      setState(() => _evalSets = items);
+    } catch (e) {
+      _toast('评测集失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _createEvalSet() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final name = _evalSetNameController.text.trim();
+    final desc = _evalSetDescController.text.trim();
+    final days = int.tryParse(_evalSetDaysController.text) ?? 30;
+    final limit = int.tryParse(_evalSetLimitController.text) ?? 200;
+    setState(() => _loading = true);
+    try {
+      final item = await api.adminCreateEvalSet(
+        name: name,
+        description: desc,
+        days: days,
+        limit: limit,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已创建 ${item.id}');
+      await _loadEvalSets();
+    } catch (e) {
+      _toast('创建失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadEvalSetRuns(EvalSet set) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminEvalSetRuns(set.id, adminToken: token.isEmpty ? null : token);
+      setState(() {
+        _selectedEvalSet = set;
+        _evalSetRuns = items;
+      });
+    } catch (e) {
+      _toast('评测集运行失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _runEvalSet(EvalSet set) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      await api.adminRunEvalSet(set.id, adminToken: token.isEmpty ? null : token);
+      _toast('已运行');
+      await _loadEvalSetRuns(set);
+    } catch (e) {
+      _toast('运行失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _exportEvalSet(EvalSet set, String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportEvalSet(set.id, format: format, adminToken: token.isEmpty ? null : token);
+      final name = format == 'json' ? 'eval_set_${set.id}.json' : 'eval_set_${set.id}.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
     }
   }
 
@@ -723,6 +1318,9 @@ class _AdminPageState extends State<AdminPage> {
                     const SizedBox(height: 8),
                     if (_metrics != null) ...[
                       Text('反馈正确率 ${(100 * _metrics!.feedbackAccuracy).toStringAsFixed(2)}%'),
+                      Text(
+                        '低置信度占比 ${(100 * _metrics!.lowConfidenceRatio).toStringAsFixed(2)}% (阈值 ${_metrics!.lowConfidenceThreshold})',
+                      ),
                       const SizedBox(height: 8),
                       const Text('近况(识别次数/天)', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
@@ -757,6 +1355,37 @@ class _AdminPageState extends State<AdminPage> {
             ),
             Row(
               children: [
+                SizedBox(
+                  width: 140,
+                  child: DropdownButtonFormField<String>(
+                    value: _filterPlan,
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('全部档次')),
+                      DropdownMenuItem(value: 'free', child: Text('free')),
+                      DropdownMenuItem(value: 'silver', child: Text('silver')),
+                      DropdownMenuItem(value: 'gold', child: Text('gold')),
+                      DropdownMenuItem(value: 'diamond', child: Text('diamond')),
+                    ],
+                    onChanged: (v) => setState(() => _filterPlan = v ?? ''),
+                    decoration: const InputDecoration(labelText: '档次'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 140,
+                  child: DropdownButtonFormField<String>(
+                    value: _filterStatus,
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('全部状态')),
+                      DropdownMenuItem(value: 'active', child: Text('active')),
+                      DropdownMenuItem(value: 'guest', child: Text('guest')),
+                      DropdownMenuItem(value: 'disabled', child: Text('disabled')),
+                    ],
+                    onChanged: (v) => setState(() => _filterStatus = v ?? ''),
+                    decoration: const InputDecoration(labelText: '状态'),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
@@ -1044,6 +1673,428 @@ class _AdminPageState extends State<AdminPage> {
                                         ],
                                       ),
                                     ),
+                                  );
+                                }).toList(),
+                              ],
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('低置信度结果', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _lowConfDaysController,
+                                      decoration: const InputDecoration(labelText: '天数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _lowConfThresholdController,
+                                      decoration: const InputDecoration(labelText: '阈值'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _lowConfProviderController,
+                                      decoration: const InputDecoration(labelText: '提供商(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _lowConfCropController,
+                                      decoration: const InputDecoration(labelText: '作物(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _lowConfLimitController,
+                                      decoration: const InputDecoration(labelText: '数量'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _lowConfOffsetController,
+                                      decoration: const InputDecoration(labelText: '偏移'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _lowConfReasonController,
+                                      decoration: const InputDecoration(labelText: '质检原因'),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadLowConfidenceResults,
+                                    child: const Text('刷新列表'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _loadLowConfidenceResults(append: true),
+                                    child: const Text('加载更多'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportLowConfidenceResults('csv'),
+                                    child: const Text('导出CSV'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportLowConfidenceResults('json'),
+                                    child: const Text('导出JSON'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _addLowConfToQC,
+                                    child: const Text('加入质检'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._lowConfResults.map((r) {
+                                final selected = _lowConfSelected.contains(r.resultId);
+                                final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                final subtitle =
+                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                return Card(
+                                  child: ListTile(
+                                    leading: Checkbox(
+                                      value: selected,
+                                      onChanged: (v) => _toggleLowConfResult(r.resultId, v ?? false),
+                                    ),
+                                    title: Text('Result#${r.resultId} · $title'),
+                                    subtitle: Text(subtitle),
+                                    trailing: r.imageUrl.isNotEmpty
+                                        ? SizedBox(
+                                            width: 48,
+                                            height: 48,
+                                            child: Image.network(r.imageUrl, fit: BoxFit.cover),
+                                          )
+                                        : null,
+                                    onTap: () => _showResultDetail(r),
+                                  ),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('失败结果', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _failedDaysController,
+                                      decoration: const InputDecoration(labelText: '天数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _failedLimitController,
+                                      decoration: const InputDecoration(labelText: '数量'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _failedProviderController,
+                                      decoration: const InputDecoration(labelText: '提供商(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _failedCropController,
+                                      decoration: const InputDecoration(labelText: '作物(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _failedOffsetController,
+                                      decoration: const InputDecoration(labelText: '偏移'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _failedReasonController,
+                                      decoration: const InputDecoration(labelText: '质检原因'),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadFailedResults,
+                                    child: const Text('刷新列表'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _loadFailedResults(append: true),
+                                    child: const Text('加载更多'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportFailedResults('csv'),
+                                    child: const Text('导出CSV'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportFailedResults('json'),
+                                    child: const Text('导出JSON'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _addFailedToQC,
+                                    child: const Text('加入质检'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._failedResults.map((r) {
+                                final selected = _failedSelected.contains(r.resultId);
+                                final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                final subtitle =
+                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                return Card(
+                                  child: ListTile(
+                                    leading: Checkbox(
+                                      value: selected,
+                                      onChanged: (v) => _toggleFailedResult(r.resultId, v ?? false),
+                                    ),
+                                    title: Text('Result#${r.resultId} · $title'),
+                                    subtitle: Text(subtitle),
+                                    trailing: r.imageUrl.isNotEmpty
+                                        ? SizedBox(
+                                            width: 48,
+                                            height: 48,
+                                            child: Image.network(r.imageUrl, fit: BoxFit.cover),
+                                          )
+                                        : null,
+                                    onTap: () => _showResultDetail(r),
+                                  ),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('质检样本', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcDaysController,
+                                      decoration: const InputDecoration(labelText: '天数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcLowLimitController,
+                                      decoration: const InputDecoration(labelText: '低置信度'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcRandomLimitController,
+                                      decoration: const InputDecoration(labelText: '随机数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcFeedbackLimitController,
+                                      decoration: const InputDecoration(labelText: '反馈数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcThresholdController,
+                                      decoration: const InputDecoration(labelText: '阈值'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _generateQCSamples,
+                                    child: const Text('生成样本'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadQCSamples,
+                                    child: const Text('刷新列表'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportQCSamples('csv'),
+                                    child: const Text('导出CSV'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportQCSamples('json'),
+                                    child: const Text('导出JSON'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _batchReviewQCSamples('keep'),
+                                    child: const Text('批量保留'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _batchReviewQCSamples('discard'),
+                                    child: const Text('批量剔除'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _qcStatusController,
+                                      decoration: const InputDecoration(labelText: '状态(pending/keep/discard)'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _qcReasonController,
+                                      decoration: const InputDecoration(labelText: '原因(可选)'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._qcSamples.map((s) {
+                                final selected = _qcSelected.contains(s.id);
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('Result#${s.resultId} · ${s.cropType} · ${s.confidence.toStringAsFixed(2)}'),
+                                    subtitle: Text('${s.reason} · ${s.status}'),
+                                    leading: Checkbox(
+                                      value: selected,
+                                      onChanged: (v) => _toggleQCSample(s.id, v ?? false),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _reviewQCSample(s, 'keep'),
+                                          icon: const Icon(Icons.check, color: Colors.green),
+                                        ),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _reviewQCSample(s, 'discard'),
+                                          icon: const Icon(Icons.close, color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
+                                    onTap: () => _showQCSampleDetail(s),
+                                  ),
+                                );
+                              }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('评测集', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _evalSetNameController,
+                                      decoration: const InputDecoration(labelText: '名称'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 200,
+                                    child: TextField(
+                                      controller: _evalSetDescController,
+                                      decoration: const InputDecoration(labelText: '描述'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _evalSetDaysController,
+                                      decoration: const InputDecoration(labelText: '天数'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _evalSetLimitController,
+                                      decoration: const InputDecoration(labelText: '数量'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _createEvalSet,
+                                    child: const Text('创建评测集'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadEvalSets,
+                                    child: const Text('刷新评测集'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ..._evalSets.map((s) {
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('${s.name} (#${s.id})'),
+                                    subtitle: Text('size ${s.size} · ${s.createdAt}'),
+                                    trailing: Wrap(
+                                      spacing: 8,
+                                      children: [
+                                        TextButton(
+                                          onPressed: _loading ? null : () => _runEvalSet(s),
+                                          child: const Text('运行'),
+                                        ),
+                                        TextButton(
+                                          onPressed: _loading ? null : () => _loadEvalSetRuns(s),
+                                          child: const Text('查看'),
+                                        ),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _exportEvalSet(s, 'csv'),
+                                          icon: const Icon(Icons.download),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              if (_selectedEvalSet != null && _evalSetRuns.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text('评测集运行：${_selectedEvalSet!.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                ..._evalSetRuns.map((r) {
+                                  final delta = (100 * r.deltaAcc).toStringAsFixed(2);
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text('Run#${r.id} · ${r.createdAt}'),
+                                    subtitle: Text('total ${r.total} · correct ${r.correct}'),
+                                    trailing: Text('${(100 * r.accuracy).toStringAsFixed(2)}% (Δ ${delta}%)'),
                                   );
                                 }).toList(),
                               ],

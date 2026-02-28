@@ -98,6 +98,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | limit | int | 20 | 分页大小 |
 | offset | int | 0 | 偏移 |
 | q | string | - | 关键字（邮箱/昵称） |
+| plan | string | - | free/silver/gold/diamond |
+| status | string | - | active/guest/disabled |
 
 **PUT** `/admin/users/:id`
 
@@ -159,6 +161,11 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | days | int | 30 | 统计天数 |
+
+返回字段新增：
+- `low_confidence_total`
+- `low_confidence_ratio`
+- `low_confidence_threshold`
 
 **GET** `/admin/settings`
 
@@ -250,6 +257,162 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 |------|------|--------|------|
 | limit | int | 20 | 分页大小 |
 | offset | int | 0 | 偏移 |
+
+**POST** `/admin/eval-sets`
+
+```json
+{
+  "name": "baseline-v1",
+  "description": "首批基线评测集",
+  "days": 30,
+  "limit": 200
+}
+```
+
+**GET** `/admin/eval-sets`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+
+**POST** `/admin/eval-sets/:id/run`
+
+```json
+{
+  "baseline_id": 1
+}
+```
+
+**GET** `/admin/eval-sets/:id/runs`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+
+**GET** `/admin/eval-sets/:id/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
+**POST** `/admin/qc/samples`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 样本时间范围 |
+| low_limit | int | 0 | 低置信度样本数 |
+| random_limit | int | 0 | 随机样本数 |
+| feedback_limit | int | 0 | 错误反馈样本数 |
+| low_conf_threshold | float | 0.5 | 低置信度阈值 |
+
+**GET** `/admin/qc/samples`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| status | string | - | pending/keep/discard |
+| reason | string | - | low_confidence/random/feedback_incorrect |
+
+**POST** `/admin/qc/samples/:id/review`
+
+```json
+{
+  "status": "keep",
+  "reviewer": "admin",
+  "review_note": "保留样本"
+}
+```
+
+**POST** `/admin/qc/samples/batch-review`
+
+```json
+{
+  "ids": [1, 2, 3],
+  "status": "keep",
+  "reviewer": "admin",
+  "review_note": "批量保留"
+}
+```
+
+**GET** `/admin/qc/samples/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| status | string | - | pending/keep/discard |
+| reason | string | - | low_confidence/random/feedback_incorrect |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
+**GET** `/admin/results/low-confidence`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 统计天数 |
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| threshold | float | 0.5 | 低置信度阈值 |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+
+返回字段：
+- result_id / image_id / image_url / crop_type / confidence / provider / created_at
+
+**GET** `/admin/results/failed`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 30 | 统计天数 |
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+
+**GET** `/admin/results/low-confidence/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| days | int | 30 | 统计天数 |
+| threshold | float | 0.5 | 低置信度阈值 |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+
+**GET** `/admin/results/failed/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| days | int | 30 | 统计天数 |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+
+**POST** `/admin/qc/samples/from-results`
+
+```json
+{
+  "ids": [1, 2, 3],
+  "reason": "low_confidence"
+}
+```
+
+**POST** `/admin/qc/samples/:id/label`
+
+```json
+{
+  "category": "crop",
+  "crop_type": "wheat",
+  "tags": ["锈病"],
+  "note": "人工标注",
+  "approved": true,
+  "reviewer": "admin"
+}
+```
 
 **GET** `/admin/export/eval`
 

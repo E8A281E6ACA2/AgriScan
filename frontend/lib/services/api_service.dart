@@ -185,13 +185,22 @@ class ApiService {
     return Options(headers: {'X-Admin-Token': adminToken});
   }
 
-  Future<List<AdminUser>> adminListUsers({int limit = 20, int offset = 0, String? q, String? adminToken}) async {
+  Future<List<AdminUser>> adminListUsers({
+    int limit = 20,
+    int offset = 0,
+    String? q,
+    String? plan,
+    String? status,
+    String? adminToken,
+  }) async {
     final response = await _dio.get(
       '/admin/users',
       queryParameters: {
         'limit': limit,
         'offset': offset,
         if (q != null && q.isNotEmpty) 'q': q,
+        if (plan != null && plan.isNotEmpty) 'plan': plan,
+        if (status != null && status.isNotEmpty) 'status': status,
       },
       options: _adminOptions(adminToken),
     );
@@ -520,6 +529,317 @@ class ApiService {
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => EvalRun.fromJson(e)).toList();
+  }
+
+  Future<EvalSet> adminCreateEvalSet({
+    required String name,
+    String? description,
+    int days = 30,
+    int limit = 200,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/eval-sets',
+      data: {
+        'name': name,
+        if (description != null) 'description': description,
+        'days': days,
+        'limit': limit,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return EvalSet.fromJson(response.data);
+  }
+
+  Future<List<EvalSet>> adminEvalSets({int limit = 20, int offset = 0, String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/eval-sets',
+      queryParameters: {'limit': limit, 'offset': offset},
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => EvalSet.fromJson(e)).toList();
+  }
+
+  Future<EvalSetRun> adminRunEvalSet(
+    int id, {
+    int? baselineId,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/eval-sets/$id/run',
+      data: {
+        if (baselineId != null) 'baseline_id': baselineId,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return EvalSetRun.fromJson(response.data);
+  }
+
+  Future<List<EvalSetRun>> adminEvalSetRuns(
+    int id, {
+    int limit = 20,
+    int offset = 0,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/eval-sets/$id/runs',
+      queryParameters: {'limit': limit, 'offset': offset},
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => EvalSetRun.fromJson(e)).toList();
+  }
+
+  Future<Uint8List> adminExportEvalSet(
+    int id, {
+    String format = 'csv',
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/eval-sets/$id/export',
+      queryParameters: {'format': format},
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<QCGenerateResult> adminGenerateQCSamples({
+    int days = 30,
+    int lowLimit = 0,
+    int randomLimit = 0,
+    int feedbackLimit = 0,
+    double lowConfThreshold = 0.5,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/qc/samples',
+      queryParameters: {
+        'days': days,
+        'low_limit': lowLimit,
+        'random_limit': randomLimit,
+        'feedback_limit': feedbackLimit,
+        'low_conf_threshold': lowConfThreshold,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return QCGenerateResult.fromJson(response.data);
+  }
+
+  Future<List<QCSample>> adminListQCSamples({
+    int limit = 20,
+    int offset = 0,
+    String? status,
+    String? reason,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/qc/samples',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => QCSample.fromJson(e)).toList();
+  }
+
+  Future<void> adminReviewQCSample(
+    int id, {
+    required String status,
+    String reviewer = 'admin',
+    String? reviewNote,
+    String? adminToken,
+  }) async {
+    await _dio.post(
+      '/admin/qc/samples/$id/review',
+      data: {'status': status, 'reviewer': reviewer, if (reviewNote != null) 'review_note': reviewNote},
+      options: _adminOptions(adminToken),
+    );
+  }
+
+  Future<int> adminBatchReviewQCSamples({
+    required List<int> ids,
+    required String status,
+    String reviewer = 'admin',
+    String? reviewNote,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/qc/samples/batch-review',
+      data: {
+        'ids': ids,
+        'status': status,
+        'reviewer': reviewer,
+        if (reviewNote != null) 'review_note': reviewNote,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return response.data['updated'] ?? 0;
+  }
+
+  Future<Uint8List> adminExportQCSamples({
+    String format = 'csv',
+    String? status,
+    String? reason,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/qc/samples/export',
+      queryParameters: {
+        'format': format,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<List<AdminResultItem>> adminLowConfidenceResults({
+    int days = 30,
+    int limit = 20,
+    int offset = 0,
+    double threshold = 0.5,
+    String? provider,
+    String? cropType,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/results/low-confidence',
+      queryParameters: {
+        'days': days,
+        'limit': limit,
+        'offset': offset,
+        'threshold': threshold,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+      },
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminResultItem.fromJson(e)).toList();
+  }
+
+  Future<List<AdminResultItem>> adminFailedResults({
+    int days = 30,
+    int limit = 20,
+    int offset = 0,
+    String? provider,
+    String? cropType,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/results/failed',
+      queryParameters: {
+        'days': days,
+        'limit': limit,
+        'offset': offset,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+      },
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminResultItem.fromJson(e)).toList();
+  }
+
+  Future<Uint8List> adminExportLowConfidenceResults({
+    String format = 'csv',
+    int days = 30,
+    double threshold = 0.5,
+    String? provider,
+    String? cropType,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/results/low-confidence/export',
+      queryParameters: {
+        'format': format,
+        'days': days,
+        'threshold': threshold,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<Uint8List> adminExportFailedResults({
+    String format = 'csv',
+    int days = 30,
+    String? provider,
+    String? cropType,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/results/failed/export',
+      queryParameters: {
+        'format': format,
+        'days': days,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<int> adminCreateQCSamplesFromResults({
+    required List<int> ids,
+    String? reason,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/qc/samples/from-results',
+      data: {
+        'ids': ids,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return response.data['created'] ?? 0;
+  }
+
+  Future<AdminLabelResult> adminLabelQCSample(
+    int id, {
+    String? category,
+    String? cropType,
+    List<String>? tags,
+    String? note,
+    bool approved = true,
+    String reviewer = 'admin',
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/qc/samples/$id/label',
+      data: {
+        if (category != null) 'category': category,
+        if (cropType != null) 'crop_type': cropType,
+        if (tags != null) 'tags': tags,
+        if (note != null) 'note': note,
+        'approved': approved,
+        'reviewer': reviewer,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return AdminLabelResult.fromJson(response.data);
   }
 
   Future<List<String>> getTags({String? category}) async {
@@ -1149,6 +1469,9 @@ class AdminMetrics {
   final int feedbackTotal;
   final int feedbackCorrect;
   final double feedbackAccuracy;
+  final int lowConfidenceTotal;
+  final double lowConfidenceRatio;
+  final double lowConfidenceThreshold;
 
   AdminMetrics({
     required this.resultsByDay,
@@ -1159,6 +1482,9 @@ class AdminMetrics {
     required this.feedbackTotal,
     required this.feedbackCorrect,
     required this.feedbackAccuracy,
+    required this.lowConfidenceTotal,
+    required this.lowConfidenceRatio,
+    required this.lowConfidenceThreshold,
   });
 
   factory AdminMetrics.fromJson(Map<String, dynamic> json) {
@@ -1172,6 +1498,9 @@ class AdminMetrics {
       feedbackTotal: json['feedback_total'] ?? 0,
       feedbackCorrect: json['feedback_correct'] ?? 0,
       feedbackAccuracy: (json['feedback_accuracy'] ?? 0).toDouble(),
+      lowConfidenceTotal: json['low_confidence_total'] ?? 0,
+      lowConfidenceRatio: (json['low_confidence_ratio'] ?? 0).toDouble(),
+      lowConfidenceThreshold: (json['low_confidence_threshold'] ?? 0).toDouble(),
     );
   }
 }
@@ -1327,6 +1656,174 @@ class EvalRun {
       total: json['total'] ?? 0,
       correct: json['correct'] ?? 0,
       accuracy: (json['accuracy'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class EvalSet {
+  final int id;
+  final String createdAt;
+  final String name;
+  final String description;
+  final String source;
+  final int size;
+
+  EvalSet({
+    required this.id,
+    required this.createdAt,
+    required this.name,
+    required this.description,
+    required this.source,
+    required this.size,
+  });
+
+  factory EvalSet.fromJson(Map<String, dynamic> json) {
+    return EvalSet(
+      id: json['id'] ?? 0,
+      createdAt: (json['created_at'] ?? '').toString(),
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      source: json['source'] ?? '',
+      size: json['size'] ?? 0,
+    );
+  }
+}
+
+class EvalSetRun {
+  final int id;
+  final String createdAt;
+  final int total;
+  final int correct;
+  final double accuracy;
+  final double deltaAcc;
+
+  EvalSetRun({
+    required this.id,
+    required this.createdAt,
+    required this.total,
+    required this.correct,
+    required this.accuracy,
+    required this.deltaAcc,
+  });
+
+  factory EvalSetRun.fromJson(Map<String, dynamic> json) {
+    return EvalSetRun(
+      id: json['id'] ?? 0,
+      createdAt: (json['created_at'] ?? '').toString(),
+      total: json['total'] ?? 0,
+      correct: json['correct'] ?? 0,
+      accuracy: (json['accuracy'] ?? 0).toDouble(),
+      deltaAcc: (json['delta_acc'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class QCGenerateResult {
+  final int requested;
+  final int created;
+
+  QCGenerateResult({required this.requested, required this.created});
+
+  factory QCGenerateResult.fromJson(Map<String, dynamic> json) {
+    return QCGenerateResult(
+      requested: json['requested'] ?? 0,
+      created: json['created'] ?? 0,
+    );
+  }
+}
+
+class QCSample {
+  final int id;
+  final int resultId;
+  final int imageId;
+  final String imageUrl;
+  final String cropType;
+  final double confidence;
+  final String provider;
+  final String reason;
+  final String status;
+  final String reviewer;
+  final String? reviewedAt;
+  final String reviewNote;
+  final String createdAt;
+
+  QCSample({
+    required this.id,
+    required this.resultId,
+    required this.imageId,
+    required this.imageUrl,
+    required this.cropType,
+    required this.confidence,
+    required this.provider,
+    required this.reason,
+    required this.status,
+    required this.reviewer,
+    required this.reviewedAt,
+    required this.reviewNote,
+    required this.createdAt,
+  });
+
+  factory QCSample.fromJson(Map<String, dynamic> json) {
+    return QCSample(
+      id: json['id'] ?? 0,
+      resultId: json['result_id'] ?? 0,
+      imageId: json['image_id'] ?? 0,
+      imageUrl: json['image_url'] ?? '',
+      cropType: json['crop_type'] ?? '',
+      confidence: (json['confidence'] ?? 0).toDouble(),
+      provider: json['provider'] ?? '',
+      reason: json['reason'] ?? '',
+      status: json['status'] ?? '',
+      reviewer: json['reviewer'] ?? '',
+      reviewedAt: json['reviewed_at'],
+      reviewNote: json['review_note'] ?? '',
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class AdminResultItem {
+  final int resultId;
+  final int imageId;
+  final String imageUrl;
+  final String cropType;
+  final double confidence;
+  final String provider;
+  final String createdAt;
+
+  AdminResultItem({
+    required this.resultId,
+    required this.imageId,
+    required this.imageUrl,
+    required this.cropType,
+    required this.confidence,
+    required this.provider,
+    required this.createdAt,
+  });
+
+  factory AdminResultItem.fromJson(Map<String, dynamic> json) {
+    return AdminResultItem(
+      resultId: json['result_id'] ?? 0,
+      imageId: json['image_id'] ?? 0,
+      imageUrl: json['image_url'] ?? '',
+      cropType: json['crop_type'] ?? '',
+      confidence: (json['confidence'] ?? 0).toDouble(),
+      provider: json['provider'] ?? '',
+      createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class AdminLabelResult {
+  final int noteId;
+  final String status;
+
+  AdminLabelResult({required this.noteId, required this.status});
+
+  factory AdminLabelResult.fromJson(Map<String, dynamic> json) {
+    return AdminLabelResult(
+      noteId: json['note_id'] ?? 0,
+      status: json['status'] ?? '',
     );
   }
 }
