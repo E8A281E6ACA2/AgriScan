@@ -117,6 +117,9 @@ class _AdminPageState extends State<AdminPage> {
   bool _labelFlowEnabled = false;
   String _filterPlan = '';
   String _filterStatus = '';
+  String _searchSource = '';
+  String _lowConfSource = '';
+  String _failedSource = '';
   List<_LabelTemplate> _labelTemplates = List<_LabelTemplate>.from(_defaultLabelTemplates);
   List<String> _cropSuggestions = [];
 
@@ -975,6 +978,7 @@ class _AdminPageState extends State<AdminPage> {
         threshold: threshold,
         provider: _lowConfProviderController.text.trim(),
         cropType: _lowConfCropController.text.trim(),
+        source: _lowConfSource.isEmpty ? null : _lowConfSource,
         startDate: _lowConfStartController.text.trim(),
         endDate: _lowConfEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
@@ -1015,6 +1019,7 @@ class _AdminPageState extends State<AdminPage> {
         offset: nextOffset,
         provider: _failedProviderController.text.trim(),
         cropType: _failedCropController.text.trim(),
+        source: _failedSource.isEmpty ? null : _failedSource,
         startDate: _failedStartController.text.trim(),
         endDate: _failedEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
@@ -1050,6 +1055,7 @@ class _AdminPageState extends State<AdminPage> {
         threshold: double.tryParse(_lowConfThresholdController.text) ?? 0.5,
         provider: _lowConfProviderController.text.trim(),
         cropType: _lowConfCropController.text.trim(),
+        source: _lowConfSource.isEmpty ? null : _lowConfSource,
         startDate: _lowConfStartController.text.trim(),
         endDate: _lowConfEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
@@ -1071,6 +1077,7 @@ class _AdminPageState extends State<AdminPage> {
         days: int.tryParse(_failedDaysController.text) ?? 30,
         provider: _failedProviderController.text.trim(),
         cropType: _failedCropController.text.trim(),
+        source: _failedSource.isEmpty ? null : _failedSource,
         startDate: _failedStartController.text.trim(),
         endDate: _failedEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
@@ -1130,6 +1137,7 @@ class _AdminPageState extends State<AdminPage> {
         offset: nextOffset,
         provider: _searchProviderController.text.trim(),
         cropType: _searchCropController.text.trim(),
+        source: _searchSource.isEmpty ? null : _searchSource,
         minConfidence: minConf,
         maxConfidence: maxConf,
         startDate: _searchStartController.text.trim(),
@@ -1280,7 +1288,8 @@ class _AdminPageState extends State<AdminPage> {
                 const SizedBox(height: 8),
                 Text('作物: ${item.cropType.isEmpty ? "未识别" : item.cropType}'),
                 Text('置信度: ${item.confidence.toStringAsFixed(2)}'),
-                Text('来源: ${item.provider}'),
+                Text('提供商: ${item.provider}'),
+                Text('来源: ${_formatSource(item.source)}'),
                 Text('时间: ${item.createdAt}'),
               ],
             ),
@@ -1291,6 +1300,21 @@ class _AdminPageState extends State<AdminPage> {
         );
       },
     );
+  }
+
+  String _formatSource(String source) {
+    switch (source) {
+      case 'camera':
+        return '拍照';
+      case 'gallery':
+        return '相册';
+      case 'url':
+        return 'URL';
+      case 'unknown':
+        return '未知';
+      default:
+        return source.isEmpty ? '-' : source;
+    }
   }
 
   Future<void> _openAdminNote(int resultId) async {
@@ -2878,6 +2902,21 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                   ),
                                   SizedBox(
+                                    width: 120,
+                                    child: DropdownButtonFormField<String>(
+                                      value: _searchSource,
+                                      decoration: const InputDecoration(labelText: '来源'),
+                                      items: const [
+                                        DropdownMenuItem(value: '', child: Text('全部')),
+                                        DropdownMenuItem(value: 'camera', child: Text('拍照')),
+                                        DropdownMenuItem(value: 'gallery', child: Text('相册')),
+                                        DropdownMenuItem(value: 'url', child: Text('URL')),
+                                        DropdownMenuItem(value: 'unknown', child: Text('未知')),
+                                      ],
+                                      onChanged: (val) => setState(() => _searchSource = val ?? ''),
+                                    ),
+                                  ),
+                                  SizedBox(
                                     width: 100,
                                     child: TextField(
                                       controller: _searchMinConfController,
@@ -2944,8 +2983,9 @@ class _AdminPageState extends State<AdminPage> {
                                 ..._searchResults.map((r) {
                                   final selected = _searchSelected.contains(r.resultId);
                                   final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                  final sourceLabel = r.source.isEmpty ? '' : ' | ${_formatSource(r.source)}';
                                   final subtitle =
-                                      '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                      '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}$sourceLabel';
                                   return Card(
                                     child: ListTile(
                                       leading: Checkbox(
@@ -3014,6 +3054,21 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                   ),
                                   SizedBox(
+                                    width: 120,
+                                    child: DropdownButtonFormField<String>(
+                                      value: _lowConfSource,
+                                      decoration: const InputDecoration(labelText: '来源'),
+                                      items: const [
+                                        DropdownMenuItem(value: '', child: Text('全部')),
+                                        DropdownMenuItem(value: 'camera', child: Text('拍照')),
+                                        DropdownMenuItem(value: 'gallery', child: Text('相册')),
+                                        DropdownMenuItem(value: 'url', child: Text('URL')),
+                                        DropdownMenuItem(value: 'unknown', child: Text('未知')),
+                                      ],
+                                      onChanged: (val) => setState(() => _lowConfSource = val ?? ''),
+                                    ),
+                                  ),
+                                  SizedBox(
                                     width: 140,
                                     child: TextField(
                                       controller: _lowConfStartController,
@@ -3076,8 +3131,9 @@ class _AdminPageState extends State<AdminPage> {
                               ..._lowConfResults.map((r) {
                                 final selected = _lowConfSelected.contains(r.resultId);
                                 final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                final sourceLabel = r.source.isEmpty ? '' : ' | ${_formatSource(r.source)}';
                                 final subtitle =
-                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}$sourceLabel';
                                 return Card(
                                   child: ListTile(
                                     leading: Checkbox(
@@ -3146,6 +3202,21 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                   ),
                                   SizedBox(
+                                    width: 120,
+                                    child: DropdownButtonFormField<String>(
+                                      value: _failedSource,
+                                      decoration: const InputDecoration(labelText: '来源'),
+                                      items: const [
+                                        DropdownMenuItem(value: '', child: Text('全部')),
+                                        DropdownMenuItem(value: 'camera', child: Text('拍照')),
+                                        DropdownMenuItem(value: 'gallery', child: Text('相册')),
+                                        DropdownMenuItem(value: 'url', child: Text('URL')),
+                                        DropdownMenuItem(value: 'unknown', child: Text('未知')),
+                                      ],
+                                      onChanged: (val) => setState(() => _failedSource = val ?? ''),
+                                    ),
+                                  ),
+                                  SizedBox(
                                     width: 140,
                                     child: TextField(
                                       controller: _failedStartController,
@@ -3200,8 +3271,9 @@ class _AdminPageState extends State<AdminPage> {
                               ..._failedResults.map((r) {
                                 final selected = _failedSelected.contains(r.resultId);
                                 final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                final sourceLabel = r.source.isEmpty ? '' : ' | ${_formatSource(r.source)}';
                                 final subtitle =
-                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                    '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}$sourceLabel';
                                 return Card(
                                   child: ListTile(
                                     leading: Checkbox(

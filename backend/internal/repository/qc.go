@@ -14,6 +14,7 @@ type QCResultRow struct {
 	CropType   string
 	Confidence float64
 	Provider   string
+	Source     string
 	CreatedAt  time.Time
 }
 
@@ -44,7 +45,7 @@ func (r *Repository) ListQCResultRowsByIDs(ids []uint) ([]QCResultRow, error) {
 	}
 	var items []QCResultRow
 	err := r.db.Model(&model.RecognitionResult{}).
-		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.created_at as created_at, images.original_url as image_url").
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.source, recognition_results.created_at as created_at, images.original_url as image_url").
 		Joins("JOIN images ON images.id = recognition_results.image_id").
 		Where("recognition_results.id IN ?", ids).
 		Scan(&items).Error

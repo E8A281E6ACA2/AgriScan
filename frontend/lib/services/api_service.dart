@@ -915,6 +915,7 @@ class ApiService {
     double threshold = 0.5,
     String? provider,
     String? cropType,
+    String? source,
     String? startDate,
     String? endDate,
     String? adminToken,
@@ -928,6 +929,7 @@ class ApiService {
         'threshold': threshold,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (source != null && source.isNotEmpty) 'source': source,
         if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
         if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
@@ -943,6 +945,7 @@ class ApiService {
     int offset = 0,
     String? provider,
     String? cropType,
+    String? source,
     String? startDate,
     String? endDate,
     String? adminToken,
@@ -955,6 +958,7 @@ class ApiService {
         'offset': offset,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (source != null && source.isNotEmpty) 'source': source,
         if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
         if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
@@ -969,6 +973,7 @@ class ApiService {
     int offset = 0,
     String? provider,
     String? cropType,
+    String? source,
     double? minConfidence,
     double? maxConfidence,
     String? startDate,
@@ -982,6 +987,7 @@ class ApiService {
         'offset': offset,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (source != null && source.isNotEmpty) 'source': source,
         if (minConfidence != null) 'min_conf': minConfidence,
         if (maxConfidence != null) 'max_conf': maxConfidence,
         if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
@@ -999,6 +1005,7 @@ class ApiService {
     double threshold = 0.5,
     String? provider,
     String? cropType,
+    String? source,
     String? startDate,
     String? endDate,
     String? adminToken,
@@ -1011,6 +1018,7 @@ class ApiService {
         'threshold': threshold,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (source != null && source.isNotEmpty) 'source': source,
         if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
         if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
@@ -1027,6 +1035,7 @@ class ApiService {
     int days = 30,
     String? provider,
     String? cropType,
+    String? source,
     String? startDate,
     String? endDate,
     String? adminToken,
@@ -1038,6 +1047,7 @@ class ApiService {
         'days': days,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (source != null && source.isNotEmpty) 'source': source,
         if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
         if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
@@ -2189,6 +2199,7 @@ class AdminResultItem {
   final String cropType;
   final double confidence;
   final String provider;
+  final String source;
   final String createdAt;
 
   AdminResultItem({
@@ -2198,6 +2209,7 @@ class AdminResultItem {
     required this.cropType,
     required this.confidence,
     required this.provider,
+    required this.source,
     required this.createdAt,
   });
 
@@ -2209,6 +2221,7 @@ class AdminResultItem {
       cropType: json['crop_type'] ?? '',
       confidence: (json['confidence'] ?? 0).toDouble(),
       provider: json['provider'] ?? '',
+      source: json['source'] ?? '',
       createdAt: (json['created_at'] ?? '').toString(),
     );
   }

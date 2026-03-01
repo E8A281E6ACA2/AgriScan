@@ -741,12 +741,13 @@ func (h *Handler) AdminListLowConfidenceResults(c *gin.Context) {
 	threshold, _ := strconv.ParseFloat(c.DefaultQuery("threshold", "0.5"), 64)
 	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	items, err := h.svc.ListLowConfidenceResults(days, limit, offset, threshold, provider, cropType, startDate, endDate)
+	items, err := h.svc.ListLowConfidenceResults(days, limit, offset, threshold, provider, cropType, source, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -764,12 +765,13 @@ func (h *Handler) AdminListFailedResults(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	items, err := h.svc.ListFailedResults(days, limit, offset, provider, cropType, startDate, endDate)
+	items, err := h.svc.ListFailedResults(days, limit, offset, provider, cropType, source, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -787,6 +789,7 @@ func (h *Handler) AdminExportLowConfidenceResults(c *gin.Context) {
 	threshold, _ := strconv.ParseFloat(c.DefaultQuery("threshold", "0.5"), 64)
 	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -795,14 +798,14 @@ func (h *Handler) AdminExportLowConfidenceResults(c *gin.Context) {
 	if format == "json" {
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=low_confidence_results.json")
-		if err := h.svc.ExportLowConfidenceResultsJSON(c.Writer, days, threshold, provider, cropType, startDate, endDate); err != nil {
+		if err := h.svc.ExportLowConfidenceResultsJSON(c.Writer, days, threshold, provider, cropType, source, startDate, endDate); err != nil {
 			c.Status(http.StatusInternalServerError)
 		}
 		return
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=low_confidence_results.csv")
-	if err := h.svc.ExportLowConfidenceResultsCSV(c.Writer, days, threshold, provider, cropType, startDate, endDate); err != nil {
+	if err := h.svc.ExportLowConfidenceResultsCSV(c.Writer, days, threshold, provider, cropType, source, startDate, endDate); err != nil {
 		c.Status(http.StatusInternalServerError)
 	}
 }
@@ -816,6 +819,7 @@ func (h *Handler) AdminExportFailedResults(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -824,14 +828,14 @@ func (h *Handler) AdminExportFailedResults(c *gin.Context) {
 	if format == "json" {
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=failed_results.json")
-		if err := h.svc.ExportFailedResultsJSON(c.Writer, days, provider, cropType, startDate, endDate); err != nil {
+		if err := h.svc.ExportFailedResultsJSON(c.Writer, days, provider, cropType, source, startDate, endDate); err != nil {
 			c.Status(http.StatusInternalServerError)
 		}
 		return
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=failed_results.csv")
-	if err := h.svc.ExportFailedResultsCSV(c.Writer, days, provider, cropType, startDate, endDate); err != nil {
+	if err := h.svc.ExportFailedResultsCSV(c.Writer, days, provider, cropType, source, startDate, endDate); err != nil {
 		c.Status(http.StatusInternalServerError)
 	}
 }
@@ -845,6 +849,7 @@ func (h *Handler) AdminSearchResults(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
 	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
@@ -882,7 +887,7 @@ func (h *Handler) AdminSearchResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
 		return
 	}
-	items, err := h.svc.SearchResults(limit, offset, provider, cropType, minConf, maxConf, startDate, endDate)
+	items, err := h.svc.SearchResults(limit, offset, provider, cropType, source, minConf, maxConf, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

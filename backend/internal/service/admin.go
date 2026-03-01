@@ -165,6 +165,7 @@ type RecognizeResultView struct {
 	CropType   string  `json:"crop_type"`
 	Confidence float64 `json:"confidence"`
 	Provider   string  `json:"provider"`
+	Source     string  `json:"source"`
 	CreatedAt  string  `json:"created_at"`
 }
 
@@ -1182,7 +1183,7 @@ func (s *Service) ExportEvalSetJSON(w io.Writer, setID uint, start, end *time.Ti
 	return err
 }
 
-func (s *Service) ListLowConfidenceResults(days, limit, offset int, threshold float64, provider, cropType string, start, end *time.Time) ([]RecognizeResultView, error) {
+func (s *Service) ListLowConfidenceResults(days, limit, offset int, threshold float64, provider, cropType, source string, start, end *time.Time) ([]RecognizeResultView, error) {
 	if days <= 0 {
 		days = 30
 	}
@@ -1194,7 +1195,7 @@ func (s *Service) ListLowConfidenceResults(days, limit, offset int, threshold fl
 	}
 	var items []repository.QCResultRow
 	query := s.repo.DB().Model(&model.RecognitionResult{}).
-		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.created_at as created_at, images.original_url as image_url").
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.source, recognition_results.created_at as created_at, images.original_url as image_url").
 		Joins("JOIN images ON images.id = recognition_results.image_id").
 		Where("recognition_results.confidence >= 0 AND recognition_results.confidence < ?", threshold)
 	if start == nil && end == nil {
@@ -1214,6 +1215,9 @@ func (s *Service) ListLowConfidenceResults(days, limit, offset int, threshold fl
 	if cropType != "" {
 		query = query.Where("recognition_results.crop_type = ?", cropType)
 	}
+	if source != "" {
+		query = query.Where("recognition_results.source = ?", source)
+	}
 	err := query.Order("recognition_results.created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -1230,13 +1234,14 @@ func (s *Service) ListLowConfidenceResults(days, limit, offset int, threshold fl
 			CropType:   it.CropType,
 			Confidence: it.Confidence,
 			Provider:   it.Provider,
+			Source:     it.Source,
 			CreatedAt:  it.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 	return out, nil
 }
 
-func (s *Service) ListFailedResults(days, limit, offset int, provider, cropType string, start, end *time.Time) ([]RecognizeResultView, error) {
+func (s *Service) ListFailedResults(days, limit, offset int, provider, cropType, source string, start, end *time.Time) ([]RecognizeResultView, error) {
 	if days <= 0 {
 		days = 30
 	}
@@ -1245,7 +1250,7 @@ func (s *Service) ListFailedResults(days, limit, offset int, provider, cropType 
 	}
 	var items []repository.QCResultRow
 	query := s.repo.DB().Model(&model.RecognitionResult{}).
-		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.created_at as created_at, images.original_url as image_url").
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.source, recognition_results.created_at as created_at, images.original_url as image_url").
 		Joins("JOIN images ON images.id = recognition_results.image_id").
 		Where("(recognition_results.crop_type = '' OR recognition_results.confidence <= 0)")
 	if start == nil && end == nil {
@@ -1265,6 +1270,9 @@ func (s *Service) ListFailedResults(days, limit, offset int, provider, cropType 
 	if cropType != "" {
 		query = query.Where("recognition_results.crop_type = ?", cropType)
 	}
+	if source != "" {
+		query = query.Where("recognition_results.source = ?", source)
+	}
 	err := query.Order("recognition_results.created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -1281,20 +1289,21 @@ func (s *Service) ListFailedResults(days, limit, offset int, provider, cropType 
 			CropType:   it.CropType,
 			Confidence: it.Confidence,
 			Provider:   it.Provider,
+			Source:     it.Source,
 			CreatedAt:  it.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 	return out, nil
 }
 
-func (s *Service) ExportLowConfidenceResultsCSV(w io.Writer, days int, threshold float64, provider, cropType string, start, end *time.Time) error {
-	items, err := s.ListLowConfidenceResults(days, 100000, 0, threshold, provider, cropType, start, end)
+func (s *Service) ExportLowConfidenceResultsCSV(w io.Writer, days int, threshold float64, provider, cropType, source string, start, end *time.Time) error {
+	items, err := s.ListLowConfidenceResults(days, 100000, 0, threshold, provider, cropType, source, start, end)
 	if err != nil {
 		return err
 	}
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
-	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "created_at"})
+	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "source", "created_at"})
 	for _, it := range items {
 		_ = writer.Write([]string{
 			strconv.FormatUint(uint64(it.ResultID), 10),
@@ -1303,28 +1312,29 @@ func (s *Service) ExportLowConfidenceResultsCSV(w io.Writer, days int, threshold
 			it.CropType,
 			strconv.FormatFloat(it.Confidence, 'f', 4, 64),
 			it.Provider,
+			it.Source,
 			it.CreatedAt,
 		})
 	}
 	return writer.Error()
 }
 
-func (s *Service) ExportLowConfidenceResultsJSON(w io.Writer, days int, threshold float64, provider, cropType string, start, end *time.Time) error {
-	items, err := s.ListLowConfidenceResults(days, 100000, 0, threshold, provider, cropType, start, end)
+func (s *Service) ExportLowConfidenceResultsJSON(w io.Writer, days int, threshold float64, provider, cropType, source string, start, end *time.Time) error {
+	items, err := s.ListLowConfidenceResults(days, 100000, 0, threshold, provider, cropType, source, start, end)
 	if err != nil {
 		return err
 	}
 	return json.NewEncoder(w).Encode(items)
 }
 
-func (s *Service) ExportFailedResultsCSV(w io.Writer, days int, provider, cropType string, start, end *time.Time) error {
-	items, err := s.ListFailedResults(days, 100000, 0, provider, cropType, start, end)
+func (s *Service) ExportFailedResultsCSV(w io.Writer, days int, provider, cropType, source string, start, end *time.Time) error {
+	items, err := s.ListFailedResults(days, 100000, 0, provider, cropType, source, start, end)
 	if err != nil {
 		return err
 	}
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
-	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "created_at"})
+	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "source", "created_at"})
 	for _, it := range items {
 		_ = writer.Write([]string{
 			strconv.FormatUint(uint64(it.ResultID), 10),
@@ -1333,33 +1343,37 @@ func (s *Service) ExportFailedResultsCSV(w io.Writer, days int, provider, cropTy
 			it.CropType,
 			strconv.FormatFloat(it.Confidence, 'f', 4, 64),
 			it.Provider,
+			it.Source,
 			it.CreatedAt,
 		})
 	}
 	return writer.Error()
 }
 
-func (s *Service) ExportFailedResultsJSON(w io.Writer, days int, provider, cropType string, start, end *time.Time) error {
-	items, err := s.ListFailedResults(days, 100000, 0, provider, cropType, start, end)
+func (s *Service) ExportFailedResultsJSON(w io.Writer, days int, provider, cropType, source string, start, end *time.Time) error {
+	items, err := s.ListFailedResults(days, 100000, 0, provider, cropType, source, start, end)
 	if err != nil {
 		return err
 	}
 	return json.NewEncoder(w).Encode(items)
 }
 
-func (s *Service) SearchResults(limit, offset int, provider, cropType string, minConf, maxConf *float64, start, end *time.Time) ([]RecognizeResultView, error) {
+func (s *Service) SearchResults(limit, offset int, provider, cropType, source string, minConf, maxConf *float64, start, end *time.Time) ([]RecognizeResultView, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	var items []repository.QCResultRow
 	query := s.repo.DB().Model(&model.RecognitionResult{}).
-		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.created_at as created_at, images.original_url as image_url").
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.source, recognition_results.created_at as created_at, images.original_url as image_url").
 		Joins("JOIN images ON images.id = recognition_results.image_id")
 	if provider != "" {
 		query = query.Where("recognition_results.provider = ?", provider)
 	}
 	if cropType != "" {
 		query = query.Where("recognition_results.crop_type = ?", cropType)
+	}
+	if source != "" {
+		query = query.Where("recognition_results.source = ?", source)
 	}
 	if minConf != nil {
 		query = query.Where("recognition_results.confidence >= ?", *minConf)
@@ -1389,6 +1403,7 @@ func (s *Service) SearchResults(limit, offset int, provider, cropType string, mi
 			CropType:   it.CropType,
 			Confidence: it.Confidence,
 			Provider:   it.Provider,
+			Source:     it.Source,
 			CreatedAt:  it.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
