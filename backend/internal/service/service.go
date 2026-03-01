@@ -449,6 +449,20 @@ func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note str
 	return item, nil
 }
 
+func (s *Service) UpdateNoteContent(userID uint, noteID uint, note string) error {
+	if strings.TrimSpace(note) == "" {
+		return fmt.Errorf("note required")
+	}
+	rows, err := s.repo.UpdateNoteContent(userID, noteID, note)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // GetNotes 获取手记列表
 func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time, feedbackOnly bool) ([]model.FieldNote, error) {
 	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType, startDate, endDate, feedbackOnly)

@@ -157,6 +157,12 @@ class ApiService {
     return Note.fromJson(response.data);
   }
 
+  Future<void> updateNote(int noteId, String note) async {
+    await _dio.put('/notes/$noteId', data: {
+      'note': note,
+    });
+  }
+
   // 获取手记列表
   Future<NotesResponse> getNotes({
     int limit = 20,

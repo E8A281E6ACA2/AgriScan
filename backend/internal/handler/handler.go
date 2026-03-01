@@ -3,6 +3,7 @@ package handler
 import (
 	"agri-scan/internal/model"
 	"agri-scan/internal/service"
+	"errors"
 	"fmt"
 	"log"
 	"mime/multipart"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -675,6 +677,52 @@ func (h *Handler) CreateNote(c *gin.Context) {
 	c.JSON(http.StatusOK, note)
 }
 
+// UpdateNote 更新手记内容
+// PUT /api/v1/notes/:id
+func (h *Handler) UpdateNote(c *gin.Context) {
+	var req struct {
+		Note string `json:"note"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
+	}
+
+	ent, err := h.svc.GetEntitlements(actor.User, actor.DeviceID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if ent.RequireLogin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login_required"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.svc.UpdateNoteContent(actor.UserID, uint(id), strings.TrimSpace(req.Note)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "note not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "note updated"})
+}
+
 // GetNotes 获取手记列表
 // GET /api/v1/notes
 func (h *Handler) GetNotes(c *gin.Context) {
@@ -875,6 +923,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/plans", h.GetPlans)
 		v1.GET("/crops", h.GetCrops)
 		v1.POST("/notes", h.CreateNote)
+		v1.PUT("/notes/:id", h.UpdateNote)
 		v1.GET("/notes", h.GetNotes)
 		v1.GET("/notes/export", h.ExportNotes)
 		v1.GET("/tags", h.GetTags)

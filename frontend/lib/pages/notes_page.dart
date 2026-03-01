@@ -352,6 +352,16 @@ class _NotesPageState extends State<NotesPage> {
                                       note.createdAt,
                                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                                     ),
+                                    if (_feedbackOnly && note.note.isEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TextButton(
+                                          onPressed: () => _convertDraft(note),
+                                          child: const Text('转为正式手记'),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -506,6 +516,54 @@ class _NotesPageState extends State<NotesPage> {
         );
       },
     );
+  }
+
+  Future<void> _convertDraft(Note note) async {
+    final controller = TextEditingController(text: note.note);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('转为正式手记'),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: '补充手记内容',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('保存'),
+            ),
+          ],
+        );
+      },
+    );
+    final text = result?.trim() ?? '';
+    if (text.isEmpty) return;
+    final api = context.read<ApiService>();
+    try {
+      await api.updateNote(note.id, text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已转为正式手记')),
+        );
+      }
+      await _loadNotes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新失败: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _exportNotes(List<String> fields, {required String format}) async {

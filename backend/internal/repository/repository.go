@@ -217,6 +217,13 @@ func (r *Repository) CreateNote(note *model.FieldNote) error {
 	return r.db.Create(note).Error
 }
 
+func (r *Repository) UpdateNoteContent(userID uint, noteID uint, note string) (int64, error) {
+	res := r.db.Model(&model.FieldNote{}).
+		Where("id = ? AND user_id = ?", noteID, userID).
+		Update("note", note)
+	return res.RowsAffected, res.Error
+}
+
 func (r *Repository) GetNotesByUserID(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time, feedbackOnly bool) ([]model.FieldNote, error) {
 	var notes []model.FieldNote
 	query := r.db.Where("user_id = ?", userID)
