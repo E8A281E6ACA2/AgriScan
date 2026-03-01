@@ -7,9 +7,11 @@ import (
 )
 
 const (
-	settingAnonLimit     = "auth_anon_limit"
-	settingAnonRequireAd = "auth_anonymous_require_ad"
-	settingLabelEnabled  = "label_flow_enabled"
+	settingAnonLimit       = "auth_anon_limit"
+	settingAnonRequireAd   = "auth_anonymous_require_ad"
+	settingLabelEnabled    = "label_flow_enabled"
+	settingLabelTemplates  = "label_templates_json"
+	settingCropSuggestions = "crop_list_json"
 )
 
 type SettingItem struct {
@@ -49,6 +51,18 @@ func (s *Service) settingDefs() []settingDef {
 			Type:        "bool",
 			Description: "标注流程开关",
 			Default:     "false",
+		},
+		{
+			Key:         settingLabelTemplates,
+			Type:        "string",
+			Description: "标注标签模板(JSON数组)",
+			Default:     `[{"label":"病害-锈病","category":"disease","tags":["锈病"]},{"label":"病害-白粉病","category":"disease","tags":["白粉病"]},{"label":"虫害-蚜虫","category":"pest","tags":["蚜虫"]},{"label":"杂草-稗草","category":"weed","tags":["稗草"]},{"label":"正常","category":"crop","tags":["正常"]},{"label":"清空标签","category":"","tags":[]}]`,
+		},
+		{
+			Key:         settingCropSuggestions,
+			Type:        "string",
+			Description: "第一批作物清单(JSON数组)",
+			Default:     `["水稻","小麦","玉米","大豆","番茄","黄瓜","柑橘","苹果"]`,
 		},
 	}
 }

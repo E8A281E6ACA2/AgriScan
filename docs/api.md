@@ -184,6 +184,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 - `auth_anon_limit` 匿名识别次数上限（int）
 - `auth_anonymous_require_ad` 匿名识别是否必须看广告（bool）
 - `label_flow_enabled` 标注流程开关（bool）
+- `label_templates_json` 标注标签模板（JSON数组）
+- `crop_list_json` 第一批作物清单（JSON数组）
 
 **GET** `/admin/plan-settings`
 

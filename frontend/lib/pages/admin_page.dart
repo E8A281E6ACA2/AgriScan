@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -38,6 +40,8 @@ class _AdminPageState extends State<AdminPage> {
   final _qcThresholdController = TextEditingController(text: '0.5');
   final _qcStatusController = TextEditingController(text: 'pending');
   final _qcReasonController = TextEditingController();
+  final _qcLimitController = TextEditingController(text: '50');
+  final _qcOffsetController = TextEditingController(text: '0');
   final _searchProviderController = TextEditingController();
   final _searchCropController = TextEditingController();
   final _searchMinConfController = TextEditingController();
@@ -97,18 +101,8 @@ class _AdminPageState extends State<AdminPage> {
   bool _labelFlowEnabled = false;
   String _filterPlan = '';
   String _filterStatus = '';
-  final List<_LabelTemplate> _labelTemplates = const [
-    _LabelTemplate(label: '病害-锈病', category: 'disease', tags: ['锈病']),
-    _LabelTemplate(label: '病害-白粉病', category: 'disease', tags: ['白粉病']),
-    _LabelTemplate(label: '病害-叶斑病', category: 'disease', tags: ['叶斑病']),
-    _LabelTemplate(label: '虫害-蚜虫', category: 'pest', tags: ['蚜虫']),
-    _LabelTemplate(label: '虫害-螟虫', category: 'pest', tags: ['螟虫']),
-    _LabelTemplate(label: '虫害-红蜘蛛', category: 'pest', tags: ['红蜘蛛']),
-    _LabelTemplate(label: '杂草-稗草', category: 'weed', tags: ['稗草']),
-    _LabelTemplate(label: '杂草-马齿苋', category: 'weed', tags: ['马齿苋']),
-    _LabelTemplate(label: '正常', category: 'crop', tags: ['正常']),
-    _LabelTemplate(label: '清空标签', category: '', tags: []),
-  ];
+  List<_LabelTemplate> _labelTemplates = List<_LabelTemplate>.from(_defaultLabelTemplates);
+  List<String> _cropSuggestions = [];
 
   @override
   void dispose() {
@@ -138,6 +132,8 @@ class _AdminPageState extends State<AdminPage> {
     _qcThresholdController.dispose();
     _qcStatusController.dispose();
     _qcReasonController.dispose();
+    _qcLimitController.dispose();
+    _qcOffsetController.dispose();
     _searchProviderController.dispose();
     _searchCropController.dispose();
     _searchMinConfController.dispose();
@@ -397,9 +393,13 @@ class _AdminPageState extends State<AdminPage> {
     try {
       final items = await api.adminSettings(adminToken: token.isEmpty ? null : token);
       final labelOn = items.any((s) => s.key == 'label_flow_enabled' && _isTrue(s.value));
+      final templates = _parseLabelTemplates(_settingValue(items, 'label_templates_json'));
+      final crops = _parseCropSuggestions(_settingValue(items, 'crop_list_json'));
       setState(() {
         _settings = items;
         _labelFlowEnabled = labelOn;
+        _labelTemplates = templates;
+        _cropSuggestions = crops;
       });
     } catch (e) {
       _toast('系统配置失败: $e');
@@ -609,17 +609,37 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-  Future<void> _loadQCSamples() async {
+  Future<void> _loadQCSamples({bool append = false}) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
+    var limit = int.tryParse(_qcLimitController.text) ?? 50;
+    var offset = int.tryParse(_qcOffsetController.text) ?? 0;
+    if (limit <= 0) limit = 50;
+    if (offset < 0) offset = 0;
+    final nextOffset = append ? offset + limit : offset;
     setState(() => _loading = true);
     try {
       final items = await api.adminListQCSamples(
+        limit: limit,
+        offset: nextOffset,
         status: _qcStatusController.text.trim(),
         reason: _qcReasonController.text.trim(),
         adminToken: token.isEmpty ? null : token,
       );
-      setState(() => _qcSamples = items);
+      setState(() {
+        if (append) {
+          if (items.isEmpty) {
+            _toast('没有更多样本');
+          } else {
+            _qcSamples = [..._qcSamples, ...items];
+            _qcOffsetController.text = nextOffset.toString();
+          }
+        } else {
+          _qcSamples = items;
+          _qcOffsetController.text = nextOffset.toString();
+          _qcSelected.clear();
+        }
+      });
     } catch (e) {
       _toast('质检列表失败: $e');
     } finally {
@@ -1203,6 +1223,22 @@ class _AdminPageState extends State<AdminPage> {
                   controller: categoryController,
                   decoration: const InputDecoration(labelText: '类别(可选)'),
                 ),
+                if (_cropSuggestions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _cropSuggestions
+                          .map((c) => OutlinedButton(
+                                onPressed: () => cropController.text = c,
+                                child: Text(c),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ],
                 TextField(
                   controller: cropController,
                   decoration: const InputDecoration(labelText: '作物/对象'),
@@ -1317,6 +1353,33 @@ class _AdminPageState extends State<AdminPage> {
       await _loadEvalSets();
     } catch (e) {
       _toast('创建失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _autoCreateEvalSet() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_evalSetDaysController.text) ?? 30;
+    final limit = int.tryParse(_evalSetLimitController.text) ?? 200;
+    final now = DateTime.now();
+    final name =
+        'labels-${now.year}${_two(now.month)}${_two(now.day)}-${_two(now.hour)}${_two(now.minute)}';
+    setState(() => _loading = true);
+    try {
+      await api.adminCreateEvalSet(
+        name: name,
+        description: 'auto from approved labels',
+        days: days,
+        limit: limit,
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已沉淀');
+      await _loadEvalSets();
+      await _loadEval();
+    } catch (e) {
+      _toast('沉淀失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -2537,6 +2600,22 @@ class _AdminPageState extends State<AdminPage> {
                                       keyboardType: TextInputType.number,
                                     ),
                                   ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcLimitController,
+                                      decoration: const InputDecoration(labelText: '数量'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _qcOffsetController,
+                                      decoration: const InputDecoration(labelText: '偏移'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
                                   ElevatedButton(
                                     onPressed: _loading ? null : _generateQCSamples,
                                     child: const Text('生成样本'),
@@ -2544,6 +2623,10 @@ class _AdminPageState extends State<AdminPage> {
                                   OutlinedButton(
                                     onPressed: _loading ? null : _loadQCSamples,
                                     child: const Text('刷新列表'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _loadQCSamples(append: true),
+                                    child: const Text('加载更多'),
                                   ),
                                   OutlinedButton(
                                     onPressed: _loading ? null : () => _exportQCSamples('csv'),
@@ -2653,6 +2736,10 @@ class _AdminPageState extends State<AdminPage> {
                                   ElevatedButton(
                                     onPressed: _loading ? null : _createEvalSet,
                                     child: const Text('创建评测集'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _autoCreateEvalSet,
+                                    child: const Text('一键沉淀'),
                                   ),
                                   OutlinedButton(
                                     onPressed: _loading ? null : _loadEvalSets,
@@ -2796,6 +2883,73 @@ class _AdminPageState extends State<AdminPage> {
     return Chip(label: Text('$label: $value'));
   }
 
+  String _settingValue(List<AppSetting> items, String key) {
+    for (final item in items) {
+      if (item.key == key) return item.value;
+    }
+    return '';
+  }
+
+  List<_LabelTemplate> _parseLabelTemplates(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) {
+      return List<_LabelTemplate>.from(_defaultLabelTemplates);
+    }
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) {
+        final out = <_LabelTemplate>[];
+        for (final item in decoded) {
+          if (item is! Map) continue;
+          final label = (item['label'] ?? '').toString().trim();
+          if (label.isEmpty) continue;
+          final category = (item['category'] ?? '').toString().trim();
+          final note = (item['note'] ?? '').toString().trim();
+          final tags = _normalizeStringList(item['tags']);
+          out.add(_LabelTemplate(label: label, category: category, tags: tags, note: note));
+        }
+        if (out.isNotEmpty) {
+          return out;
+        }
+      }
+    } catch (_) {
+      // ignore invalid json
+    }
+    return List<_LabelTemplate>.from(_defaultLabelTemplates);
+  }
+
+  List<String> _parseCropSuggestions(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) {
+        return _normalizeStringList(decoded);
+      }
+    } catch (_) {
+      // ignore invalid json
+    }
+    return _splitTextList(text);
+  }
+
+  List<String> _normalizeStringList(dynamic input) {
+    if (input == null) return [];
+    if (input is List) {
+      return input.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return _splitTextList(input.toString());
+  }
+
+  List<String> _splitTextList(String text) {
+    return text
+        .split(RegExp(r'[,，\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  String _two(int v) => v < 10 ? '0$v' : '$v';
+
   bool _isTrue(String value) {
     final v = value.toLowerCase();
     return v == 'true' || v == '1';
@@ -2815,3 +2969,16 @@ class _LabelTemplate {
     this.note = '',
   });
 }
+
+const List<_LabelTemplate> _defaultLabelTemplates = [
+  _LabelTemplate(label: '病害-锈病', category: 'disease', tags: ['锈病']),
+  _LabelTemplate(label: '病害-白粉病', category: 'disease', tags: ['白粉病']),
+  _LabelTemplate(label: '病害-叶斑病', category: 'disease', tags: ['叶斑病']),
+  _LabelTemplate(label: '虫害-蚜虫', category: 'pest', tags: ['蚜虫']),
+  _LabelTemplate(label: '虫害-螟虫', category: 'pest', tags: ['螟虫']),
+  _LabelTemplate(label: '虫害-红蜘蛛', category: 'pest', tags: ['红蜘蛛']),
+  _LabelTemplate(label: '杂草-稗草', category: 'weed', tags: ['稗草']),
+  _LabelTemplate(label: '杂草-马齿苋', category: 'weed', tags: ['马齿苋']),
+  _LabelTemplate(label: '正常', category: 'crop', tags: ['正常']),
+  _LabelTemplate(label: '清空标签', category: '', tags: []),
+];
