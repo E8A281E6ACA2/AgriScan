@@ -522,6 +522,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/labels", h.AdminLabelQueue)
 		v1.POST("/admin/labels/:id", h.AdminLabelNote)
 		v1.POST("/admin/labels/:id/review", h.AdminReviewLabel)
+		v1.POST("/admin/labels/batch-approve", h.AdminBatchApproveLabels)
 		v1.GET("/admin/eval/summary", h.AdminEvalSummary)
 		v1.POST("/admin/eval/runs", h.AdminCreateEvalRun)
 		v1.GET("/admin/eval/runs", h.AdminListEvalRuns)

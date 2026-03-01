@@ -2,6 +2,7 @@ package repository
 
 import (
 	"agri-scan/internal/model"
+	"strings"
 	"time"
 )
 
@@ -126,6 +127,38 @@ func (r *Repository) ListLabelNotes(limit, offset int, status, category, cropTyp
 
 func (r *Repository) UpdateLabelNote(noteID uint, fields map[string]interface{}) error {
 	return r.db.Model(&model.FieldNote{}).Where("id = ?", noteID).Updates(fields).Error
+}
+
+func (r *Repository) BatchApproveLabelNotes(status, category, cropType string, start, end *time.Time, reviewer string, reviewedAt time.Time) (int64, error) {
+	query := r.db.Model(&model.FieldNote{})
+	status = strings.TrimSpace(status)
+	if status == "" {
+		status = "labeled"
+	}
+	if status == "pending" {
+		query = query.Where("(label_status = ? OR label_status = '')", status)
+	} else {
+		query = query.Where("label_status = ?", status)
+	}
+	if category != "" {
+		query = query.Where("label_category = ?", category)
+	}
+	if cropType != "" {
+		query = query.Where("label_crop_type = ?", cropType)
+	}
+	if start != nil {
+		query = query.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("created_at < ?", *end)
+	}
+	fields := map[string]interface{}{
+		"label_status": "approved",
+		"reviewed_by":  reviewer,
+		"reviewed_at":  &reviewedAt,
+	}
+	res := query.Updates(fields)
+	return res.RowsAffected, res.Error
 }
 
 // Evaluation

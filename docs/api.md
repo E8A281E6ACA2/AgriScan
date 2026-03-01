@@ -250,6 +250,19 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 }
 ```
 
+**POST** `/admin/labels/batch-approve`
+
+```json
+{
+  "status": "labeled",
+  "category": "disease",
+  "crop_type": "wheat",
+  "start_date": "2026-02-01",
+  "end_date": "2026-02-28",
+  "reviewer": "admin"
+}
+```
+
 **GET** `/admin/eval/summary`
 
 | 参数 | 类型 | 默认值 | 说明 |

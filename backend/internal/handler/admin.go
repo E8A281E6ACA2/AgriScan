@@ -494,6 +494,37 @@ func (h *Handler) AdminReviewLabel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// POST /api/v1/admin/labels/batch-approve
+func (h *Handler) AdminBatchApproveLabels(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	var req struct {
+		Status    string `json:"status"`
+		Category  string `json:"category"`
+		CropType  string `json:"crop_type"`
+		Reviewer  string `json:"reviewer"`
+		StartDate string `json:"start_date"`
+		EndDate   string `json:"end_date"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	startDate, endDate, err := parseDateRange(strings.TrimSpace(req.StartDate), strings.TrimSpace(req.EndDate))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	updated, err := h.svc.BatchApproveLabelNotes(strings.TrimSpace(req.Status), strings.TrimSpace(req.Category), strings.TrimSpace(req.CropType), strings.TrimSpace(req.Reviewer), startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.svc.RecordAdminAudit("label_batch_approve", "note", 0, req.Status, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"updated": updated})
+}
+
 // GET /api/v1/admin/eval/summary
 func (h *Handler) AdminEvalSummary(c *gin.Context) {
 	if !h.requireAdmin(c) {

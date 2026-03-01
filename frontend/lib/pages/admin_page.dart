@@ -19,6 +19,11 @@ class _AdminPageState extends State<AdminPage> {
   final _auditTargetController = TextEditingController();
   final _auditStartController = TextEditingController();
   final _auditEndController = TextEditingController();
+  final _labelBatchStatusController = TextEditingController(text: 'labeled');
+  final _labelBatchCategoryController = TextEditingController();
+  final _labelBatchCropController = TextEditingController();
+  final _labelBatchStartController = TextEditingController();
+  final _labelBatchEndController = TextEditingController();
   final _reqStatusController = TextEditingController(text: 'pending');
   final _quotaDeltaController = TextEditingController(text: '1000');
   final _quotaController = TextEditingController();
@@ -104,6 +109,11 @@ class _AdminPageState extends State<AdminPage> {
     _auditTargetController.dispose();
     _auditStartController.dispose();
     _auditEndController.dispose();
+    _labelBatchStatusController.dispose();
+    _labelBatchCategoryController.dispose();
+    _labelBatchCropController.dispose();
+    _labelBatchStartController.dispose();
+    _labelBatchEndController.dispose();
     _reqStatusController.dispose();
     _quotaDeltaController.dispose();
     _quotaController.dispose();
@@ -1075,6 +1085,7 @@ class _AdminPageState extends State<AdminPage> {
       await api.adminCreateEvalRun(days: days, adminToken: token.isEmpty ? null : token);
       _toast('已生成');
       await _loadEvalRuns();
+      await _loadEval();
     } catch (e) {
       _toast('生成失败: $e');
     } finally {
@@ -1318,6 +1329,29 @@ class _AdminPageState extends State<AdminPage> {
       await _loadLabelQueue();
     } catch (e) {
       _toast('审核失败: $e');
+    }
+  }
+
+  Future<void> _batchApproveLabels() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final updated = await api.adminBatchApproveLabels(
+        status: _labelBatchStatusController.text.trim().isEmpty ? 'labeled' : _labelBatchStatusController.text.trim(),
+        category: _labelBatchCategoryController.text.trim(),
+        cropType: _labelBatchCropController.text.trim(),
+        startDate: _labelBatchStartController.text.trim(),
+        endDate: _labelBatchEndController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('批量通过 $updated 条');
+      await _loadLabelQueue();
+      await _loadEval();
+    } catch (e) {
+      _toast('批量通过失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -1814,6 +1848,52 @@ class _AdminPageState extends State<AdminPage> {
                                 ElevatedButton(
                                   onPressed: _loading ? null : _loadLabelQueue,
                                   child: const Text('刷新队列'),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    SizedBox(
+                                      width: 140,
+                                      child: TextField(
+                                        controller: _labelBatchStatusController,
+                                        decoration: const InputDecoration(labelText: '状态(labeled/pending)'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 140,
+                                      child: TextField(
+                                        controller: _labelBatchCategoryController,
+                                        decoration: const InputDecoration(labelText: '类别(可选)'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 140,
+                                      child: TextField(
+                                        controller: _labelBatchCropController,
+                                        decoration: const InputDecoration(labelText: '作物(可选)'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 160,
+                                      child: TextField(
+                                        controller: _labelBatchStartController,
+                                        decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 160,
+                                      child: TextField(
+                                        controller: _labelBatchEndController,
+                                        decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                                      ),
+                                    ),
+                                    OutlinedButton(
+                                      onPressed: _loading ? null : _batchApproveLabels,
+                                      child: const Text('批量通过已标注'),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 ..._labelNotes.map((n) {

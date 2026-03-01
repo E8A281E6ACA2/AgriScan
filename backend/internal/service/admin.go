@@ -403,6 +403,17 @@ func (s *Service) ReviewLabelNote(noteID uint, status, reviewer string) error {
 	return s.repo.UpdateLabelNote(noteID, fields)
 }
 
+func (s *Service) BatchApproveLabelNotes(status, category, cropType, reviewer string, start, end *time.Time) (int64, error) {
+	if !s.getSettingBool(settingLabelEnabled, false) {
+		return 0, fmt.Errorf("label flow disabled")
+	}
+	if strings.TrimSpace(reviewer) == "" {
+		reviewer = "admin"
+	}
+	now := time.Now()
+	return s.repo.BatchApproveLabelNotes(status, category, cropType, start, end, reviewer, now)
+}
+
 func (s *Service) LabelFromQCSample(sampleID uint, category, cropType string, tags []string, note string, approved bool, reviewer string) (uint, string, error) {
 	if !s.getSettingBool(settingLabelEnabled, false) {
 		return 0, "", fmt.Errorf("label flow disabled")

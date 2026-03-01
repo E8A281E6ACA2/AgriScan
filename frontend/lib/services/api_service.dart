@@ -534,6 +534,30 @@ class ApiService {
     );
   }
 
+  Future<int> adminBatchApproveLabels({
+    String status = 'labeled',
+    String? category,
+    String? cropType,
+    String? reviewer,
+    String? startDate,
+    String? endDate,
+    String? adminToken,
+  }) async {
+    final response = await _dio.post(
+      '/admin/labels/batch-approve',
+      data: {
+        'status': status,
+        if (category != null && category.isNotEmpty) 'category': category,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (reviewer != null && reviewer.isNotEmpty) 'reviewer': reviewer,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+      },
+      options: _adminOptions(adminToken),
+    );
+    return response.data['updated'] ?? 0;
+  }
+
   Future<EvalSummary> adminEvalSummary({int days = 30, String? adminToken}) async {
     final response = await _dio.get(
       '/admin/eval/summary',
