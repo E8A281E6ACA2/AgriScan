@@ -41,6 +41,8 @@ type RecognizeResponse struct {
 	PossibleIssue *string `json:"possible_issue"`
 	Provider      string  `json:"provider"`
 	ImageURL      string  `json:"image_url,omitempty"`
+	Latitude      *float64 `json:"latitude,omitempty"`
+	Longitude     *float64 `json:"longitude,omitempty"`
 }
 
 type RecognizeURLRequest struct {
@@ -97,6 +99,8 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		PossibleIssue: savedResult.PossibleIssue,
 		Provider:      savedResult.Provider,
 		ImageURL:      img.OriginalURL,
+		Latitude:      img.Latitude,
+		Longitude:     img.Longitude,
 	})
 }
 
@@ -240,8 +244,12 @@ func (h *Handler) GetResult(c *gin.Context) {
 	}
 
 	imageURL := ""
+	var lat *float64
+	var lng *float64
 	if img, err := h.svc.GetImage(result.ImageID); err == nil {
 		imageURL = img.OriginalURL
+		lat = img.Latitude
+		lng = img.Longitude
 	}
 
 	c.JSON(http.StatusOK, RecognizeResponse{
@@ -255,6 +263,8 @@ func (h *Handler) GetResult(c *gin.Context) {
 		PossibleIssue: result.PossibleIssue,
 		Provider:      result.Provider,
 		ImageURL:      imageURL,
+		Latitude:      lat,
+		Longitude:     lng,
 	})
 }
 
@@ -306,6 +316,8 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			PossibleIssue: r.PossibleIssue,
 			Provider:      r.Provider,
 			ImageURL:      r.Image.OriginalURL,
+			Latitude:      r.Image.Latitude,
+			Longitude:     r.Image.Longitude,
 		}
 		response = append(response, resp)
 	}

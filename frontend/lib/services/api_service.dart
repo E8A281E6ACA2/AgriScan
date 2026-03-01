@@ -988,6 +988,8 @@ class RecognizeResponse {
   final String? possibleIssue;
   final String provider;
   final String? imageUrl;
+  final double? latitude;
+  final double? longitude;
   
   RecognizeResponse({
     this.rawText,
@@ -1000,6 +1002,8 @@ class RecognizeResponse {
     this.possibleIssue,
     required this.provider,
     this.imageUrl,
+    this.latitude,
+    this.longitude,
   });
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
@@ -1014,6 +1018,8 @@ class RecognizeResponse {
       possibleIssue: json['possible_issue'],
       provider: json['provider'],
       imageUrl: json['image_url'],
+      latitude: json['latitude'] == null ? null : (json['latitude'] as num).toDouble(),
+      longitude: json['longitude'] == null ? null : (json['longitude'] as num).toDouble(),
     );
   }
 }

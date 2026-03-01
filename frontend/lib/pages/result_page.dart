@@ -338,6 +338,13 @@ class _ResultPageState extends State<ResultPage> {
                         
                         const SizedBox(height: 12),
                         _buildResultRow('识别提供商', result?.provider ?? '未知'),
+                        if (result?.latitude != null && result?.longitude != null) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow(
+                            '位置',
+                            '${result!.latitude!.toStringAsFixed(6)}, ${result.longitude!.toStringAsFixed(6)}',
+                          ),
+                        ],
                       ],
                     ),
                   ),
