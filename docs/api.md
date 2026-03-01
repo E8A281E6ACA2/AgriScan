@@ -647,6 +647,10 @@ Web/跨端 Base64 方式：
 | crop_type | string | - | 按作物过滤 |
 | min_conf | float | - | 置信度下限(0-1) |
 | max_conf | float | - | 置信度上限(0-1) |
+| min_lat | float | - | 纬度下限 |
+| max_lat | float | - | 纬度上限 |
+| min_lng | float | - | 经度下限 |
+| max_lng | float | - | 经度上限 |
 | start_date | string | - | 开始日期(YYYY-MM-DD) |
 | end_date | string | - | 结束日期(YYYY-MM-DD) |
 
@@ -692,6 +696,10 @@ Web/跨端 Base64 方式：
 | crop_type | string | - | 按作物过滤 |
 | min_conf | float | - | 置信度下限(0-1) |
 | max_conf | float | - | 置信度上限(0-1) |
+| min_lat | float | - | 纬度下限 |
+| max_lat | float | - | 纬度上限 |
+| min_lng | float | - | 经度下限 |
+| max_lng | float | - | 经度上限 |
 | start_date | string | - | 开始日期(YYYY-MM-DD) |
 | end_date | string | - | 结束日期(YYYY-MM-DD) |
 

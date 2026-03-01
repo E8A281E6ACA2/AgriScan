@@ -317,6 +317,10 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
 	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
 	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	minLatStr := strings.TrimSpace(c.DefaultQuery("min_lat", ""))
+	maxLatStr := strings.TrimSpace(c.DefaultQuery("max_lat", ""))
+	minLngStr := strings.TrimSpace(c.DefaultQuery("min_lng", ""))
+	maxLngStr := strings.TrimSpace(c.DefaultQuery("max_lng", ""))
 	startDateStr := c.DefaultQuery("start_date", "")
 	endDateStr := c.DefaultQuery("end_date", "")
 
@@ -359,6 +363,50 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
 		return
 	}
+	var minLat *float64
+	var maxLat *float64
+	var minLng *float64
+	var maxLng *float64
+	if minLatStr != "" {
+		if v, err := strconv.ParseFloat(minLatStr, 64); err == nil {
+			minLat = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_lat"})
+			return
+		}
+	}
+	if maxLatStr != "" {
+		if v, err := strconv.ParseFloat(maxLatStr, 64); err == nil {
+			maxLat = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_lat"})
+			return
+		}
+	}
+	if minLngStr != "" {
+		if v, err := strconv.ParseFloat(minLngStr, 64); err == nil {
+			minLng = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_lng"})
+			return
+		}
+	}
+	if maxLngStr != "" {
+		if v, err := strconv.ParseFloat(maxLngStr, 64); err == nil {
+			maxLng = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_lng"})
+			return
+		}
+	}
+	if minLat != nil && maxLat != nil && *minLat > *maxLat {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude range"})
+		return
+	}
+	if minLng != nil && maxLng != nil && *minLng > *maxLng {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude range"})
+		return
+	}
 
 	if ent.RetentionDays > 0 {
 		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
@@ -366,7 +414,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			startDate = &cutoff
 		}
 	}
-	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -424,6 +472,10 @@ func (h *Handler) ExportHistory(c *gin.Context) {
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
 	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
 	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	minLatStr := strings.TrimSpace(c.DefaultQuery("min_lat", ""))
+	maxLatStr := strings.TrimSpace(c.DefaultQuery("max_lat", ""))
+	minLngStr := strings.TrimSpace(c.DefaultQuery("min_lng", ""))
+	maxLngStr := strings.TrimSpace(c.DefaultQuery("max_lng", ""))
 	startDateStr := c.DefaultQuery("start_date", "")
 	endDateStr := c.DefaultQuery("end_date", "")
 	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
@@ -464,6 +516,50 @@ func (h *Handler) ExportHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
 		return
 	}
+	var minLat *float64
+	var maxLat *float64
+	var minLng *float64
+	var maxLng *float64
+	if minLatStr != "" {
+		if v, err := strconv.ParseFloat(minLatStr, 64); err == nil {
+			minLat = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_lat"})
+			return
+		}
+	}
+	if maxLatStr != "" {
+		if v, err := strconv.ParseFloat(maxLatStr, 64); err == nil {
+			maxLat = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_lat"})
+			return
+		}
+	}
+	if minLngStr != "" {
+		if v, err := strconv.ParseFloat(minLngStr, 64); err == nil {
+			minLng = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_lng"})
+			return
+		}
+	}
+	if maxLngStr != "" {
+		if v, err := strconv.ParseFloat(maxLngStr, 64); err == nil {
+			maxLng = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_lng"})
+			return
+		}
+	}
+	if minLat != nil && maxLat != nil && *minLat > *maxLat {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude range"})
+		return
+	}
+	if minLng != nil && maxLng != nil && *minLng > *maxLng {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude range"})
+		return
+	}
 
 	if ent.RetentionDays > 0 {
 		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
@@ -475,14 +571,14 @@ func (h *Handler) ExportHistory(c *gin.Context) {
 	if format == "json" {
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=history.json")
-		if err := h.svc.ExportHistoryJSON(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf); err != nil {
+		if err := h.svc.ExportHistoryJSON(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng); err != nil {
 			c.Status(http.StatusInternalServerError)
 		}
 		return
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=history.csv")
-	if err := h.svc.ExportHistoryCSV(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf); err != nil {
+	if err := h.svc.ExportHistoryCSV(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng); err != nil {
 		c.Status(http.StatusInternalServerError)
 	}
 }

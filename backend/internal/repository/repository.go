@@ -136,7 +136,7 @@ func (r *Repository) GetResultByID(id uint) (*model.RecognitionResult, error) {
 	return &result, err
 }
 
-func (r *Repository) GetResultsByUserID(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) ([]model.RecognitionResult, error) {
+func (r *Repository) GetResultsByUserID(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64, minLat, maxLat, minLng, maxLng *float64) ([]model.RecognitionResult, error) {
 	var results []model.RecognitionResult
 	query := r.db.
 		Joins("JOIN images ON images.id = recognition_results.image_id").
@@ -155,6 +155,18 @@ func (r *Repository) GetResultsByUserID(userID uint, limit, offset int, startDat
 	}
 	if maxConf != nil {
 		query = query.Where("recognition_results.confidence <= ?", *maxConf)
+	}
+	if minLat != nil {
+		query = query.Where("images.latitude >= ?", *minLat)
+	}
+	if maxLat != nil {
+		query = query.Where("images.latitude <= ?", *maxLat)
+	}
+	if minLng != nil {
+		query = query.Where("images.longitude >= ?", *minLng)
+	}
+	if maxLng != nil {
+		query = query.Where("images.longitude <= ?", *maxLng)
 	}
 	err := query.
 		Order("recognition_results.created_at DESC").

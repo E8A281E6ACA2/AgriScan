@@ -214,18 +214,18 @@ func (s *Service) GetResultByID(id uint) (*model.RecognitionResult, error) {
 }
 
 // GetHistory 获取用户历史记录
-func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) ([]model.RecognitionResult, error) {
-	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64) ([]model.RecognitionResult, error) {
+	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
 }
 
-func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) error {
+func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64) error {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 	_ = writer.Write([]string{"result_id", "image_id", "image_url", "latitude", "longitude", "crop_type", "confidence", "provider", "created_at"})
 	limit := 1000
 	offset := 0
 	for {
-		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
 		if err != nil {
 			return err
 		}
@@ -258,7 +258,7 @@ func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate 
 	return writer.Error()
 }
 
-func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) error {
+func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64) error {
 	encoder := json.NewEncoder(w)
 	_, err := io.WriteString(w, "[")
 	if err != nil {
@@ -268,7 +268,7 @@ func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate
 	offset := 0
 	first := true
 	for {
-		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
 		if err != nil {
 			return err
 		}
