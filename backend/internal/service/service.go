@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -350,7 +351,57 @@ func (s *Service) SaveFeedback(feedback *model.UserFeedback) error {
 		return err
 	}
 	_ = s.repo.UpdateNoteFeedback(feedback.ResultID, feedback)
+	_ = s.ensureFeedbackNote(feedback)
 	return nil
+}
+
+func (s *Service) ensureFeedbackNote(feedback *model.UserFeedback) error {
+	if feedback == nil || feedback.ResultID == 0 {
+		return nil
+	}
+	result, err := s.repo.GetResultByID(feedback.ResultID)
+	if err != nil {
+		return err
+	}
+	img, err := s.repo.GetImageByID(result.ImageID)
+	if err != nil {
+		return err
+	}
+	_, err = s.repo.GetNoteByResultID(img.UserID, result.ID)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	category := feedback.Category
+	if strings.TrimSpace(category) == "" {
+		category = "crop"
+	}
+	isCorrect := feedback.IsCorrect
+	item := &model.FieldNote{
+		UserID:           img.UserID,
+		ImageID:          img.ID,
+		ResultID:         &result.ID,
+		ImageURL:         img.OriginalURL,
+		Category:         category,
+		Tags:             "",
+		RawText:          result.RawText,
+		CropType:         result.CropType,
+		Confidence:       result.Confidence,
+		Description:      result.Description,
+		GrowthStage:      result.GrowthStage,
+		PossibleIssue:    result.PossibleIssue,
+		Provider:         result.Provider,
+		IsCorrect:        &isCorrect,
+		CorrectedType:    feedback.CorrectedType,
+		FeedbackNote:     feedback.FeedbackNote,
+		FeedbackCategory: category,
+		FeedbackTags:     feedback.Tags,
+		LabelStatus:      "pending",
+	}
+	return s.repo.CreateNote(item)
 }
 
 // CreateNote 创建手记

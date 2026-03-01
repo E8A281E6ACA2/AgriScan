@@ -119,6 +119,13 @@ func (r *Repository) GetImagesByIDs(ids []uint) ([]model.Image, error) {
 	return imgs, err
 }
 
+// FieldNote 操作（按识别结果）
+func (r *Repository) GetNoteByResultID(userID uint, resultID uint) (*model.FieldNote, error) {
+	var note model.FieldNote
+	err := r.db.Where("user_id = ? AND result_id = ?", userID, resultID).First(&note).Error
+	return &note, err
+}
+
 // RecognitionResult 操作
 func (r *Repository) CreateResult(result *model.RecognitionResult) error {
 	return r.db.Create(result).Error
