@@ -1173,3 +1173,79 @@ func (h *Handler) AdminExportFeedback(c *gin.Context) {
 		c.Status(http.StatusInternalServerError)
 	}
 }
+
+// GET /api/v1/admin/export/results
+func (h *Handler) AdminExportResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
+	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var minConf *float64
+	var maxConf *float64
+	if minConfStr != "" {
+		if v, err := strconv.ParseFloat(minConfStr, 64); err == nil {
+			minConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+			return
+		}
+	}
+	if maxConfStr != "" {
+		if v, err := strconv.ParseFloat(maxConfStr, 64); err == nil {
+			maxConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+			return
+		}
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=results.json")
+		if err := h.svc.ExportAdminResultsJSON(c.Writer, startDate, endDate, provider, cropType, minConf, maxConf); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=results.csv")
+	if err := h.svc.ExportAdminResultsCSV(c.Writer, startDate, endDate, provider, cropType, minConf, maxConf); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
+// GET /api/v1/admin/export/failures
+func (h *Handler) AdminExportFailures(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	stage := strings.TrimSpace(c.DefaultQuery("stage", ""))
+	code := strings.TrimSpace(c.DefaultQuery("error_code", ""))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=failures.json")
+		if err := h.svc.ExportAdminFailuresJSON(c.Writer, startDate, endDate, stage, code); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=failures.csv")
+	if err := h.svc.ExportAdminFailuresCSV(c.Writer, startDate, endDate, stage, code); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}

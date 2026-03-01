@@ -21,6 +21,14 @@ class _AdminPageState extends State<AdminPage> {
   final _auditTargetController = TextEditingController();
   final _auditStartController = TextEditingController();
   final _auditEndController = TextEditingController();
+  final _exportResultStartController = TextEditingController();
+  final _exportResultEndController = TextEditingController();
+  final _exportResultProviderController = TextEditingController();
+  final _exportResultCropController = TextEditingController();
+  final _exportFailureStartController = TextEditingController();
+  final _exportFailureEndController = TextEditingController();
+  final _exportFailureStageController = TextEditingController();
+  final _exportFailureCodeController = TextEditingController();
   final _labelBatchStatusController = TextEditingController(text: 'labeled');
   final _labelBatchCategoryController = TextEditingController();
   final _labelBatchCropController = TextEditingController();
@@ -121,6 +129,14 @@ class _AdminPageState extends State<AdminPage> {
     _auditTargetController.dispose();
     _auditStartController.dispose();
     _auditEndController.dispose();
+    _exportResultStartController.dispose();
+    _exportResultEndController.dispose();
+    _exportResultProviderController.dispose();
+    _exportResultCropController.dispose();
+    _exportFailureStartController.dispose();
+    _exportFailureEndController.dispose();
+    _exportFailureStageController.dispose();
+    _exportFailureCodeController.dispose();
     _labelBatchStatusController.dispose();
     _labelBatchCategoryController.dispose();
     _labelBatchCropController.dispose();
@@ -1700,6 +1716,46 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _exportResults(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportResults(
+        format: format,
+        startDate: _exportResultStartController.text.trim(),
+        endDate: _exportResultEndController.text.trim(),
+        provider: _exportResultProviderController.text.trim(),
+        cropType: _exportResultCropController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'results.json' : 'results.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _exportFailures(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportFailures(
+        format: format,
+        startDate: _exportFailureStartController.text.trim(),
+        endDate: _exportFailureEndController.text.trim(),
+        stage: _exportFailureStageController.text.trim(),
+        errorCode: _exportFailureCodeController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'failures.json' : 'failures.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
   Future<void> _exportAuditLogs(String format) async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -1934,6 +1990,116 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
               ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('识别结果导出', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportResultStartController,
+                            decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportResultEndController,
+                            decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportResultProviderController,
+                            decoration: const InputDecoration(labelText: '提供商(可选)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportResultCropController,
+                            decoration: const InputDecoration(labelText: '作物(可选)'),
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: _loading ? null : () => _exportResults('csv'),
+                          child: const Text('导出CSV'),
+                        ),
+                        OutlinedButton(
+                          onPressed: _loading ? null : () => _exportResults('json'),
+                          child: const Text('导出JSON'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('失败记录导出', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportFailureStartController,
+                            decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportFailureEndController,
+                            decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportFailureStageController,
+                            decoration: const InputDecoration(labelText: '阶段(可选)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _exportFailureCodeController,
+                            decoration: const InputDecoration(labelText: '错误码(可选)'),
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: _loading ? null : () => _exportFailures('csv'),
+                          child: const Text('导出CSV'),
+                        ),
+                        OutlinedButton(
+                          onPressed: _loading ? null : () => _exportFailures('json'),
+                          child: const Text('导出JSON'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             if (_stats != null)
               Card(

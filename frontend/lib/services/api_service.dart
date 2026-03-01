@@ -389,6 +389,60 @@ class ApiService {
     return Uint8List.fromList(response.data);
   }
 
+  Future<Uint8List> adminExportResults({
+    String format = 'csv',
+    String? startDate,
+    String? endDate,
+    String? provider,
+    String? cropType,
+    double? minConfidence,
+    double? maxConfidence,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/export/results',
+      queryParameters: {
+        'format': format,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (minConfidence != null) 'min_conf': minConfidence,
+        if (maxConfidence != null) 'max_conf': maxConfidence,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Future<Uint8List> adminExportFailures({
+    String format = 'csv',
+    String? startDate,
+    String? endDate,
+    String? stage,
+    String? errorCode,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/export/failures',
+      queryParameters: {
+        'format': format,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+        if (stage != null && stage.isNotEmpty) 'stage': stage,
+        if (errorCode != null && errorCode.isNotEmpty) 'error_code': errorCode,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
   Future<List<PlanSetting>> getPlans() async {
     final response = await _dio.get('/plans');
     final list = response.data['results'] as List? ?? [];

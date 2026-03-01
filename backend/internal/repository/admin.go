@@ -269,3 +269,62 @@ func (r *Repository) ListFeedbackAll(limit, offset int, start, end *time.Time) (
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
 	return items, err
 }
+
+type ResultExportRow struct {
+	ResultID   uint
+	ImageID    uint
+	UserID     uint
+	ImageURL   string
+	CropType   string
+	Confidence float64
+	Provider   string
+	Latitude   *float64
+	Longitude  *float64
+	CreatedAt  time.Time
+}
+
+func (r *Repository) ListResultsAll(limit, offset int, start, end *time.Time, provider, cropType string, minConf, maxConf *float64) ([]ResultExportRow, error) {
+	rows := make([]ResultExportRow, 0)
+	query := r.db.Model(&model.RecognitionResult{}).
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, images.user_id as user_id, images.original_url as image_url, images.latitude as latitude, images.longitude as longitude, recognition_results.crop_type as crop_type, recognition_results.confidence as confidence, recognition_results.provider as provider, recognition_results.created_at as created_at").
+		Joins("JOIN images ON images.id = recognition_results.image_id")
+	if start != nil {
+		query = query.Where("recognition_results.created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("recognition_results.created_at < ?", *end)
+	}
+	if strings.TrimSpace(provider) != "" {
+		query = query.Where("recognition_results.provider = ?", provider)
+	}
+	if strings.TrimSpace(cropType) != "" {
+		query = query.Where("recognition_results.crop_type = ?", cropType)
+	}
+	if minConf != nil {
+		query = query.Where("recognition_results.confidence >= ?", *minConf)
+	}
+	if maxConf != nil {
+		query = query.Where("recognition_results.confidence <= ?", *maxConf)
+	}
+	err := query.Order("recognition_results.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error
+	return rows, err
+}
+
+func (r *Repository) ListFailuresAll(limit, offset int, start, end *time.Time, stage, code string) ([]model.RecognitionFailure, error) {
+	var items []model.RecognitionFailure
+	query := r.db.Model(&model.RecognitionFailure{})
+	if start != nil {
+		query = query.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("created_at < ?", *end)
+	}
+	if strings.TrimSpace(stage) != "" {
+		query = query.Where("stage = ?", stage)
+	}
+	if strings.TrimSpace(code) != "" {
+		query = query.Where("error_code = ?", code)
+	}
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
+	return items, err
+}

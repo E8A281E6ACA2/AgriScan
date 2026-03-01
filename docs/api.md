@@ -500,7 +500,29 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 
 **GET** `/admin/export/users`  
 **GET** `/admin/export/notes`  
-**GET** `/admin/export/feedback`
+**GET** `/admin/export/feedback`  
+**GET** `/admin/export/results`  
+**GET** `/admin/export/failures`
+
+`/admin/export/results` 参数：
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+| min_conf | float | - | 最小置信度 |
+| max_conf | float | - | 最大置信度 |
+
+`/admin/export/failures` 参数：
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+| stage | string | - | 阶段过滤 |
+| error_code | string | - | 错误码过滤 |
 
 ---
 

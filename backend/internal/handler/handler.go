@@ -719,6 +719,8 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/export/users", h.AdminExportUsers)
 		v1.GET("/admin/export/notes", h.AdminExportNotes)
 		v1.GET("/admin/export/feedback", h.AdminExportFeedback)
+		v1.GET("/admin/export/results", h.AdminExportResults)
+		v1.GET("/admin/export/failures", h.AdminExportFailures)
 		v1.POST("/auth/anonymous", h.AuthAnonymous)
 		v1.POST("/auth/send-otp", h.SendOTP)
 		v1.POST("/auth/verify-otp", h.VerifyOTP)

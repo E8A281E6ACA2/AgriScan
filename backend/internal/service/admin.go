@@ -1593,6 +1593,181 @@ func (s *Service) ExportAdminFeedbackCSV(w io.Writer, start, end *time.Time) err
 	return writer.Error()
 }
 
+type AdminResultExportRow struct {
+	ResultID   uint     `json:"result_id"`
+	ImageID    uint     `json:"image_id"`
+	UserID     uint     `json:"user_id"`
+	ImageURL   string   `json:"image_url"`
+	CropType   string   `json:"crop_type"`
+	Confidence float64  `json:"confidence"`
+	Provider   string   `json:"provider"`
+	Latitude   *float64 `json:"latitude"`
+	Longitude  *float64 `json:"longitude"`
+	CreatedAt  string   `json:"created_at"`
+}
+
+func (s *Service) ExportAdminResultsCSV(w io.Writer, start, end *time.Time, provider, cropType string, minConf, maxConf *float64) error {
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	_ = writer.Write([]string{"result_id", "image_id", "user_id", "image_url", "crop_type", "confidence", "provider", "latitude", "longitude", "created_at"})
+	limit := 1000
+	offset := 0
+	for {
+		items, err := s.repo.ListResultsAll(limit, offset, start, end, provider, cropType, minConf, maxConf)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, r := range items {
+			lat := ""
+			lng := ""
+			if r.Latitude != nil {
+				lat = strconv.FormatFloat(*r.Latitude, 'f', 6, 64)
+			}
+			if r.Longitude != nil {
+				lng = strconv.FormatFloat(*r.Longitude, 'f', 6, 64)
+			}
+			_ = writer.Write([]string{
+				strconv.FormatUint(uint64(r.ResultID), 10),
+				strconv.FormatUint(uint64(r.ImageID), 10),
+				strconv.FormatUint(uint64(r.UserID), 10),
+				r.ImageURL,
+				r.CropType,
+				strconv.FormatFloat(r.Confidence, 'f', 4, 64),
+				r.Provider,
+				lat,
+				lng,
+				r.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		offset += len(items)
+	}
+	return writer.Error()
+}
+
+func (s *Service) ExportAdminResultsJSON(w io.Writer, start, end *time.Time, provider, cropType string, minConf, maxConf *float64) error {
+	encoder := json.NewEncoder(w)
+	_, err := io.WriteString(w, "[")
+	if err != nil {
+		return err
+	}
+	limit := 1000
+	offset := 0
+	first := true
+	for {
+		items, err := s.repo.ListResultsAll(limit, offset, start, end, provider, cropType, minConf, maxConf)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, r := range items {
+			row := AdminResultExportRow{
+				ResultID:   r.ResultID,
+				ImageID:    r.ImageID,
+				UserID:     r.UserID,
+				ImageURL:   r.ImageURL,
+				CropType:   r.CropType,
+				Confidence: r.Confidence,
+				Provider:   r.Provider,
+				Latitude:   r.Latitude,
+				Longitude:  r.Longitude,
+				CreatedAt:  r.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			if err := encoder.Encode(row); err != nil {
+				return err
+			}
+			first = false
+		}
+		offset += len(items)
+	}
+	_, err = io.WriteString(w, "]")
+	return err
+}
+
+func (s *Service) ExportAdminFailuresCSV(w io.Writer, start, end *time.Time, stage, code string) error {
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	_ = writer.Write([]string{"id", "user_id", "image_id", "provider", "stage", "error_code", "error_message", "retry_count", "last_tried_at", "created_at"})
+	limit := 1000
+	offset := 0
+	for {
+		items, err := s.repo.ListFailuresAll(limit, offset, start, end, stage, code)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, f := range items {
+			imageID := ""
+			if f.ImageID != nil {
+				imageID = strconv.FormatUint(uint64(*f.ImageID), 10)
+			}
+			lastTried := ""
+			if f.LastTriedAt != nil {
+				lastTried = f.LastTriedAt.Format("2006-01-02 15:04:05")
+			}
+			_ = writer.Write([]string{
+				strconv.FormatUint(uint64(f.ID), 10),
+				strconv.FormatUint(uint64(f.UserID), 10),
+				imageID,
+				f.Provider,
+				f.Stage,
+				f.ErrorCode,
+				f.ErrorMessage,
+				strconv.Itoa(f.RetryCount),
+				lastTried,
+				f.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		offset += len(items)
+	}
+	return writer.Error()
+}
+
+func (s *Service) ExportAdminFailuresJSON(w io.Writer, start, end *time.Time, stage, code string) error {
+	encoder := json.NewEncoder(w)
+	_, err := io.WriteString(w, "[")
+	if err != nil {
+		return err
+	}
+	limit := 1000
+	offset := 0
+	first := true
+	for {
+		items, err := s.repo.ListFailuresAll(limit, offset, start, end, stage, code)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, f := range items {
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			if err := encoder.Encode(f); err != nil {
+				return err
+			}
+			first = false
+		}
+		offset += len(items)
+	}
+	_, err = io.WriteString(w, "]")
+	return err
+}
+
 func joinTags(tags []string) string {
 	out := make([]string, 0, len(tags))
 	seen := map[string]bool{}
