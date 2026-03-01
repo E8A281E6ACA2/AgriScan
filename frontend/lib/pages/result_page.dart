@@ -13,7 +13,6 @@ class ResultPage extends StatefulWidget {
 class _ResultPageState extends State<ResultPage> {
   final TextEditingController _feedbackController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  String? _selectedCorrection;
   bool _isSubmitting = false;
   bool _isSavingNote = false;
   String _noteCategory = 'crop';
@@ -21,6 +20,7 @@ class _ResultPageState extends State<ResultPage> {
   List<String> _availableTags = [];
   bool _feedbackSubmitted = false;
   bool _feedbackPrompted = false;
+  bool? _feedbackChoice;
   List<Crop> _crops = [];
   String _feedbackCategory = 'crop';
   final List<String> _feedbackTags = [];
@@ -85,11 +85,6 @@ class _ResultPageState extends State<ResultPage> {
     } catch (_) {}
   }
   
-  final List<String> _commonCrops = [
-    'wheat', 'corn', 'rice', 'soybean', 'cotton', 
-    'potato', 'tomato', 'cabbage', 'lettuce', 'other'
-  ];
-  
   @override
   void dispose() {
     _feedbackController.dispose();
@@ -100,9 +95,7 @@ class _ResultPageState extends State<ResultPage> {
   Future<void> _submitFeedback(bool isCorrect) async {
     if (_isSubmitting) return;
     if (_feedbackSubmitted) return;
-    
-    setState(() => _isSubmitting = true);
-    
+
     final provider = context.read<AppProvider>();
     final api = context.read<ApiService>();
     final result = provider.recognizeResult;
@@ -110,13 +103,22 @@ class _ResultPageState extends State<ResultPage> {
     if (result == null) return;
     
     try {
+      if (!isCorrect && (_feedbackCorrectedType == null || _feedbackCorrectedType!.isEmpty)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请先选择正确类型再提交')),
+          );
+        }
+        return;
+      }
+      setState(() => _isSubmitting = true);
       await api.submitFeedback(FeedbackRequest(
         resultId: result.resultId,
-        correctedType: _selectedCorrection,
+        correctedType: isCorrect ? null : _feedbackCorrectedType,
         feedbackNote: _feedbackController.text,
         isCorrect: isCorrect,
-        category: _noteCategory,
-        tags: _selectedTags,
+        category: isCorrect ? null : _feedbackCategory,
+        tags: isCorrect ? null : _feedbackTags,
       ));
       _feedbackSubmitted = true;
       
@@ -134,6 +136,25 @@ class _ResultPageState extends State<ResultPage> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Future<void> _submitSelectedFeedback() async {
+    if (_feedbackChoice == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请先选择识别正确或错误')),
+        );
+      }
+      return;
+    }
+    if (_feedbackChoice == false &&
+        (_feedbackCorrectedType == null || _feedbackCorrectedType!.isEmpty)) {
+      await _showQuickCorrection();
+      if (_feedbackCorrectedType == null || _feedbackCorrectedType!.isEmpty) {
+        return;
+      }
+    }
+    await _submitFeedback(_feedbackChoice == true);
   }
 
   Future<void> _saveNote() async {
@@ -238,8 +259,8 @@ class _ResultPageState extends State<ResultPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  // 相似样例
-                  if (provider.similar.isNotEmpty) ...[
+                // 相似样例
+                if (provider.similar.isNotEmpty) ...[
                   Text(
                     '相似样例（同作物历史）',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -251,19 +272,23 @@ class _ResultPageState extends State<ResultPage> {
                       scrollDirection: Axis.horizontal,
                       itemBuilder: (context, index) {
                         final item = provider.similar[index];
-                        return ClipRRect(
+                        return InkWell(
+                          onTap: () => _showSimilarDetail(item),
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            item.imageUrl ?? '',
-                            width: 88,
-                            height: 88,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              item.imageUrl ?? '',
                               width: 88,
                               height: 88,
-                              color: Colors.grey[200],
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.image_not_supported),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 88,
+                                height: 88,
+                                color: Colors.grey[200],
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.image_not_supported),
+                              ),
                             ),
                           ),
                         );
@@ -271,6 +296,11 @@ class _ResultPageState extends State<ResultPage> {
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemCount: provider.similar.length,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '点击样例可查看大图与详情',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -346,6 +376,8 @@ class _ResultPageState extends State<ResultPage> {
                           const SizedBox(height: 12),
                           _buildResultRow('风险提示', result.riskNote!),
                         ],
+                        const SizedBox(height: 12),
+                        _buildExplainBlock(result, provider.similar.isNotEmpty),
                         const SizedBox(height: 12),
                         
                         // 描述
@@ -449,15 +481,27 @@ class _ResultPageState extends State<ResultPage> {
                   children: [
                     ChoiceChip(
                       label: const Text('✅ 识别正确'),
-                      selected: false,
-                      onSelected: (_) => _submitFeedback(true),
+                      selected: _feedbackChoice == true,
+                      onSelected: _feedbackSubmitted
+                          ? null
+                          : (_) => setState(() => _feedbackChoice = true),
                     ),
                     ChoiceChip(
                       label: const Text('❌ 识别错误'),
-                      selected: false,
-                      onSelected: (_) => _showCorrectionDialog(),
+                      selected: _feedbackChoice == false,
+                      onSelected: _feedbackSubmitted
+                          ? null
+                          : (_) {
+                              setState(() => _feedbackChoice = false);
+                              _showQuickCorrection();
+                            },
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '请先选择正确或错误，再提交反馈',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 
                 const SizedBox(height: 16),
@@ -470,6 +514,24 @@ class _ResultPageState extends State<ResultPage> {
                     hintText: '补充说明（可选）',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (_isSubmitting || _feedbackSubmitted || _feedbackChoice == null)
+                        ? null
+                        : _submitSelectedFeedback,
+                    icon: const Icon(Icons.send),
+                    label: Text(
+                      _feedbackSubmitted
+                          ? '已提交反馈'
+                          : _isSubmitting
+                              ? '提交中...'
+                              : '提交反馈',
                     ),
                   ),
                 ),
@@ -707,40 +769,6 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
   
-  void _showCorrectionDialog() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '请选择正确作物类型',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _commonCrops.map((crop) {
-                return ChoiceChip(
-                  label: Text(crop),
-                  selected: _selectedCorrection == crop,
-                  onSelected: (selected) {
-                    setState(() => _selectedCorrection = selected ? crop : null);
-                    Navigator.pop(context);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _showQuickFeedback() async {
     if (_feedbackSubmitted) return;
     await showModalBottomSheet(
@@ -764,6 +792,7 @@ class _ResultPageState extends State<ResultPage> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
+                        setState(() => _feedbackChoice = true);
                         _submitFeedback(true);
                       },
                       child: const Text('正确'),
@@ -774,6 +803,7 @@ class _ResultPageState extends State<ResultPage> {
                     child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(context);
+                        setState(() => _feedbackChoice = false);
                         _showQuickCorrection();
                       },
                       child: const Text('错误'),
@@ -790,6 +820,111 @@ class _ResultPageState extends State<ResultPage> {
           ),
         );
       },
+    );
+  }
+
+  void _showSimilarDetail(RecognizeResponse item) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 240,
+                        width: double.infinity,
+                        child: InteractiveViewer(
+                          minScale: 1,
+                          maxScale: 4,
+                          child: Image.network(
+                            item.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey[200],
+                              alignment: Alignment.center,
+                              child: const Text('图片加载失败'),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '样例详情',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildResultRow('作物类型', item.cropType.isNotEmpty ? item.cropType : '未知'),
+                  _buildResultRow('置信度', '${(item.confidence * 100).toStringAsFixed(1)}%'),
+                  if (item.riskLevel != null && item.riskLevel!.isNotEmpty)
+                    _buildResultRow(
+                      '风险等级',
+                      item.riskLevel == 'low'
+                          ? '低'
+                          : item.riskLevel == 'medium'
+                              ? '中'
+                              : '高',
+                    ),
+                  if (item.riskNote != null && item.riskNote!.isNotEmpty)
+                    _buildResultRow('风险提示', item.riskNote!),
+                  const SizedBox(height: 12),
+                  _buildResultRow('识别提供商', item.provider),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExplainBlock(RecognizeResponse? result, bool hasSimilar) {
+    if (result == null) {
+      return const SizedBox.shrink();
+    }
+    final lines = <String>[
+      '置信度越高越可靠，低置信度建议结合田间观察。',
+    ];
+    if (result.confidenceLow != null && result.confidenceHigh != null) {
+      lines.add('置信区间反映稳定性，区间越窄越稳定。');
+    }
+    if (result.riskLevel != null && result.riskLevel!.isNotEmpty) {
+      lines.add('风险提示用于提示可能误判或异常情况。');
+    }
+    if (hasSimilar) {
+      lines.add('相似样例来自历史同作物记录，可对比图像细节。');
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('识别解释', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          ...lines.map((line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '• $line',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                ),
+              )),
+        ],
+      ),
     );
   }
 
