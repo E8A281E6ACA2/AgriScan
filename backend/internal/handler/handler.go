@@ -31,22 +31,22 @@ type UploadResponse struct {
 
 // RecognizeResponse 识别响应
 type RecognizeResponse struct {
-	RawText       string  `json:"raw_text"`
-	ResultID      uint    `json:"result_id"`
-	ImageID       uint    `json:"image_id"`
-	CropType      string  `json:"crop_type"`
-	Confidence    float64 `json:"confidence"`
-	ConfidenceLow  float64 `json:"confidence_low"`
-	ConfidenceHigh float64 `json:"confidence_high"`
-	Description   string  `json:"description"`
-	GrowthStage   *string `json:"growth_stage"`
-	PossibleIssue *string `json:"possible_issue"`
-	Provider      string  `json:"provider"`
-	ImageURL      string  `json:"image_url,omitempty"`
-	Latitude      *float64 `json:"latitude,omitempty"`
-	Longitude     *float64 `json:"longitude,omitempty"`
-	RiskLevel     string  `json:"risk_level"`
-	RiskNote      string  `json:"risk_note"`
+	RawText        string   `json:"raw_text"`
+	ResultID       uint     `json:"result_id"`
+	ImageID        uint     `json:"image_id"`
+	CropType       string   `json:"crop_type"`
+	Confidence     float64  `json:"confidence"`
+	ConfidenceLow  float64  `json:"confidence_low"`
+	ConfidenceHigh float64  `json:"confidence_high"`
+	Description    string   `json:"description"`
+	GrowthStage    *string  `json:"growth_stage"`
+	PossibleIssue  *string  `json:"possible_issue"`
+	Provider       string   `json:"provider"`
+	ImageURL       string   `json:"image_url,omitempty"`
+	Latitude       *float64 `json:"latitude,omitempty"`
+	Longitude      *float64 `json:"longitude,omitempty"`
+	RiskLevel      string   `json:"risk_level"`
+	RiskNote       string   `json:"risk_note"`
 }
 
 type RecognizeURLRequest struct {
@@ -94,22 +94,22 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 	low, high, riskLevel, riskNote := explainConfidence(savedResult.Confidence)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
-		RawText:       savedResult.RawText,
-		ResultID:      savedResult.ID,
-		ImageID:       savedResult.ImageID,
-		CropType:      savedResult.CropType,
-		Confidence:    savedResult.Confidence,
+		RawText:        savedResult.RawText,
+		ResultID:       savedResult.ID,
+		ImageID:        savedResult.ImageID,
+		CropType:       savedResult.CropType,
+		Confidence:     savedResult.Confidence,
 		ConfidenceLow:  low,
 		ConfidenceHigh: high,
-		Description:   savedResult.Description,
-		GrowthStage:   savedResult.GrowthStage,
-		PossibleIssue: savedResult.PossibleIssue,
-		Provider:      savedResult.Provider,
-		ImageURL:      img.OriginalURL,
-		Latitude:      img.Latitude,
-		Longitude:     img.Longitude,
-		RiskLevel:     riskLevel,
-		RiskNote:      riskNote,
+		Description:    savedResult.Description,
+		GrowthStage:    savedResult.GrowthStage,
+		PossibleIssue:  savedResult.PossibleIssue,
+		Provider:       savedResult.Provider,
+		ImageURL:       img.OriginalURL,
+		Latitude:       img.Latitude,
+		Longitude:      img.Longitude,
+		RiskLevel:      riskLevel,
+		RiskNote:       riskNote,
 	})
 }
 
@@ -224,22 +224,22 @@ func (h *Handler) Recognize(c *gin.Context) {
 	low, high, riskLevel, riskNote := explainConfidence(savedResult.Confidence)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
-		RawText:       savedResult.RawText,
-		ResultID:      savedResult.ID,
-		ImageID:       savedResult.ImageID,
-		CropType:      savedResult.CropType,
-		Confidence:    savedResult.Confidence,
+		RawText:        savedResult.RawText,
+		ResultID:       savedResult.ID,
+		ImageID:        savedResult.ImageID,
+		CropType:       savedResult.CropType,
+		Confidence:     savedResult.Confidence,
 		ConfidenceLow:  low,
 		ConfidenceHigh: high,
-		Description:   savedResult.Description,
-		GrowthStage:   savedResult.GrowthStage,
-		PossibleIssue: savedResult.PossibleIssue,
-		Provider:      savedResult.Provider,
-		ImageURL:      img.OriginalURL,
-		Latitude:      img.Latitude,
-		Longitude:     img.Longitude,
-		RiskLevel:     riskLevel,
-		RiskNote:      riskNote,
+		Description:    savedResult.Description,
+		GrowthStage:    savedResult.GrowthStage,
+		PossibleIssue:  savedResult.PossibleIssue,
+		Provider:       savedResult.Provider,
+		ImageURL:       img.OriginalURL,
+		Latitude:       img.Latitude,
+		Longitude:      img.Longitude,
+		RiskLevel:      riskLevel,
+		RiskNote:       riskNote,
 	})
 }
 
@@ -270,22 +270,22 @@ func (h *Handler) GetResult(c *gin.Context) {
 
 	low, high, riskLevel, riskNote := explainConfidence(result.Confidence)
 	c.JSON(http.StatusOK, RecognizeResponse{
-		RawText:       result.RawText,
-		ResultID:      result.ID,
-		ImageID:       result.ImageID,
-		CropType:      result.CropType,
-		Confidence:    result.Confidence,
+		RawText:        result.RawText,
+		ResultID:       result.ID,
+		ImageID:        result.ImageID,
+		CropType:       result.CropType,
+		Confidence:     result.Confidence,
 		ConfidenceLow:  low,
 		ConfidenceHigh: high,
-		Description:   result.Description,
-		GrowthStage:   result.GrowthStage,
-		PossibleIssue: result.PossibleIssue,
-		Provider:      result.Provider,
-		ImageURL:      imageURL,
-		Latitude:      lat,
-		Longitude:     lng,
-		RiskLevel:     riskLevel,
-		RiskNote:      riskNote,
+		Description:    result.Description,
+		GrowthStage:    result.GrowthStage,
+		PossibleIssue:  result.PossibleIssue,
+		Provider:       result.Provider,
+		ImageURL:       imageURL,
+		Latitude:       lat,
+		Longitude:      lng,
+		RiskLevel:      riskLevel,
+		RiskNote:       riskNote,
 	})
 }
 
@@ -309,16 +309,59 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
+	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	startDateStr := c.DefaultQuery("start_date", "")
+	endDateStr := c.DefaultQuery("end_date", "")
 
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
 
-	var startDate *time.Time
+	startDate, endDate, err := parseDateRange(startDateStr, endDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var minConf *float64
+	var maxConf *float64
+	if minConfStr != "" {
+		if v, err := strconv.ParseFloat(minConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+				return
+			}
+			minConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+			return
+		}
+	}
+	if maxConfStr != "" {
+		if v, err := strconv.ParseFloat(maxConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+				return
+			}
+			maxConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+			return
+		}
+	}
+	if minConf != nil && maxConf != nil && *minConf > *maxConf {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
+		return
+	}
+
 	if ent.RetentionDays > 0 {
 		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
-		startDate = &cutoff
+		if startDate == nil || startDate.Before(cutoff) {
+			startDate = &cutoff
+		}
 	}
-	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate)
+	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -328,22 +371,22 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	for _, r := range results {
 		low, high, riskLevel, riskNote := explainConfidence(r.Confidence)
 		resp := RecognizeResponse{
-			RawText:       r.RawText,
-			ResultID:      r.ID,
-			ImageID:       r.ImageID,
-			CropType:      r.CropType,
-			Confidence:    r.Confidence,
+			RawText:        r.RawText,
+			ResultID:       r.ID,
+			ImageID:        r.ImageID,
+			CropType:       r.CropType,
+			Confidence:     r.Confidence,
 			ConfidenceLow:  low,
 			ConfidenceHigh: high,
-			Description:   r.Description,
-			GrowthStage:   r.GrowthStage,
-			PossibleIssue: r.PossibleIssue,
-			Provider:      r.Provider,
-			ImageURL:      r.Image.OriginalURL,
-			Latitude:      r.Image.Latitude,
-			Longitude:     r.Image.Longitude,
-			RiskLevel:     riskLevel,
-			RiskNote:      riskNote,
+			Description:    r.Description,
+			GrowthStage:    r.GrowthStage,
+			PossibleIssue:  r.PossibleIssue,
+			Provider:       r.Provider,
+			ImageURL:       r.Image.OriginalURL,
+			Latitude:       r.Image.Latitude,
+			Longitude:      r.Image.Longitude,
+			RiskLevel:      riskLevel,
+			RiskNote:       riskNote,
 		}
 		response = append(response, resp)
 	}
@@ -561,6 +604,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/admin/labels/:id", h.AdminLabelNote)
 		v1.POST("/admin/labels/:id/review", h.AdminReviewLabel)
 		v1.POST("/admin/labels/batch-approve", h.AdminBatchApproveLabels)
+		v1.GET("/admin/notes/by-result/:id", h.AdminGetNoteByResult)
 		v1.GET("/admin/eval/summary", h.AdminEvalSummary)
 		v1.POST("/admin/eval/runs", h.AdminCreateEvalRun)
 		v1.GET("/admin/eval/runs", h.AdminListEvalRuns)

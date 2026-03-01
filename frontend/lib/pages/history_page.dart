@@ -12,6 +12,11 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   Entitlements? _entitlements;
+  final TextEditingController _cropFilterController = TextEditingController();
+  final TextEditingController _minConfController = TextEditingController();
+  final TextEditingController _maxConfController = TextEditingController();
+  final TextEditingController _startDateController = TextEditingController();
+  final TextEditingController _endDateController = TextEditingController();
 
   @override
   void initState() {
@@ -19,13 +24,31 @@ class _HistoryPageState extends State<HistoryPage> {
     _loadHistory();
     _loadEntitlements();
   }
+
+  @override
+  void dispose() {
+    _cropFilterController.dispose();
+    _minConfController.dispose();
+    _maxConfController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
+    super.dispose();
+  }
   
   Future<void> _loadHistory() async {
     final provider = context.read<AppProvider>();
     final api = context.read<ApiService>();
     
     try {
-      final response = await api.getHistory();
+      final minConf = double.tryParse(_minConfController.text.trim());
+      final maxConf = double.tryParse(_maxConfController.text.trim());
+      final response = await api.getHistory(
+        cropType: _cropFilterController.text.trim(),
+        minConfidence: minConf,
+        maxConfidence: maxConf,
+        startDate: _startDateController.text.trim(),
+        endDate: _endDateController.text.trim(),
+      );
       provider.setHistory(response.results);
       provider.setSimilar(_findSimilar(response.results));
     } catch (e) {
@@ -62,38 +85,51 @@ class _HistoryPageState extends State<HistoryPage> {
         builder: (context, provider, _) {
           final history = provider.history;
           
-          if (history.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          return Stack(
+            children: [
+              Column(
                 children: [
-                  Icon(Icons.history, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    '暂无识别记录',
-                    style: TextStyle(color: Colors.grey),
+                  _buildFilterBar(),
+                  Expanded(
+                    child: history.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.history, size: 64, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text(
+                                  '暂无识别记录',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: () async {
+                              await _loadEntitlements();
+                              await _loadHistory();
+                            },
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: history.length,
+                              itemBuilder: (context, index) {
+                                final item = history[index];
+                                return _buildHistoryCard(item);
+                              },
+                            ),
+                          ),
                   ),
                 ],
               ),
-            );
-          }
-          
-          return RefreshIndicator(
-            onRefresh: () async {
-              await _loadEntitlements();
-              await _loadHistory();
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: history.length + (_entitlements == null ? 0 : 1),
-              itemBuilder: (context, index) {
-                if (_entitlements != null && index == 0) {
-                  return _buildEntitlementsBanner(_entitlements!);
-                }
-                final item = history[index - (_entitlements == null ? 0 : 1)];
-                return _buildHistoryCard(item);
-              },
-            ),
+              if (_entitlements != null)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: _buildEntitlementsFloat(_entitlements!),
+                ),
+            ],
           );
         },
       ),
@@ -301,23 +337,105 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _buildEntitlementsBanner(Entitlements ent) {
+  Widget _buildEntitlementsFloat(Entitlements ent) {
     final isFree = ent.plan == 'free';
-    final title = isFree ? '升级会员，获取更高额度' : '当前会员：${ent.plan}';
-    final subtitle = isFree
-        ? '更高额度与更长留存'
-        : '剩余额度 ${ent.quotaRemaining}，留存 ${ent.retentionDays} 天';
-    return Card(
+    final title = isFree ? '免费用户' : '会员：${ent.plan}';
+    final subtitle = '剩余额度 ${ent.quotaRemaining} · 留存 ${ent.retentionDays} 天';
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
       color: isFree ? Colors.orange.shade50 : Colors.green.shade50,
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: isFree
-            ? ElevatedButton(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[700])),
+                ],
+              ),
+            ),
+            if (isFree)
+              ElevatedButton(
                 onPressed: () => Navigator.pushNamed(context, '/membership'),
                 child: const Text('升级'),
-              )
-            : const SizedBox.shrink(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _cropFilterController,
+                  decoration: const InputDecoration(labelText: '作物(可选)'),
+                ),
+              ),
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: _minConfController,
+                  decoration: const InputDecoration(labelText: '最小置信度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: _maxConfController,
+                  decoration: const InputDecoration(labelText: '最大置信度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 150,
+                child: TextField(
+                  controller: _startDateController,
+                  decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                ),
+              ),
+              SizedBox(
+                width: 150,
+                child: TextField(
+                  controller: _endDateController,
+                  decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _loadHistory,
+                child: const Text('筛选'),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  _cropFilterController.clear();
+                  _minConfController.clear();
+                  _maxConfController.clear();
+                  _startDateController.clear();
+                  _endDateController.clear();
+                  _loadHistory();
+                },
+                child: const Text('清空'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

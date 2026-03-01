@@ -414,6 +414,10 @@ func (s *Service) BatchApproveLabelNotes(status, category, cropType, reviewer st
 	return s.repo.BatchApproveLabelNotes(status, category, cropType, start, end, reviewer, now)
 }
 
+func (s *Service) GetNoteByResultID(resultID uint) (*model.FieldNote, error) {
+	return s.repo.GetNoteByResultID(resultID)
+}
+
 func (s *Service) LabelFromQCSample(sampleID uint, category, cropType string, tags []string, note string, approved bool, reviewer string) (uint, string, error) {
 	if !s.getSettingBool(settingLabelEnabled, false) {
 		return 0, "", fmt.Errorf("label flow disabled")

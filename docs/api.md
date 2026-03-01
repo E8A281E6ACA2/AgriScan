@@ -263,6 +263,10 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 }
 ```
 
+**GET** `/admin/notes/by-result/:id`
+
+说明：通过 result_id 拉取对应手记（如存在）。
+
 **GET** `/admin/eval/summary`
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -583,6 +587,11 @@ Web/跨端 Base64 方式：
 |------|------|--------|------|
 | limit | int | 20 | 数量限制 |
 | offset | int | 0 | 偏移量 |
+| crop_type | string | - | 按作物过滤 |
+| min_conf | float | - | 置信度下限(0-1) |
+| max_conf | float | - | 置信度上限(0-1) |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 **响应示例:**
 ```json

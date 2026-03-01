@@ -129,6 +129,15 @@ func (r *Repository) UpdateLabelNote(noteID uint, fields map[string]interface{})
 	return r.db.Model(&model.FieldNote{}).Where("id = ?", noteID).Updates(fields).Error
 }
 
+func (r *Repository) GetNoteByResultID(resultID uint) (*model.FieldNote, error) {
+	var note model.FieldNote
+	err := r.db.Where("result_id = ?", resultID).Order("id DESC").First(&note).Error
+	if err != nil {
+		return nil, err
+	}
+	return &note, nil
+}
+
 func (r *Repository) BatchApproveLabelNotes(status, category, cropType string, start, end *time.Time, reviewer string, reviewedAt time.Time) (int64, error) {
 	query := r.db.Model(&model.FieldNote{})
 	status = strings.TrimSpace(status)

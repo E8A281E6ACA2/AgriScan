@@ -2,12 +2,14 @@ package handler
 
 import (
 	"agri-scan/internal/service"
+	"errors"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func (h *Handler) requireAdmin(c *gin.Context) bool {
@@ -523,6 +525,62 @@ func (h *Handler) AdminBatchApproveLabels(c *gin.Context) {
 	}
 	h.svc.RecordAdminAudit("label_batch_approve", "note", 0, req.Status, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{"updated": updated})
+}
+
+// GET /api/v1/admin/notes/by-result/:id
+func (h *Handler) AdminGetNoteByResult(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	note, err := h.svc.GetNoteByResultID(uint(id))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "note not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"id":              note.ID,
+		"user_id":         note.UserID,
+		"image_id":        note.ImageID,
+		"result_id":       note.ResultID,
+		"image_url":       note.ImageURL,
+		"note":            note.Note,
+		"category":        note.Category,
+		"crop_type":       note.CropType,
+		"confidence":      note.Confidence,
+		"description":     note.Description,
+		"growth_stage":    note.GrowthStage,
+		"possible_issue":  note.PossibleIssue,
+		"provider":        note.Provider,
+		"tags":            splitTags(note.Tags),
+		"label_status":    note.LabelStatus,
+		"label_category":  note.LabelCategory,
+		"label_crop_type": note.LabelCropType,
+		"label_tags":      splitTags(note.LabelTags),
+		"created_at":      note.CreatedAt.Format("2006-01-02 15:04:05"),
+	})
+}
+
+func splitTags(tags string) []string {
+	out := []string{}
+	if strings.TrimSpace(tags) == "" {
+		return out
+	}
+	for _, t := range strings.Split(tags, ",") {
+		if strings.TrimSpace(t) != "" {
+			out = append(out, strings.TrimSpace(t))
+		}
+	}
+	return out
 }
 
 // GET /api/v1/admin/eval/summary

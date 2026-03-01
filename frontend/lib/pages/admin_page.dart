@@ -895,6 +895,61 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  Future<void> _openAdminNote(int resultId) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final note = await api.adminGetNoteByResult(resultId, adminToken: token.isEmpty ? null : token);
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('手记 #${note.id}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (note.imageUrl.isNotEmpty)
+                    Image.network(note.imageUrl, height: 180, fit: BoxFit.cover)
+                  else
+                    const Text('无图片地址'),
+                  const SizedBox(height: 8),
+                  Text('作物: ${note.cropType}'),
+                  Text('类别: ${note.category}'),
+                  Text('置信度: ${note.confidence.toStringAsFixed(2)}'),
+                  if (note.tags.isNotEmpty) Text('标签: ${note.tags.join(",")}'),
+                  if (note.note.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('手记: ${note.note}'),
+                  ],
+                  const SizedBox(height: 8),
+                  Text('标注状态: ${note.labelStatus}'),
+                  if (note.labelCropType.isNotEmpty) Text('标注作物: ${note.labelCropType}'),
+                  if (note.labelCategory.isNotEmpty) Text('标注类别: ${note.labelCategory}'),
+                  if (note.labelTags.isNotEmpty) Text('标注标签: ${note.labelTags.join(",")}'),
+                  if (note.description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('描述: ${note.description}'),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      _toast('打开手记失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _toggleQCSample(int id, bool selected) {
     setState(() {
       if (selected) {
@@ -2034,13 +2089,22 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                     title: Text('Result#${r.resultId} · $title'),
                                     subtitle: Text(subtitle),
-                                    trailing: r.imageUrl.isNotEmpty
-                                        ? SizedBox(
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: '打开手记',
+                                          onPressed: _loading ? null : () => _openAdminNote(r.resultId),
+                                          icon: const Icon(Icons.note),
+                                        ),
+                                        if (r.imageUrl.isNotEmpty)
+                                          SizedBox(
                                             width: 48,
                                             height: 48,
                                             child: Image.network(r.imageUrl, fit: BoxFit.cover),
-                                          )
-                                        : null,
+                                          ),
+                                      ],
+                                    ),
                                     onTap: () => _showResultDetail(r),
                                   ),
                                 );
@@ -2149,13 +2213,22 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                     title: Text('Result#${r.resultId} · $title'),
                                     subtitle: Text(subtitle),
-                                    trailing: r.imageUrl.isNotEmpty
-                                        ? SizedBox(
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: '打开手记',
+                                          onPressed: _loading ? null : () => _openAdminNote(r.resultId),
+                                          icon: const Icon(Icons.note),
+                                        ),
+                                        if (r.imageUrl.isNotEmpty)
+                                          SizedBox(
                                             width: 48,
                                             height: 48,
                                             child: Image.network(r.imageUrl, fit: BoxFit.cover),
-                                          )
-                                        : null,
+                                          ),
+                                      ],
+                                    ),
                                     onTap: () => _showResultDetail(r),
                                   ),
                                 );

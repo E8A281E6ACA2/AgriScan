@@ -91,10 +91,23 @@ class ApiService {
   }
   
   // 获取历史记录
-  Future<HistoryResponse> getHistory({int limit = 20, int offset = 0}) async {
+  Future<HistoryResponse> getHistory({
+    int limit = 20,
+    int offset = 0,
+    String? cropType,
+    double? minConfidence,
+    double? maxConfidence,
+    String? startDate,
+    String? endDate,
+  }) async {
     final response = await _dio.get('/history', queryParameters: {
       'limit': limit,
       'offset': offset,
+      if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+      if (minConfidence != null) 'min_conf': minConfidence,
+      if (maxConfidence != null) 'max_conf': maxConfidence,
+      if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+      if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
     });
     return HistoryResponse.fromJson(response.data);
   }
@@ -556,6 +569,14 @@ class ApiService {
       options: _adminOptions(adminToken),
     );
     return response.data['updated'] ?? 0;
+  }
+
+  Future<AdminNote> adminGetNoteByResult(int resultId, {String? adminToken}) async {
+    final response = await _dio.get(
+      '/admin/notes/by-result/$resultId',
+      options: _adminOptions(adminToken),
+    );
+    return AdminNote.fromJson(response.data);
   }
 
   Future<EvalSummary> adminEvalSummary({int days = 30, String? adminToken}) async {
@@ -1694,6 +1715,75 @@ class AdminLabelNote {
       labelCropType: json['label_crop_type'] ?? '',
       labelCategory: json['label_category'] ?? '',
       labelTags: json['label_tags'] ?? '',
+    );
+  }
+}
+
+class AdminNote {
+  final int id;
+  final int userId;
+  final int imageId;
+  final int? resultId;
+  final String imageUrl;
+  final String note;
+  final String category;
+  final String cropType;
+  final double confidence;
+  final String description;
+  final String? growthStage;
+  final String? possibleIssue;
+  final String provider;
+  final List<String> tags;
+  final String labelStatus;
+  final String labelCategory;
+  final String labelCropType;
+  final List<String> labelTags;
+  final String createdAt;
+
+  AdminNote({
+    required this.id,
+    required this.userId,
+    required this.imageId,
+    required this.resultId,
+    required this.imageUrl,
+    required this.note,
+    required this.category,
+    required this.cropType,
+    required this.confidence,
+    required this.description,
+    required this.growthStage,
+    required this.possibleIssue,
+    required this.provider,
+    required this.tags,
+    required this.labelStatus,
+    required this.labelCategory,
+    required this.labelCropType,
+    required this.labelTags,
+    required this.createdAt,
+  });
+
+  factory AdminNote.fromJson(Map<String, dynamic> json) {
+    List<dynamic> listOrEmpty(dynamic v) => v is List ? v : [];
+    return AdminNote(
+      id: json['id'] ?? 0,
+      userId: json['user_id'] ?? 0,
+      imageId: json['image_id'] ?? 0,
+      resultId: json['result_id'],
+      imageUrl: json['image_url'] ?? '',
+      note: json['note'] ?? '',
+      category: json['category'] ?? '',
+      cropType: json['crop_type'] ?? '',
+      confidence: (json['confidence'] ?? 0).toDouble(),
+      description: json['description'] ?? '',
+      growthStage: json['growth_stage'],
+      possibleIssue: json['possible_issue'],
+      provider: json['provider'] ?? '',
+      tags: listOrEmpty(json['tags']).map((e) => e.toString()).toList(),
+      labelStatus: json['label_status'] ?? '',
+      labelCategory: json['label_category'] ?? '',
+      labelCropType: json['label_crop_type'] ?? '',
+      labelTags: listOrEmpty(json['label_tags']).map((e) => e.toString()).toList(),
+      createdAt: (json['created_at'] ?? '').toString(),
     );
   }
 }

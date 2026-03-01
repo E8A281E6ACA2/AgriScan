@@ -226,15 +226,13 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ],
           ),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_entitlements != null) ...[
-                    _buildMembershipBanner(_entitlements!),
-                    const SizedBox(height: 12),
-                  ],
+            body: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // 相似样例
                   if (provider.similar.isNotEmpty) ...[
                   Text(
@@ -571,7 +569,19 @@ class _ResultPageState extends State<ResultPage> {
                 ),
               ],
             ),
-          ),
+            ),
+                  ],
+                ),
+              ),
+                if (_entitlements != null)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: _buildMembershipBanner(_entitlements!),
+                  ),
+              ],
+            ),
         );
       },
     );
@@ -579,21 +589,33 @@ class _ResultPageState extends State<ResultPage> {
 
   Widget _buildMembershipBanner(Entitlements ent) {
     final isFree = ent.plan == 'free';
-    final title = isFree ? '升级会员，获取更高额度' : '当前会员：${ent.plan}';
-    final subtitle = isFree
-        ? '更高额度与更长留存'
-        : '剩余额度 ${ent.quotaRemaining}，留存 ${ent.retentionDays} 天';
-    return Card(
+    final title = isFree ? '免费用户' : '会员：${ent.plan}';
+    final subtitle = '剩余额度 ${ent.quotaRemaining} · 留存 ${ent.retentionDays} 天';
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
       color: isFree ? Colors.orange.shade50 : Colors.green.shade50,
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: isFree
-            ? ElevatedButton(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[700])),
+                ],
+              ),
+            ),
+            if (isFree)
+              ElevatedButton(
                 onPressed: () => Navigator.pushNamed(context, '/membership'),
                 child: const Text('升级'),
-              )
-            : const SizedBox.shrink(),
+              ),
+          ],
+        ),
       ),
     );
   }
