@@ -76,7 +76,7 @@ class _MembershipPageState extends State<MembershipPage> {
                     ],
                     ..._buildPlanCards(),
                     const Divider(height: 24),
-                    _buildTile('档次', _ent!.plan),
+                    _buildTile('档次', _formatPlanLabel(_ent!)),
                     _buildTile('需要登录', _ent!.requireLogin ? '是' : '否'),
                     _buildTile('需要广告', _ent!.requireAd ? '是' : '否'),
                     _buildTile('广告次数余额', _ent!.adCredits.toString()),
@@ -170,7 +170,10 @@ class _MembershipPageState extends State<MembershipPage> {
                   const SizedBox(height: 6),
                   Text('${plan.name}档 · ${plan.description}'),
                   const SizedBox(height: 4),
-                  Text('额度 ${plan.quotaTotal} · 留存 ${plan.retentionDays} 天 · ${_formatPrice(plan)}'),
+                  Text(
+                    '额度 ${plan.quotaTotal} · 留存 ${plan.retentionDays} 天'
+                    '${plan.requireAd ? ' · 需广告' : ''} · ${_formatPrice(plan)}',
+                  ),
                 ],
               ),
             ),
@@ -186,11 +189,12 @@ class _MembershipPageState extends State<MembershipPage> {
 
   Widget _buildPlanCard(PlanSetting plan) {
     final isCurrent = _ent?.plan == plan.code;
+    final adLabel = plan.requireAd ? ' · 需广告' : '';
     return Card(
       child: ListTile(
         title: Text('${plan.name}档', style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
-          '${plan.description} · ${plan.quotaTotal} 次额度 · 留存 ${plan.retentionDays} 天 · ${_formatPrice(plan)}',
+          '${plan.description} · ${plan.quotaTotal} 次额度 · 留存 ${plan.retentionDays} 天$adLabel · ${_formatPrice(plan)}',
         ),
         trailing: isCurrent
             ? const Chip(label: Text('当前'))
@@ -304,6 +308,12 @@ class _MembershipPageState extends State<MembershipPage> {
     final amount = (plan.priceCents / 100).toStringAsFixed(0);
     final unit = plan.billingUnit.isEmpty ? 'month' : plan.billingUnit;
     return '¥$amount/$unit';
+  }
+
+  String _formatPlanLabel(Entitlements ent) {
+    if (ent.planName.isEmpty) return ent.plan;
+    if (ent.planName == ent.plan) return ent.planName;
+    return '${ent.planName} (${ent.plan})';
   }
 
   Future<String?> _promptNote() async {

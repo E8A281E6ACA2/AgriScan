@@ -1450,6 +1450,7 @@ class ExportTemplateRequest {
 class Entitlements {
   final int userId;
   final String plan;
+  final String planName;
   final bool requireLogin;
   final bool requireAd;
   final int adCredits;
@@ -1462,6 +1463,7 @@ class Entitlements {
   Entitlements({
     required this.userId,
     required this.plan,
+    required this.planName,
     required this.requireLogin,
     required this.requireAd,
     required this.adCredits,
@@ -1476,6 +1478,7 @@ class Entitlements {
     return Entitlements(
       userId: json['user_id'] ?? 0,
       plan: json['plan'] ?? 'free',
+      planName: json['plan_name'] ?? json['plan'] ?? 'free',
       requireLogin: json['require_login'] ?? false,
       requireAd: json['require_ad'] ?? false,
       adCredits: json['ad_credits'] ?? 0,

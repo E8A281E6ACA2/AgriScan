@@ -25,16 +25,17 @@ var (
 )
 
 type Entitlements struct {
-	UserID             uint
-	Plan               string
-	RequireLogin       bool
-	RequireAd          bool
-	AdCredits          int
-	QuotaTotal         int
-	QuotaUsed          int
-	QuotaRemaining     int
-	AnonymousRemaining int
-	RetentionDays      int
+	UserID             uint   `json:"user_id"`
+	Plan               string `json:"plan"`
+	PlanName           string `json:"plan_name"`
+	RequireLogin       bool   `json:"require_login"`
+	RequireAd          bool   `json:"require_ad"`
+	AdCredits          int    `json:"ad_credits"`
+	QuotaTotal         int    `json:"quota_total"`
+	QuotaUsed          int    `json:"quota_used"`
+	QuotaRemaining     int    `json:"quota_remaining"`
+	AnonymousRemaining int    `json:"anonymous_remaining"`
+	RetentionDays      int    `json:"retention_days"`
 }
 
 type UserUpdate struct {
@@ -346,26 +347,32 @@ func (s *Service) attachDeviceToUser(deviceID string, userID uint) error {
 }
 
 func (s *Service) GetEntitlements(user *model.User, deviceID string) (Entitlements, error) {
+	freeView := s.defaultPlanSettingView("free")
 	ent := Entitlements{
 		Plan:           "free",
+		PlanName:       freeView.Name,
 		QuotaRemaining: -1,
-		RetentionDays:  s.auth.FreeRetentionDays,
+		RetentionDays:  freeView.RetentionDays,
 	}
 
 	if user != nil && user.ID > 0 && !isGuestUser(user) {
-		planCfg := s.getPlanSetting(user.Plan)
+		view, err := s.getPlanSettingView(user.Plan)
+		if err != nil {
+			view = freeView
+		}
 		quotaTotal := user.QuotaTotal
 		if quotaTotal == 0 {
-			quotaTotal = planCfg.QuotaTotal
+			quotaTotal = view.QuotaTotal
 		}
 
 		ent.UserID = user.ID
-		ent.Plan = planCfg.Name
+		ent.Plan = view.Code
+		ent.PlanName = view.Name
 		ent.AdCredits = user.AdCredits
 		ent.QuotaTotal = quotaTotal
 		ent.QuotaUsed = user.QuotaUsed
-		ent.RetentionDays = planCfg.RetentionDays
-		if planCfg.RequireAd {
+		ent.RetentionDays = view.RetentionDays
+		if view.RequireAd {
 			ent.RequireAd = user.AdCredits <= 0
 		} else {
 			ent.RequireAd = false
@@ -385,6 +392,7 @@ func (s *Service) GetEntitlements(user *model.User, deviceID string) (Entitlemen
 	usage := s.ensureDeviceUsage(deviceID)
 	anonLimit := s.getSettingInt(settingAnonLimit, s.auth.AnonLimit)
 	anonRequireAd := s.getSettingBool(settingAnonRequireAd, true)
+	ent.PlanName = freeView.Name
 	ent.AnonymousRemaining = anonLimit - usage.RecognizeCount
 	if ent.AnonymousRemaining < 0 {
 		ent.AnonymousRemaining = 0

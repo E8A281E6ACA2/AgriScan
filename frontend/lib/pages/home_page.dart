@@ -149,7 +149,12 @@ class _HomePageState extends State<HomePage> {
     }
     final ent = _ent;
     final isLoggedIn = ent != null && ent.userId > 0;
-    final title = isLoggedIn ? '已登录 · ${ent!.plan}' : '游客模式';
+    final planLabel = ent == null
+        ? ''
+        : (ent.planName.isNotEmpty && ent.planName != ent.plan)
+            ? '${ent.planName}(${ent.plan})'
+            : (ent.planName.isNotEmpty ? ent.planName : ent.plan);
+    final title = isLoggedIn ? '已登录 · $planLabel' : '游客模式';
     final detail = isLoggedIn
         ? '剩余额度 ${ent!.quotaRemaining}'
         : '匿名剩余 ${ent?.anonymousRemaining ?? 0} 次';

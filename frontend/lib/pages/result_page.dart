@@ -667,7 +667,7 @@ class _ResultPageState extends State<ResultPage> {
 
   Widget _buildMembershipBanner(Entitlements ent) {
     final isFree = ent.plan == 'free';
-    final title = isFree ? '免费用户' : '会员：${ent.plan}';
+    final title = isFree ? '免费用户' : '会员：${ent.planName}';
     final subtitle = '剩余额度 ${ent.quotaRemaining} · 留存 ${ent.retentionDays} 天';
     return Material(
       elevation: 4,
