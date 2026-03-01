@@ -62,6 +62,7 @@ class _GalleryPageState extends State<GalleryPage> {
         provider.setError('识别已取消');
         return;
       }
+      final startedAt = DateTime.now();
       final uploadRes = await api.uploadImage(
         bytes,
         latitude: position?.latitude,
@@ -71,6 +72,10 @@ class _GalleryPageState extends State<GalleryPage> {
 
       final result = await api.recognize(uploadRes.imageId);
       provider.setRecognizeResult(result);
+      provider.setRecognizeMeta(
+        source: '相册',
+        durationMs: DateTime.now().difference(startedAt).inMilliseconds,
+      );
       provider.addToHistory(result);
 
       provider.setSuccess();

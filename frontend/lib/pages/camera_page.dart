@@ -64,6 +64,7 @@ class _CameraPageState extends State<CameraPage> {
         provider.setError('识别已取消');
         return;
       }
+      final startedAt = DateTime.now();
       final uploadRes = await api.uploadImage(
         bytes,
         latitude: position?.latitude,
@@ -73,6 +74,10 @@ class _CameraPageState extends State<CameraPage> {
 
       final result = await api.recognize(uploadRes.imageId);
       provider.setRecognizeResult(result);
+      provider.setRecognizeMeta(
+        source: '拍照',
+        durationMs: DateTime.now().difference(startedAt).inMilliseconds,
+      );
       provider.addToHistory(result);
 
       provider.setSuccess();

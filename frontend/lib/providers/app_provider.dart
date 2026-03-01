@@ -12,6 +12,8 @@ class AppProvider extends ChangeNotifier {
   Uint8List? _currentImageBytes;
   UploadResponse? _uploadResponse;
   RecognizeResponse? _recognizeResult;
+  String? _recognizeSource;
+  int? _recognizeDurationMs;
   
   // 历史记录
   List<RecognizeResponse> _history = [];
@@ -23,6 +25,8 @@ class AppProvider extends ChangeNotifier {
   Uint8List? get currentImageBytes => _currentImageBytes;
   UploadResponse? get uploadResponse => _uploadResponse;
   RecognizeResponse? get recognizeResult => _recognizeResult;
+  String? get recognizeSource => _recognizeSource;
+  int? get recognizeDurationMs => _recognizeDurationMs;
   List<RecognizeResponse> get history => _history;
   List<RecognizeResponse> get similar => _similar;
   
@@ -50,6 +54,8 @@ class AppProvider extends ChangeNotifier {
     _currentImageBytes = null;
     _uploadResponse = null;
     _recognizeResult = null;
+    _recognizeSource = null;
+    _recognizeDurationMs = null;
     notifyListeners();
   }
   
@@ -65,6 +71,12 @@ class AppProvider extends ChangeNotifier {
   
   void setRecognizeResult(RecognizeResponse result) {
     _recognizeResult = result;
+    notifyListeners();
+  }
+
+  void setRecognizeMeta({String? source, int? durationMs}) {
+    _recognizeSource = source;
+    _recognizeDurationMs = durationMs;
     notifyListeners();
   }
   

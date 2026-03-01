@@ -363,6 +363,17 @@ class _ResultPageState extends State<ResultPage> {
                         
                         const SizedBox(height: 12),
                         _buildResultRow('识别提供商', result?.provider ?? '未知'),
+                        if (provider.recognizeSource != null) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow('来源', provider.recognizeSource!),
+                        ],
+                        if (provider.recognizeDurationMs != null) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow(
+                            '耗时',
+                            '${(provider.recognizeDurationMs! / 1000).toStringAsFixed(2)}s',
+                          ),
+                        ],
                         if (result?.latitude != null && result?.longitude != null) ...[
                           const SizedBox(height: 12),
                           _buildResultRow(
