@@ -182,6 +182,18 @@ func (r *Repository) CreateFeedback(feedback *model.UserFeedback) error {
 	return r.db.Create(feedback).Error
 }
 
+func (r *Repository) ListFeedbackByResultIDs(resultIDs []uint) ([]model.UserFeedback, error) {
+	if len(resultIDs) == 0 {
+		return []model.UserFeedback{}, nil
+	}
+	var items []model.UserFeedback
+	err := r.db.
+		Where("result_id IN ?", resultIDs).
+		Order("created_at DESC").
+		Find(&items).Error
+	return items, err
+}
+
 func (r *Repository) UpdateNoteFeedback(resultID uint, feedback *model.UserFeedback) error {
 	update := map[string]interface{}{
 		"is_correct":        feedback.IsCorrect,

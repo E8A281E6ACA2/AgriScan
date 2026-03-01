@@ -361,6 +361,23 @@ class _HistoryPageState extends State<HistoryPage> {
                       '置信度: ${(item.confidence * 100).toStringAsFixed(1)}%',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
+                    if (item.feedbackCorrect != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: item.feedbackCorrect == true ? Colors.green[100] : Colors.orange[100],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          item.feedbackCorrect == true ? '已纠错' : '待复核',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: item.feedbackCorrect == true ? Colors.green[800] : Colors.orange[800],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

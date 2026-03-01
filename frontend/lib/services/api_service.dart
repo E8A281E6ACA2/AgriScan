@@ -1156,6 +1156,7 @@ class RecognizeResponse {
   final double? longitude;
   final String? riskLevel;
   final String? riskNote;
+  final bool? feedbackCorrect;
   
   RecognizeResponse({
     this.rawText,
@@ -1174,6 +1175,7 @@ class RecognizeResponse {
     this.longitude,
     this.riskLevel,
     this.riskNote,
+    this.feedbackCorrect,
   });
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
@@ -1194,6 +1196,7 @@ class RecognizeResponse {
       longitude: json['longitude'] == null ? null : (json['longitude'] as num).toDouble(),
       riskLevel: json['risk_level'],
       riskNote: json['risk_note'],
+      feedbackCorrect: json['feedback_correct'] == null ? null : json['feedback_correct'] as bool,
     );
   }
 }

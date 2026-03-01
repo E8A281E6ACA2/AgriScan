@@ -218,10 +218,27 @@ func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate 
 	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
 }
 
+func (s *Service) GetFeedbackMap(resultIDs []uint) (map[uint]model.UserFeedback, error) {
+	if len(resultIDs) == 0 {
+		return map[uint]model.UserFeedback{}, nil
+	}
+	items, err := s.repo.ListFeedbackByResultIDs(resultIDs)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint]model.UserFeedback, len(items))
+	for _, item := range items {
+		if _, exists := result[item.ResultID]; !exists {
+			result[item.ResultID] = item
+		}
+	}
+	return result, nil
+}
+
 func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64) error {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
-	_ = writer.Write([]string{"result_id", "image_id", "image_url", "latitude", "longitude", "crop_type", "confidence", "provider", "created_at"})
+	_ = writer.Write([]string{"result_id", "image_id", "image_url", "latitude", "longitude", "crop_type", "confidence", "provider", "feedback_correct", "created_at"})
 	limit := 1000
 	offset := 0
 	for {
@@ -232,14 +249,26 @@ func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate 
 		if len(items) == 0 {
 			break
 		}
+		resultIDs := make([]uint, 0, len(items))
+		for _, r := range items {
+			resultIDs = append(resultIDs, r.ID)
+		}
+		feedbackMap, err := s.GetFeedbackMap(resultIDs)
+		if err != nil {
+			return err
+		}
 		for _, r := range items {
 			lat := ""
 			lng := ""
+			feedback := ""
 			if r.Image.Latitude != nil {
 				lat = strconv.FormatFloat(*r.Image.Latitude, 'f', 6, 64)
 			}
 			if r.Image.Longitude != nil {
 				lng = strconv.FormatFloat(*r.Image.Longitude, 'f', 6, 64)
+			}
+			if fb, ok := feedbackMap[r.ID]; ok {
+				feedback = strconv.FormatBool(fb.IsCorrect)
 			}
 			_ = writer.Write([]string{
 				strconv.FormatUint(uint64(r.ID), 10),
@@ -250,6 +279,7 @@ func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate 
 				r.CropType,
 				strconv.FormatFloat(r.Confidence, 'f', 4, 64),
 				r.Provider,
+				feedback,
 				r.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
@@ -275,6 +305,14 @@ func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate
 		if len(items) == 0 {
 			break
 		}
+		resultIDs := make([]uint, 0, len(items))
+		for _, r := range items {
+			resultIDs = append(resultIDs, r.ID)
+		}
+		feedbackMap, err := s.GetFeedbackMap(resultIDs)
+		if err != nil {
+			return err
+		}
 		for _, r := range items {
 			row := map[string]interface{}{
 				"result_id":  r.ID,
@@ -286,6 +324,9 @@ func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate
 				"confidence": r.Confidence,
 				"provider":   r.Provider,
 				"created_at": r.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+			if fb, ok := feedbackMap[r.ID]; ok {
+				row["feedback_correct"] = fb.IsCorrect
 			}
 			if !first {
 				if _, err := io.WriteString(w, ","); err != nil {

@@ -47,6 +47,7 @@ type RecognizeResponse struct {
 	Longitude      *float64 `json:"longitude,omitempty"`
 	RiskLevel      string   `json:"risk_level"`
 	RiskNote       string   `json:"risk_note"`
+	FeedbackCorrect *bool    `json:"feedback_correct,omitempty"`
 }
 
 type RecognizeURLRequest struct {
@@ -263,6 +264,11 @@ func (h *Handler) GetResult(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "result not found"})
 		return
 	}
+	feedbackMap, err := h.svc.GetFeedbackMap([]uint{result.ID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	imageURL := ""
 	var lat *float64
@@ -274,6 +280,11 @@ func (h *Handler) GetResult(c *gin.Context) {
 	}
 
 	low, high, riskLevel, riskNote := explainConfidence(result.Confidence)
+	var feedbackCorrect *bool
+	if fb, ok := feedbackMap[result.ID]; ok {
+		v := fb.IsCorrect
+		feedbackCorrect = &v
+	}
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:        result.RawText,
 		ResultID:       result.ID,
@@ -291,6 +302,7 @@ func (h *Handler) GetResult(c *gin.Context) {
 		Longitude:      lng,
 		RiskLevel:      riskLevel,
 		RiskNote:       riskNote,
+		FeedbackCorrect: feedbackCorrect,
 	})
 }
 
@@ -419,10 +431,24 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	resultIDs := make([]uint, 0, len(results))
+	for _, r := range results {
+		resultIDs = append(resultIDs, r.ID)
+	}
+	feedbackMap, err := h.svc.GetFeedbackMap(resultIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	response := make([]RecognizeResponse, 0, len(results))
 	for _, r := range results {
 		low, high, riskLevel, riskNote := explainConfidence(r.Confidence)
+		var feedbackCorrect *bool
+		if fb, ok := feedbackMap[r.ID]; ok {
+			v := fb.IsCorrect
+			feedbackCorrect = &v
+		}
 		resp := RecognizeResponse{
 			RawText:        r.RawText,
 			ResultID:       r.ID,
@@ -440,6 +466,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			Longitude:      r.Image.Longitude,
 			RiskLevel:      riskLevel,
 			RiskNote:       riskNote,
+			FeedbackCorrect: feedbackCorrect,
 		}
 		response = append(response, resp)
 	}
