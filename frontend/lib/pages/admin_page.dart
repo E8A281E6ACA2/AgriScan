@@ -2241,6 +2241,7 @@ class _AdminPageState extends State<AdminPage> {
                       Text(
                         '低置信度占比 ${(100 * _metrics!.lowConfidenceRatio).toStringAsFixed(2)}% (阈值 ${_metrics!.lowConfidenceThreshold})',
                       ),
+                      Text('平均耗时 ${( _metrics!.avgDurationMs / 1000).toStringAsFixed(2)}s'),
                       const SizedBox(height: 8),
                       const Text('近况(识别次数/天)', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
@@ -2264,6 +2265,10 @@ class _AdminPageState extends State<AdminPage> {
                       const Text('识别提供商', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       ..._metrics!.resultsByProvider.map((n) => Text('${n.name}: ${n.count}')).toList(),
+                      const SizedBox(height: 8),
+                      const Text('识别来源', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      ..._metrics!.resultsBySource.map((n) => Text('${n.name}: ${n.count}')).toList(),
                       const SizedBox(height: 8),
                       const Text('识别作物 Top', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),

@@ -1761,6 +1761,8 @@ class AdminMetrics {
   final List<NamedCount> usersByStatus;
   final List<NamedCount> resultsByProvider;
   final List<NamedCount> resultsByCrop;
+  final List<NamedCount> resultsBySource;
+  final double avgDurationMs;
   final int feedbackTotal;
   final int feedbackCorrect;
   final double feedbackAccuracy;
@@ -1774,6 +1776,8 @@ class AdminMetrics {
     required this.usersByStatus,
     required this.resultsByProvider,
     required this.resultsByCrop,
+    required this.resultsBySource,
+    required this.avgDurationMs,
     required this.feedbackTotal,
     required this.feedbackCorrect,
     required this.feedbackAccuracy,
@@ -1790,6 +1794,8 @@ class AdminMetrics {
       usersByStatus: listOrEmpty(json['users_by_status']).map((e) => NamedCount.fromJson(e)).toList(),
       resultsByProvider: listOrEmpty(json['results_by_provider']).map((e) => NamedCount.fromJson(e)).toList(),
       resultsByCrop: listOrEmpty(json['results_by_crop']).map((e) => NamedCount.fromJson(e)).toList(),
+      resultsBySource: listOrEmpty(json['results_by_source']).map((e) => NamedCount.fromJson(e)).toList(),
+      avgDurationMs: (json['avg_duration_ms'] ?? 0).toDouble(),
       feedbackTotal: json['feedback_total'] ?? 0,
       feedbackCorrect: json['feedback_correct'] ?? 0,
       feedbackAccuracy: (json['feedback_accuracy'] ?? 0).toDouble(),

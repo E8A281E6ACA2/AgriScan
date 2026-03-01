@@ -42,6 +42,8 @@ type AdminMetrics struct {
 	UsersByStatus          []NamedCount `json:"users_by_status"`
 	ResultsByProvider      []NamedCount `json:"results_by_provider"`
 	ResultsByCrop          []NamedCount `json:"results_by_crop"`
+	ResultsBySource        []NamedCount `json:"results_by_source"`
+	AvgDurationMs          float64      `json:"avg_duration_ms"`
 	FeedbackTotal          int64        `json:"feedback_total"`
 	FeedbackCorrect        int64        `json:"feedback_correct"`
 	FeedbackAccuracy       float64      `json:"feedback_accuracy"`
@@ -287,6 +289,23 @@ func (s *Service) GetAdminMetrics(days int) (AdminMetrics, error) {
 		Scan(&metrics.ResultsByCrop).Error; err != nil {
 		return metrics, err
 	}
+	if err := db.Model(&model.RecognitionResult{}).
+		Select("source as name, count(*) as count").
+		Where("source <> ''").
+		Group("source").
+		Order("count desc").
+		Limit(10).
+		Scan(&metrics.ResultsBySource).Error; err != nil {
+		return metrics, err
+	}
+	var avgDuration float64
+	if err := db.Model(&model.RecognitionResult{}).
+		Select("avg(duration_ms)").
+		Where("duration_ms > 0").
+		Scan(&avgDuration).Error; err != nil {
+		return metrics, err
+	}
+	metrics.AvgDurationMs = avgDuration
 	if err := db.Model(&model.UserFeedback{}).Count(&metrics.FeedbackTotal).Error; err != nil {
 		return metrics, err
 	}
