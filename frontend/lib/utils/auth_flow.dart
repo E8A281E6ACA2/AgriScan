@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 
 import '../services/api_service.dart';
 
@@ -32,6 +33,27 @@ Future<bool> ensureRecognitionAllowed(BuildContext context, ApiService api) asyn
   }
 
   return true;
+}
+
+Future<bool> handleRecognitionError(BuildContext context, ApiService api, Object error) async {
+  final code = _extractEntitlementError(error);
+  if (code == null) return false;
+  switch (code) {
+    case 'login_required':
+      await _loginFlow(context, api);
+      return true;
+    case 'ad_required':
+      await _adFlow(context, api);
+      return true;
+    case 'quota_exceeded':
+      final ok = await _quotaFlow(context);
+      if (ok && context.mounted) {
+        Navigator.pushNamed(context, '/membership');
+      }
+      return true;
+    default:
+      return false;
+  }
 }
 
 Future<bool> startLoginFlow(BuildContext context, ApiService api) async {
@@ -101,6 +123,29 @@ Future<bool> _adFlow(BuildContext context, ApiService api) async {
     _showToast(context, '广告奖励失败: $e');
     return false;
   }
+}
+
+String? _extractEntitlementError(Object error) {
+  if (error is DioException) {
+    final status = error.response?.statusCode;
+    final data = error.response?.data;
+    if (data is Map && data['error'] is String) {
+      return data['error'] as String;
+    }
+    if (data is String) {
+      if (data.contains('login_required')) return 'login_required';
+      if (data.contains('ad_required')) return 'ad_required';
+      if (data.contains('quota_exceeded')) return 'quota_exceeded';
+    }
+    if (status == 401) return 'login_required';
+    if (status == 403) return 'ad_required';
+    if (status == 402) return 'quota_exceeded';
+  }
+  final raw = error.toString();
+  if (raw.contains('login_required')) return 'login_required';
+  if (raw.contains('ad_required')) return 'ad_required';
+  if (raw.contains('quota_exceeded')) return 'quota_exceeded';
+  return null;
 }
 
 Future<bool> _quotaFlow(BuildContext context) async {

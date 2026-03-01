@@ -81,11 +81,16 @@ class _CameraPageState extends State<CameraPage> {
         Navigator.pushReplacementNamed(context, '/result');
       }
     } catch (e) {
-      provider.setError(e.toString());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('识别失败: $e')),
-        );
+      final handled = await handleRecognitionError(context, api, e);
+      if (!handled) {
+        provider.setError(e.toString());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('识别失败: $e')),
+          );
+        }
+      } else {
+        provider.setError('识别已取消');
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
