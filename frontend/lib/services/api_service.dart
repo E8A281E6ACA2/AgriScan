@@ -712,6 +712,8 @@ class ApiService {
     double threshold = 0.5,
     String? provider,
     String? cropType,
+    String? startDate,
+    String? endDate,
     String? adminToken,
   }) async {
     final response = await _dio.get(
@@ -723,6 +725,8 @@ class ApiService {
         'threshold': threshold,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
       options: _adminOptions(adminToken),
     );
@@ -736,6 +740,8 @@ class ApiService {
     int offset = 0,
     String? provider,
     String? cropType,
+    String? startDate,
+    String? endDate,
     String? adminToken,
   }) async {
     final response = await _dio.get(
@@ -746,6 +752,8 @@ class ApiService {
         'offset': offset,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
       options: _adminOptions(adminToken),
     );
@@ -759,6 +767,8 @@ class ApiService {
     double threshold = 0.5,
     String? provider,
     String? cropType,
+    String? startDate,
+    String? endDate,
     String? adminToken,
   }) async {
     final response = await _dio.get(
@@ -769,6 +779,8 @@ class ApiService {
         'threshold': threshold,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
       options: Options(
         headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
@@ -783,6 +795,8 @@ class ApiService {
     int days = 30,
     String? provider,
     String? cropType,
+    String? startDate,
+    String? endDate,
     String? adminToken,
   }) async {
     final response = await _dio.get(
@@ -792,6 +806,8 @@ class ApiService {
         'days': days,
         if (provider != null && provider.isNotEmpty) 'provider': provider,
         if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
       options: Options(
         headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},

@@ -36,12 +36,16 @@ class _AdminPageState extends State<AdminPage> {
   final _lowConfReasonController = TextEditingController(text: 'low_confidence');
   final _lowConfProviderController = TextEditingController();
   final _lowConfCropController = TextEditingController();
+  final _lowConfStartController = TextEditingController();
+  final _lowConfEndController = TextEditingController();
   final _failedDaysController = TextEditingController(text: '30');
   final _failedLimitController = TextEditingController(text: '50');
   final _failedOffsetController = TextEditingController(text: '0');
   final _failedReasonController = TextEditingController(text: 'failed');
   final _failedProviderController = TextEditingController();
   final _failedCropController = TextEditingController();
+  final _failedStartController = TextEditingController();
+  final _failedEndController = TextEditingController();
   final _evalSetNameController = TextEditingController(text: 'baseline-v1');
   final _evalSetDescController = TextEditingController();
   final _evalSetDaysController = TextEditingController(text: '30');
@@ -113,12 +117,16 @@ class _AdminPageState extends State<AdminPage> {
     _lowConfReasonController.dispose();
     _lowConfProviderController.dispose();
     _lowConfCropController.dispose();
+    _lowConfStartController.dispose();
+    _lowConfEndController.dispose();
     _failedDaysController.dispose();
     _failedLimitController.dispose();
     _failedOffsetController.dispose();
     _failedReasonController.dispose();
     _failedProviderController.dispose();
     _failedCropController.dispose();
+    _failedStartController.dispose();
+    _failedEndController.dispose();
     _evalSetNameController.dispose();
     _evalSetDescController.dispose();
     _evalSetDaysController.dispose();
@@ -655,6 +663,8 @@ class _AdminPageState extends State<AdminPage> {
         threshold: threshold,
         provider: _lowConfProviderController.text.trim(),
         cropType: _lowConfCropController.text.trim(),
+        startDate: _lowConfStartController.text.trim(),
+        endDate: _lowConfEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
       );
       setState(() {
@@ -693,6 +703,8 @@ class _AdminPageState extends State<AdminPage> {
         offset: nextOffset,
         provider: _failedProviderController.text.trim(),
         cropType: _failedCropController.text.trim(),
+        startDate: _failedStartController.text.trim(),
+        endDate: _failedEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
       );
       setState(() {
@@ -726,6 +738,8 @@ class _AdminPageState extends State<AdminPage> {
         threshold: double.tryParse(_lowConfThresholdController.text) ?? 0.5,
         provider: _lowConfProviderController.text.trim(),
         cropType: _lowConfCropController.text.trim(),
+        startDate: _lowConfStartController.text.trim(),
+        endDate: _lowConfEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
       );
       final name = format == 'json' ? 'low_confidence_results.json' : 'low_confidence_results.csv';
@@ -745,6 +759,8 @@ class _AdminPageState extends State<AdminPage> {
         days: int.tryParse(_failedDaysController.text) ?? 30,
         provider: _failedProviderController.text.trim(),
         cropType: _failedCropController.text.trim(),
+        startDate: _failedStartController.text.trim(),
+        endDate: _failedEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
       );
       final name = format == 'json' ? 'failed_results.json' : 'failed_results.csv';
@@ -1788,6 +1804,20 @@ class _AdminPageState extends State<AdminPage> {
                                     ),
                                   ),
                                   SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _lowConfStartController,
+                                      decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _lowConfEndController,
+                                      decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
                                     width: 100,
                                     child: TextField(
                                       controller: _lowConfLimitController,
@@ -1894,6 +1924,20 @@ class _AdminPageState extends State<AdminPage> {
                                     child: TextField(
                                       controller: _failedCropController,
                                       decoration: const InputDecoration(labelText: '作物(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _failedStartController,
+                                      decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _failedEndController,
+                                      decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
                                     ),
                                   ),
                                   SizedBox(

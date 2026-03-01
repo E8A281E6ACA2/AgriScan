@@ -359,6 +359,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | threshold | float | 0.5 | 低置信度阈值 |
 | provider | string | - | 提供商过滤 |
 | crop_type | string | - | 作物过滤 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 返回字段：
 - result_id / image_id / image_url / crop_type / confidence / provider / created_at
@@ -372,6 +374,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | offset | int | 0 | 偏移 |
 | provider | string | - | 提供商过滤 |
 | crop_type | string | - | 作物过滤 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 **GET** `/admin/results/low-confidence/export`
 
@@ -382,6 +386,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | threshold | float | 0.5 | 低置信度阈值 |
 | provider | string | - | 提供商过滤 |
 | crop_type | string | - | 作物过滤 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 **GET** `/admin/results/failed/export`
 
@@ -391,6 +397,8 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | days | int | 30 | 统计天数 |
 | provider | string | - | 提供商过滤 |
 | crop_type | string | - | 作物过滤 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 **POST** `/admin/qc/samples/from-results`
 
