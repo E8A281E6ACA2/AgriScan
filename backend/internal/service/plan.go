@@ -41,6 +41,10 @@ func (s *Service) GetPlanSettings() ([]PlanSettingView, error) {
 	return items, nil
 }
 
+func (s *Service) GetPlanSetting(code string) (PlanSettingView, error) {
+	return s.getPlanSettingView(code)
+}
+
 func (s *Service) UpdatePlanSetting(code string, update PlanSettingUpdate) (PlanSettingView, error) {
 	code = strings.ToLower(strings.TrimSpace(code))
 	if code == "" {

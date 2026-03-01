@@ -321,11 +321,15 @@ class ApiService {
     return MembershipRequest.fromJson(response.data);
   }
 
-  Future<void> paymentCheckout({required String plan, String method = 'wechat'}) async {
-    await _dio.post('/payment/checkout', data: {
+  Future<PaymentCheckoutResult> paymentCheckout({
+    required String plan,
+    String method = 'stripe',
+  }) async {
+    final response = await _dio.post('/payment/checkout', data: {
       'plan': plan,
       'method': method,
     });
+    return PaymentCheckoutResult.fromJson(response.data);
   }
 
   Future<List<MembershipRequest>> adminListMembershipRequests({
@@ -1710,6 +1714,26 @@ class MembershipRequest {
       status: json['status'] ?? '',
       note: json['note'] ?? '',
       createdAt: (json['created_at'] ?? '').toString(),
+    );
+  }
+}
+
+class PaymentCheckoutResult {
+  final String checkoutUrl;
+  final String sessionId;
+  final String plan;
+
+  PaymentCheckoutResult({
+    required this.checkoutUrl,
+    required this.sessionId,
+    required this.plan,
+  });
+
+  factory PaymentCheckoutResult.fromJson(Map<String, dynamic> json) {
+    return PaymentCheckoutResult(
+      checkoutUrl: json['checkout_url'] ?? '',
+      sessionId: json['session_id'] ?? '',
+      plan: json['plan'] ?? '',
     );
   }
 }

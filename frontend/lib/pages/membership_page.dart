@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
 import '../utils/auth_flow.dart';
@@ -245,7 +246,7 @@ class _MembershipPageState extends State<MembershipPage> {
               Text('价格：${_formatPrice(plan)}'),
               if (plan.requireAd) const Text('需要观看广告'),
               const SizedBox(height: 8),
-              const Text('确认后将进入下一步（支付仍为占位）。'),
+              const Text('确认后将跳转到支付页面。'),
             ],
           ),
           actions: [
@@ -283,10 +284,14 @@ class _MembershipPageState extends State<MembershipPage> {
     final ok = await _ensureLogin(api);
     if (!ok) return;
     try {
-      await api.paymentCheckout(plan: plan, method: 'wechat');
-      _toast('支付功能未接入，已占位');
-    } catch (_) {
-      _toast('支付功能未接入，已占位');
+      final res = await api.paymentCheckout(plan: plan, method: 'stripe');
+      if (res.checkoutUrl.isEmpty) {
+        _toast('支付链接为空，请稍后重试');
+        return;
+      }
+      await _openCheckoutUrl(res.checkoutUrl);
+    } catch (e) {
+      _toast('发起支付失败: $e');
     }
   }
 
@@ -314,6 +319,18 @@ class _MembershipPageState extends State<MembershipPage> {
     if (ent.planName.isEmpty) return ent.plan;
     if (ent.planName == ent.plan) return ent.planName;
     return '${ent.planName} (${ent.plan})';
+  }
+
+  Future<void> _openCheckoutUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _toast('支付链接无效');
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) {
+      _toast('打开支付链接失败');
+    }
   }
 
   Future<String?> _promptNote() async {
