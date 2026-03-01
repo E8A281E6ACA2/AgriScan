@@ -983,6 +983,8 @@ class RecognizeResponse {
   final int imageId;
   final String cropType;
   final double confidence;
+  final double? confidenceLow;
+  final double? confidenceHigh;
   final String description;
   final String? growthStage;
   final String? possibleIssue;
@@ -990,6 +992,8 @@ class RecognizeResponse {
   final String? imageUrl;
   final double? latitude;
   final double? longitude;
+  final String? riskLevel;
+  final String? riskNote;
   
   RecognizeResponse({
     this.rawText,
@@ -997,6 +1001,8 @@ class RecognizeResponse {
     required this.imageId,
     required this.cropType,
     required this.confidence,
+    this.confidenceLow,
+    this.confidenceHigh,
     required this.description,
     this.growthStage,
     this.possibleIssue,
@@ -1004,6 +1010,8 @@ class RecognizeResponse {
     this.imageUrl,
     this.latitude,
     this.longitude,
+    this.riskLevel,
+    this.riskNote,
   });
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
@@ -1013,6 +1021,8 @@ class RecognizeResponse {
       imageId: json['image_id'] ?? json['imageId'] ?? 0,
       cropType: json['crop_type'],
       confidence: (json['confidence'] as num).toDouble(),
+      confidenceLow: json['confidence_low'] == null ? null : (json['confidence_low'] as num).toDouble(),
+      confidenceHigh: json['confidence_high'] == null ? null : (json['confidence_high'] as num).toDouble(),
       description: json['description'] ?? '',
       growthStage: json['growth_stage'],
       possibleIssue: json['possible_issue'],
@@ -1020,6 +1030,8 @@ class RecognizeResponse {
       imageUrl: json['image_url'],
       latitude: json['latitude'] == null ? null : (json['latitude'] as num).toDouble(),
       longitude: json['longitude'] == null ? null : (json['longitude'] as num).toDouble(),
+      riskLevel: json['risk_level'],
+      riskNote: json['risk_note'],
     );
   }
 }

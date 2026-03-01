@@ -534,10 +534,14 @@ Web/跨端 Base64 方式：
   "longitude": 121.4737,
   "crop_type": "wheat",
   "confidence": 0.92,
+  "confidence_low": 0.87,
+  "confidence_high": 0.97,
   "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
   "growth_stage": null,
   "possible_issue": null,
-  "provider": "qwen"
+  "provider": "qwen",
+  "risk_level": "low",
+  "risk_note": "可信度较高，可直接参考结果。"
 }
 ```
 
@@ -558,10 +562,14 @@ Web/跨端 Base64 方式：
   "longitude": 121.4737,
   "crop_type": "wheat",
   "confidence": 0.92,
+  "confidence_low": 0.87,
+  "confidence_high": 0.97,
   "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
   "growth_stage": null,
   "possible_issue": null,
-  "provider": "qwen"
+  "provider": "qwen",
+  "risk_level": "low",
+  "risk_note": "可信度较高，可直接参考结果。"
 }
 ```
 
@@ -589,10 +597,14 @@ Web/跨端 Base64 方式：
       "longitude": 121.4737,
       "crop_type": "wheat",
       "confidence": 0.92,
+      "confidence_low": 0.87,
+      "confidence_high": 0.97,
       "description": "小麦（Triticum aestivum）是一种重要的谷类作物",
       "growth_stage": null,
       "possible_issue": null,
-      "provider": "qwen"
+      "provider": "qwen",
+      "risk_level": "low",
+      "risk_note": "可信度较高，可直接参考结果。"
     }
   ],
   "limit": 20,

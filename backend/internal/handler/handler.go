@@ -36,6 +36,8 @@ type RecognizeResponse struct {
 	ImageID       uint    `json:"image_id"`
 	CropType      string  `json:"crop_type"`
 	Confidence    float64 `json:"confidence"`
+	ConfidenceLow  float64 `json:"confidence_low"`
+	ConfidenceHigh float64 `json:"confidence_high"`
 	Description   string  `json:"description"`
 	GrowthStage   *string `json:"growth_stage"`
 	PossibleIssue *string `json:"possible_issue"`
@@ -43,6 +45,8 @@ type RecognizeResponse struct {
 	ImageURL      string  `json:"image_url,omitempty"`
 	Latitude      *float64 `json:"latitude,omitempty"`
 	Longitude     *float64 `json:"longitude,omitempty"`
+	RiskLevel     string  `json:"risk_level"`
+	RiskNote      string  `json:"risk_note"`
 }
 
 type RecognizeURLRequest struct {
@@ -87,6 +91,7 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 	}
 
 	_, _ = h.svc.CreateNote(actor.UserID, img.ID, &savedResult.ID, "", "crop", nil)
+	low, high, riskLevel, riskNote := explainConfidence(savedResult.Confidence)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       savedResult.RawText,
@@ -94,6 +99,8 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		ImageID:       savedResult.ImageID,
 		CropType:      savedResult.CropType,
 		Confidence:    savedResult.Confidence,
+		ConfidenceLow:  low,
+		ConfidenceHigh: high,
 		Description:   savedResult.Description,
 		GrowthStage:   savedResult.GrowthStage,
 		PossibleIssue: savedResult.PossibleIssue,
@@ -101,6 +108,8 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		ImageURL:      img.OriginalURL,
 		Latitude:      img.Latitude,
 		Longitude:     img.Longitude,
+		RiskLevel:     riskLevel,
+		RiskNote:      riskNote,
 	})
 }
 
@@ -212,6 +221,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 
 	// 自动创建手记
 	_, _ = h.svc.CreateNote(actor.UserID, req.ImageID, &savedResult.ID, "", "crop", nil)
+	low, high, riskLevel, riskNote := explainConfidence(savedResult.Confidence)
 
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       savedResult.RawText,
@@ -219,11 +229,17 @@ func (h *Handler) Recognize(c *gin.Context) {
 		ImageID:       savedResult.ImageID,
 		CropType:      savedResult.CropType,
 		Confidence:    savedResult.Confidence,
+		ConfidenceLow:  low,
+		ConfidenceHigh: high,
 		Description:   savedResult.Description,
 		GrowthStage:   savedResult.GrowthStage,
 		PossibleIssue: savedResult.PossibleIssue,
 		Provider:      savedResult.Provider,
 		ImageURL:      img.OriginalURL,
+		Latitude:      img.Latitude,
+		Longitude:     img.Longitude,
+		RiskLevel:     riskLevel,
+		RiskNote:      riskNote,
 	})
 }
 
@@ -252,12 +268,15 @@ func (h *Handler) GetResult(c *gin.Context) {
 		lng = img.Longitude
 	}
 
+	low, high, riskLevel, riskNote := explainConfidence(result.Confidence)
 	c.JSON(http.StatusOK, RecognizeResponse{
 		RawText:       result.RawText,
 		ResultID:      result.ID,
 		ImageID:       result.ImageID,
 		CropType:      result.CropType,
 		Confidence:    result.Confidence,
+		ConfidenceLow:  low,
+		ConfidenceHigh: high,
 		Description:   result.Description,
 		GrowthStage:   result.GrowthStage,
 		PossibleIssue: result.PossibleIssue,
@@ -265,6 +284,8 @@ func (h *Handler) GetResult(c *gin.Context) {
 		ImageURL:      imageURL,
 		Latitude:      lat,
 		Longitude:     lng,
+		RiskLevel:     riskLevel,
+		RiskNote:      riskNote,
 	})
 }
 
@@ -305,12 +326,15 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 	response := make([]RecognizeResponse, 0, len(results))
 	for _, r := range results {
+		low, high, riskLevel, riskNote := explainConfidence(r.Confidence)
 		resp := RecognizeResponse{
 			RawText:       r.RawText,
 			ResultID:      r.ID,
 			ImageID:       r.ImageID,
 			CropType:      r.CropType,
 			Confidence:    r.Confidence,
+			ConfidenceLow:  low,
+			ConfidenceHigh: high,
 			Description:   r.Description,
 			GrowthStage:   r.GrowthStage,
 			PossibleIssue: r.PossibleIssue,
@@ -318,6 +342,8 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			ImageURL:      r.Image.OriginalURL,
 			Latitude:      r.Image.Latitude,
 			Longitude:     r.Image.Longitude,
+			RiskLevel:     riskLevel,
+			RiskNote:      riskNote,
 		}
 		response = append(response, resp)
 	}
@@ -765,4 +791,41 @@ func (h *Handler) GetPlans(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"results": items})
+}
+
+func explainConfidence(conf float64) (float64, float64, string, string) {
+	c := conf
+	if c < 0 {
+		c = 0
+	}
+	if c > 1 {
+		c = 1
+	}
+	delta := 0.1
+	switch {
+	case c >= 0.9:
+		delta = 0.05
+	case c >= 0.75:
+		delta = 0.08
+	default:
+		delta = 0.12
+	}
+	low := c - delta
+	high := c + delta
+	if low < 0 {
+		low = 0
+	}
+	if high > 1 {
+		high = 1
+	}
+	riskLevel := "high"
+	riskNote := "不确定性较高，建议补拍清晰照片或手动标注。"
+	if c >= 0.85 {
+		riskLevel = "low"
+		riskNote = "可信度较高，可直接参考结果。"
+	} else if c >= 0.6 {
+		riskLevel = "medium"
+		riskNote = "存在一定不确定性，建议结合肉眼判断。"
+	}
+	return low, high, riskLevel, riskNote
 }

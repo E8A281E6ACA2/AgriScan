@@ -321,6 +321,28 @@ class _ResultPageState extends State<ResultPage> {
                         
                         // 置信度
                         _buildConfidenceRow(result?.confidence ?? 0),
+                        if (result?.confidenceLow != null && result?.confidenceHigh != null) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow(
+                            '置信区间',
+                            '${(result!.confidenceLow! * 100).toStringAsFixed(1)}% - ${(result.confidenceHigh! * 100).toStringAsFixed(1)}%',
+                          ),
+                        ],
+                        if (result?.riskLevel != null && result!.riskLevel!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow(
+                            '风险等级',
+                            result.riskLevel == 'low'
+                                ? '低'
+                                : result.riskLevel == 'medium'
+                                    ? '中'
+                                    : '高',
+                          ),
+                        ],
+                        if (result?.riskNote != null && result!.riskNote!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildResultRow('风险提示', result.riskNote!),
+                        ],
                         const SizedBox(height: 12),
                         
                         // 描述
