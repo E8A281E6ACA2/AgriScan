@@ -514,6 +514,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/admin/users/:id/purge", h.AdminPurgeUser)
 		v1.GET("/admin/email-logs", h.AdminEmailLogs)
 		v1.GET("/admin/audit-logs", h.AdminAuditLogs)
+		v1.GET("/admin/audit-logs/export", h.AdminExportAuditLogs)
 		v1.GET("/admin/membership-requests", h.AdminMembershipRequests)
 		v1.POST("/admin/membership-requests/:id/approve", h.AdminApproveMembership)
 		v1.POST("/admin/membership-requests/:id/reject", h.AdminRejectMembership)

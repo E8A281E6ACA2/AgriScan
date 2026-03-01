@@ -280,14 +280,48 @@ func (h *Handler) AdminAuditLogs(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "50")
 	offsetStr := c.DefaultQuery("offset", "0")
 	action := strings.TrimSpace(c.DefaultQuery("action", ""))
+	targetType := strings.TrimSpace(c.DefaultQuery("target_type", ""))
 	limit, _ := strconv.Atoi(limitStr)
 	offset, _ := strconv.Atoi(offsetStr)
-	items, err := h.svc.ListAdminAuditLogs(limit, offset, action)
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	items, err := h.svc.ListAdminAuditLogs(limit, offset, action, targetType, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
+// GET /api/v1/admin/audit-logs/export
+func (h *Handler) AdminExportAuditLogs(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	action := strings.TrimSpace(c.DefaultQuery("action", ""))
+	targetType := strings.TrimSpace(c.DefaultQuery("target_type", ""))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=audit_logs.json")
+		if err := h.svc.ExportAdminAuditLogsJSON(c.Writer, startDate, endDate, action, targetType); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=audit_logs.csv")
+	if err := h.svc.ExportAdminAuditLogsCSV(c.Writer, startDate, endDate, action, targetType); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
 }
 
 // GET /api/v1/admin/membership-requests

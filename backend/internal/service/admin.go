@@ -18,6 +18,8 @@ import (
 
 type AdminStats struct {
 	UsersTotal        int64 `json:"users_total"`
+	UsersReal         int64 `json:"users_real"`
+	UsersGuest        int64 `json:"users_guest"`
 	UsersActive7d     int64 `json:"users_active_7d"`
 	ImagesTotal       int64 `json:"images_total"`
 	ResultsTotal      int64 `json:"results_total"`
@@ -164,6 +166,12 @@ func (s *Service) GetAdminStats() (AdminStats, error) {
 	if stats.UsersTotal, err = s.repo.CountUsers(); err != nil {
 		return stats, err
 	}
+	if stats.UsersReal, err = s.repo.CountRealUsers(); err != nil {
+		return stats, err
+	}
+	if stats.UsersGuest, err = s.repo.CountUsersByStatus("guest"); err != nil {
+		return stats, err
+	}
 	since := time.Now().AddDate(0, 0, -7)
 	if stats.UsersActive7d, err = s.repo.CountUsersSince(since); err != nil {
 		return stats, err
@@ -290,8 +298,72 @@ func (s *Service) RecordAdminAudit(action, targetType string, targetID uint, det
 	})
 }
 
-func (s *Service) ListAdminAuditLogs(limit, offset int, action string) ([]model.AdminAuditLog, error) {
-	return s.repo.ListAdminAuditLogs(limit, offset, action)
+func (s *Service) ListAdminAuditLogs(limit, offset int, action, targetType string, start, end *time.Time) ([]model.AdminAuditLog, error) {
+	return s.repo.ListAdminAuditLogs(limit, offset, action, targetType, start, end)
+}
+
+func (s *Service) ExportAdminAuditLogsCSV(w io.Writer, start, end *time.Time, action, targetType string) error {
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	_ = writer.Write([]string{"id", "action", "target_type", "target_id", "detail", "ip", "created_at"})
+	limit := 1000
+	offset := 0
+	for {
+		items, err := s.repo.ListAdminAuditLogs(limit, offset, action, targetType, start, end)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, a := range items {
+			_ = writer.Write([]string{
+				strconv.FormatUint(uint64(a.ID), 10),
+				a.Action,
+				a.TargetType,
+				strconv.FormatUint(uint64(a.TargetID), 10),
+				a.Detail,
+				a.IP,
+				a.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		offset += len(items)
+	}
+	return writer.Error()
+}
+
+func (s *Service) ExportAdminAuditLogsJSON(w io.Writer, start, end *time.Time, action, targetType string) error {
+	encoder := json.NewEncoder(w)
+	_, err := io.WriteString(w, "[")
+	if err != nil {
+		return err
+	}
+	limit := 1000
+	offset := 0
+	first := true
+	for {
+		items, err := s.repo.ListAdminAuditLogs(limit, offset, action, targetType, start, end)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, a := range items {
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			if err := encoder.Encode(a); err != nil {
+				return err
+			}
+			first = false
+		}
+		offset += len(items)
+	}
+	_, err = io.WriteString(w, "]")
+	return err
 }
 
 func (s *Service) ListLabelNotes(limit, offset int, status, category, cropType string) ([]model.FieldNote, error) {

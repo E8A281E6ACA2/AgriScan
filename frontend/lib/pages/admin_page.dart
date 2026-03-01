@@ -15,6 +15,10 @@ class _AdminPageState extends State<AdminPage> {
   final _tokenController = TextEditingController();
   final _searchController = TextEditingController();
   final _logEmailController = TextEditingController();
+  final _auditActionController = TextEditingController();
+  final _auditTargetController = TextEditingController();
+  final _auditStartController = TextEditingController();
+  final _auditEndController = TextEditingController();
   final _reqStatusController = TextEditingController(text: 'pending');
   final _quotaDeltaController = TextEditingController(text: '1000');
   final _quotaController = TextEditingController();
@@ -96,6 +100,10 @@ class _AdminPageState extends State<AdminPage> {
     _tokenController.dispose();
     _searchController.dispose();
     _logEmailController.dispose();
+    _auditActionController.dispose();
+    _auditTargetController.dispose();
+    _auditStartController.dispose();
+    _auditEndController.dispose();
     _reqStatusController.dispose();
     _quotaDeltaController.dispose();
     _quotaController.dispose();
@@ -311,7 +319,13 @@ class _AdminPageState extends State<AdminPage> {
     final token = _tokenController.text.trim();
     setState(() => _loading = true);
     try {
-      final items = await api.adminAuditLogs(adminToken: token.isEmpty ? null : token);
+      final items = await api.adminAuditLogs(
+        action: _auditActionController.text.trim(),
+        targetType: _auditTargetController.text.trim(),
+        startDate: _auditStartController.text.trim(),
+        endDate: _auditEndController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
       setState(() => _audits = items);
     } catch (e) {
       _toast('审计日志失败: $e');
@@ -1188,6 +1202,26 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> _exportAuditLogs(String format) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    try {
+      final bytes = await api.adminExportAuditLogs(
+        format: format,
+        action: _auditActionController.text.trim(),
+        targetType: _auditTargetController.text.trim(),
+        startDate: _auditStartController.text.trim(),
+        endDate: _auditEndController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      final name = format == 'json' ? 'audit_logs.json' : 'audit_logs.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      _toast('导出成功: $path');
+    } catch (e) {
+      _toast('导出失败: $e');
+    }
+  }
+
   Future<void> _exportEvalCsv() async {
     final api = context.read<ApiService>();
     final token = _tokenController.text.trim();
@@ -1365,6 +1399,8 @@ class _AdminPageState extends State<AdminPage> {
                     runSpacing: 8,
                     children: [
                       _statChip('用户', _stats!.usersTotal),
+                      _statChip('真实用户', _stats!.usersReal),
+                      _statChip('游客', _stats!.usersGuest),
                       _statChip('7日活跃', _stats!.usersActive7d),
                       _statChip('图片', _stats!.imagesTotal),
                       _statChip('结果', _stats!.resultsTotal),
@@ -1613,9 +1649,51 @@ class _AdminPageState extends State<AdminPage> {
                               const SizedBox(height: 8),
                               const Text('审计日志', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              ElevatedButton(
-                                onPressed: _loading ? null : _loadAuditLogs,
-                                child: const Text('刷新审计'),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _auditActionController,
+                                      decoration: const InputDecoration(labelText: '动作(action)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _auditTargetController,
+                                      decoration: const InputDecoration(labelText: '目标类型(target_type)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _auditStartController,
+                                      decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: TextField(
+                                      controller: _auditEndController,
+                                      decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadAuditLogs,
+                                    child: const Text('刷新审计'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportAuditLogs('csv'),
+                                    child: const Text('导出CSV'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _exportAuditLogs('json'),
+                                    child: const Text('导出JSON'),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 8),
                               ..._audits.map((a) {

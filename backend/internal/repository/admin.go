@@ -10,11 +10,20 @@ func (r *Repository) CreateAdminAuditLog(item *model.AdminAuditLog) error {
 	return r.db.Create(item).Error
 }
 
-func (r *Repository) ListAdminAuditLogs(limit, offset int, action string) ([]model.AdminAuditLog, error) {
+func (r *Repository) ListAdminAuditLogs(limit, offset int, action, targetType string, start, end *time.Time) ([]model.AdminAuditLog, error) {
 	var items []model.AdminAuditLog
 	query := r.db.Model(&model.AdminAuditLog{})
 	if action != "" {
 		query = query.Where("action = ?", action)
+	}
+	if targetType != "" {
+		query = query.Where("target_type = ?", targetType)
+	}
+	if start != nil {
+		query = query.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("created_at < ?", *end)
 	}
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&items).Error
 	return items, err
@@ -82,6 +91,15 @@ func (r *Repository) CountRealUsers() (int64, error) {
 	err := r.db.Model(&model.User{}).
 		Where("status <> ? AND email NOT LIKE ?", "guest", "device:%").
 		Count(&c).Error
+	return c, err
+}
+
+func (r *Repository) CountUsersByStatus(status string) (int64, error) {
+	if status == "" {
+		return 0, nil
+	}
+	var c int64
+	err := r.db.Model(&model.User{}).Where("status = ?", status).Count(&c).Error
 	return c, err
 }
 

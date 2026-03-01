@@ -436,6 +436,9 @@ class ApiService {
     int limit = 50,
     int offset = 0,
     String? action,
+    String? targetType,
+    String? startDate,
+    String? endDate,
     String? adminToken,
   }) async {
     final response = await _dio.get(
@@ -444,11 +447,39 @@ class ApiService {
         'limit': limit,
         'offset': offset,
         if (action != null && action.isNotEmpty) 'action': action,
+        if (targetType != null && targetType.isNotEmpty) 'target_type': targetType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
       },
       options: _adminOptions(adminToken),
     );
     final list = response.data['results'] as List? ?? [];
     return list.map((e) => AdminAuditLog.fromJson(e)).toList();
+  }
+
+  Future<Uint8List> adminExportAuditLogs({
+    String format = 'csv',
+    String? action,
+    String? targetType,
+    String? startDate,
+    String? endDate,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/audit-logs/export',
+      queryParameters: {
+        'format': format,
+        if (action != null && action.isNotEmpty) 'action': action,
+        if (targetType != null && targetType.isNotEmpty) 'target_type': targetType,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+      },
+      options: Options(
+        headers: adminToken == null || adminToken.isEmpty ? null : {'X-Admin-Token': adminToken},
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return Uint8List.fromList(response.data);
   }
 
   Future<List<AdminLabelNote>> adminLabelQueue({
@@ -1440,6 +1471,8 @@ class MembershipRequest {
 
 class AdminStats {
   final int usersTotal;
+  final int usersReal;
+  final int usersGuest;
   final int usersActive7d;
   final int imagesTotal;
   final int resultsTotal;
@@ -1451,6 +1484,8 @@ class AdminStats {
 
   AdminStats({
     required this.usersTotal,
+    required this.usersReal,
+    required this.usersGuest,
     required this.usersActive7d,
     required this.imagesTotal,
     required this.resultsTotal,
@@ -1464,6 +1499,8 @@ class AdminStats {
   factory AdminStats.fromJson(Map<String, dynamic> json) {
     return AdminStats(
       usersTotal: json['users_total'] ?? 0,
+      usersReal: json['users_real'] ?? 0,
+      usersGuest: json['users_guest'] ?? 0,
       usersActive7d: json['users_active_7d'] ?? 0,
       imagesTotal: json['images_total'] ?? 0,
       resultsTotal: json['results_total'] ?? 0,

@@ -155,6 +155,9 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 **GET** `/admin/stats`
 
 返回统计汇总。
+新增字段：
+- users_real
+- users_guest
 
 **GET** `/admin/metrics`
 
@@ -205,6 +208,19 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | limit | int | 50 | 分页大小 |
 | offset | int | 0 | 偏移 |
 | action | string | - | 操作类型 |
+| target_type | string | - | 目标类型 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
+**GET** `/admin/audit-logs/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| action | string | - | 操作类型 |
+| target_type | string | - | 目标类型 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
 
 **GET** `/admin/labels`
 
