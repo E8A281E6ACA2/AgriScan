@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:geolocator/geolocator.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 import '../utils/auth_flow.dart';
+import '../utils/location_helper.dart';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
@@ -52,7 +52,7 @@ class _GalleryPageState extends State<GalleryPage> {
     setState(() => _isUploading = true);
 
     try {
-      final position = await _getLocation();
+      final position = await getBestEffortPosition();
       final bytes = await image.readAsBytes();
       provider.setCurrentImageBytes(bytes);
 
@@ -90,27 +90,6 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
-  Future<Position?> _getLocation() async {
-    try {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) return null;
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return null;
-      }
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
