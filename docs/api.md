@@ -695,6 +695,8 @@ Web/跨端 Base64 方式：
 | start_date | string | - | 开始日期(YYYY-MM-DD) |
 | end_date | string | - | 结束日期(YYYY-MM-DD) |
 
+导出字段包含：`latitude`,`longitude`
+
 **POST** `/feedback`
 
 ```json
@@ -767,7 +769,7 @@ Web/跨端 Base64 方式：
 | format | string | csv | 导出格式（csv/json） |
 
 可选字段：
-`id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text,tags`
+`id,created_at,image_id,result_id,image_url,latitude,longitude,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text,tags`
 
 字段预设（前端使用）：
 - 轻量：`id,created_at,image_url,category,crop_type,confidence,note`

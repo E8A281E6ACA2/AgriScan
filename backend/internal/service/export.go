@@ -1,6 +1,7 @@
 package service
 
 import (
+	"agri-scan/internal/model"
 	"encoding/csv"
 	"encoding/json"
 	"io"
@@ -12,6 +13,10 @@ import (
 // ExportNotesCSV 导出手记为 CSV
 func (s *Service) ExportNotesCSV(w io.Writer, userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time, fields string) error {
 	notes, err := s.GetNotes(userID, limit, offset, category, cropType, startDate, endDate)
+	if err != nil {
+		return err
+	}
+	imageMap, err := s.loadImageMap(notes)
 	if err != nil {
 		return err
 	}
@@ -36,12 +41,23 @@ func (s *Service) ExportNotesCSV(w io.Writer, userID uint, limit, offset int, ca
 			issue = *n.PossibleIssue
 		}
 
+		img := imageMap[n.ImageID]
+		lat := ""
+		lng := ""
+		if img != nil && img.Latitude != nil {
+			lat = strconv.FormatFloat(*img.Latitude, 'f', 6, 64)
+		}
+		if img != nil && img.Longitude != nil {
+			lng = strconv.FormatFloat(*img.Longitude, 'f', 6, 64)
+		}
 		row := map[string]string{
 			"id":             strconv.FormatUint(uint64(n.ID), 10),
 			"created_at":     n.CreatedAt.Format("2006-01-02 15:04:05"),
 			"image_id":       strconv.FormatUint(uint64(n.ImageID), 10),
 			"result_id":      resultID,
 			"image_url":      n.ImageURL,
+			"latitude":       lat,
+			"longitude":      lng,
 			"category":       n.Category,
 			"crop_type":      n.CropType,
 			"confidence":     strconv.FormatFloat(n.Confidence, 'f', 4, 64),
@@ -70,6 +86,10 @@ func (s *Service) ExportNotesJSON(w io.Writer, userID uint, limit, offset int, c
 	if err != nil {
 		return err
 	}
+	imageMap, err := s.loadImageMap(notes)
+	if err != nil {
+		return err
+	}
 
 	columns := parseFields(fields)
 	items := make([]map[string]any, 0, len(notes))
@@ -88,12 +108,21 @@ func (s *Service) ExportNotesJSON(w io.Writer, userID uint, limit, offset int, c
 			issue = *n.PossibleIssue
 		}
 
+		img := imageMap[n.ImageID]
+		var lat any
+		var lng any
+		if img != nil {
+			lat = img.Latitude
+			lng = img.Longitude
+		}
 		row := map[string]any{
 			"id":             n.ID,
 			"created_at":     n.CreatedAt.Format("2006-01-02 15:04:05"),
 			"image_id":       n.ImageID,
 			"result_id":      resultID,
 			"image_url":      n.ImageURL,
+			"latitude":       lat,
+			"longitude":      lng,
 			"category":       n.Category,
 			"crop_type":      n.CropType,
 			"confidence":     n.Confidence,
@@ -125,6 +154,8 @@ func parseFields(fields string) []string {
 		"image_id",
 		"result_id",
 		"image_url",
+		"latitude",
+		"longitude",
 		"category",
 		"crop_type",
 		"confidence",
@@ -159,4 +190,25 @@ func parseFields(fields string) []string {
 		return defaultCols
 	}
 	return out
+}
+
+func (s *Service) loadImageMap(notes []model.FieldNote) (map[uint]*model.Image, error) {
+	ids := make([]uint, 0, len(notes))
+	seen := map[uint]bool{}
+	for _, n := range notes {
+		if n.ImageID == 0 || seen[n.ImageID] {
+			continue
+		}
+		seen[n.ImageID] = true
+		ids = append(ids, n.ImageID)
+	}
+	imgs, err := s.repo.GetImagesByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uint]*model.Image, len(imgs))
+	for i := range imgs {
+		out[imgs[i].ID] = &imgs[i]
+	}
+	return out, nil
 }

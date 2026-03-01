@@ -110,6 +110,15 @@ func (r *Repository) GetImageByID(id uint) (*model.Image, error) {
 	return &img, err
 }
 
+func (r *Repository) GetImagesByIDs(ids []uint) ([]model.Image, error) {
+	if len(ids) == 0 {
+		return []model.Image{}, nil
+	}
+	var imgs []model.Image
+	err := r.db.Where("id IN ?", ids).Find(&imgs).Error
+	return imgs, err
+}
+
 // RecognitionResult 操作
 func (r *Repository) CreateResult(result *model.RecognitionResult) error {
 	return r.db.Create(result).Error

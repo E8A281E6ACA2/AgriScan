@@ -221,7 +221,7 @@ func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate 
 func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) error {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
-	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "created_at"})
+	_ = writer.Write([]string{"result_id", "image_id", "image_url", "latitude", "longitude", "crop_type", "confidence", "provider", "created_at"})
 	limit := 1000
 	offset := 0
 	for {
@@ -233,10 +233,20 @@ func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate 
 			break
 		}
 		for _, r := range items {
+			lat := ""
+			lng := ""
+			if r.Image.Latitude != nil {
+				lat = strconv.FormatFloat(*r.Image.Latitude, 'f', 6, 64)
+			}
+			if r.Image.Longitude != nil {
+				lng = strconv.FormatFloat(*r.Image.Longitude, 'f', 6, 64)
+			}
 			_ = writer.Write([]string{
 				strconv.FormatUint(uint64(r.ID), 10),
 				strconv.FormatUint(uint64(r.ImageID), 10),
 				r.Image.OriginalURL,
+				lat,
+				lng,
 				r.CropType,
 				strconv.FormatFloat(r.Confidence, 'f', 4, 64),
 				r.Provider,
@@ -270,6 +280,8 @@ func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate
 				"result_id":  r.ID,
 				"image_id":   r.ImageID,
 				"image_url":  r.Image.OriginalURL,
+				"latitude":   r.Image.Latitude,
+				"longitude":  r.Image.Longitude,
 				"crop_type":  r.CropType,
 				"confidence": r.Confidence,
 				"provider":   r.Provider,
