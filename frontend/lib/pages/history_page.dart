@@ -18,6 +18,10 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _maxConfController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
+  final TextEditingController _minLatController = TextEditingController();
+  final TextEditingController _maxLatController = TextEditingController();
+  final TextEditingController _minLngController = TextEditingController();
+  final TextEditingController _maxLngController = TextEditingController();
 
   @override
   void initState() {
@@ -33,6 +37,10 @@ class _HistoryPageState extends State<HistoryPage> {
     _maxConfController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
+    _minLatController.dispose();
+    _maxLatController.dispose();
+    _minLngController.dispose();
+    _maxLngController.dispose();
     super.dispose();
   }
   
@@ -43,10 +51,18 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       final minConf = double.tryParse(_minConfController.text.trim());
       final maxConf = double.tryParse(_maxConfController.text.trim());
+      final minLat = double.tryParse(_minLatController.text.trim());
+      final maxLat = double.tryParse(_maxLatController.text.trim());
+      final minLng = double.tryParse(_minLngController.text.trim());
+      final maxLng = double.tryParse(_maxLngController.text.trim());
       final response = await api.getHistory(
         cropType: _cropFilterController.text.trim(),
         minConfidence: minConf,
         maxConfidence: maxConf,
+        minLat: minLat,
+        maxLat: maxLat,
+        minLng: minLng,
+        maxLng: maxLng,
         startDate: _startDateController.text.trim(),
         endDate: _endDateController.text.trim(),
       );
@@ -66,11 +82,19 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       final minConf = double.tryParse(_minConfController.text.trim());
       final maxConf = double.tryParse(_maxConfController.text.trim());
+      final minLat = double.tryParse(_minLatController.text.trim());
+      final maxLat = double.tryParse(_maxLatController.text.trim());
+      final minLng = double.tryParse(_minLngController.text.trim());
+      final maxLng = double.tryParse(_maxLngController.text.trim());
       final bytes = await api.exportHistory(
         format: format,
         cropType: _cropFilterController.text.trim(),
         minConfidence: minConf,
         maxConfidence: maxConf,
+        minLat: minLat,
+        maxLat: maxLat,
+        minLng: minLng,
+        maxLng: maxLng,
         startDate: _startDateController.text.trim(),
         endDate: _endDateController.text.trim(),
       );
@@ -447,6 +471,38 @@ class _HistoryPageState extends State<HistoryPage> {
                   decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
                 ),
               ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _minLatController,
+                  decoration: const InputDecoration(labelText: '最小纬度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _maxLatController,
+                  decoration: const InputDecoration(labelText: '最大纬度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _minLngController,
+                  decoration: const InputDecoration(labelText: '最小经度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _maxLngController,
+                  decoration: const InputDecoration(labelText: '最大经度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
               ElevatedButton(
                 onPressed: _loadHistory,
                 child: const Text('筛选'),
@@ -466,6 +522,10 @@ class _HistoryPageState extends State<HistoryPage> {
                   _maxConfController.clear();
                   _startDateController.clear();
                   _endDateController.clear();
+                  _minLatController.clear();
+                  _maxLatController.clear();
+                  _minLngController.clear();
+                  _maxLngController.clear();
                   _loadHistory();
                 },
                 child: const Text('清空'),
