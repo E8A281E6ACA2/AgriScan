@@ -194,8 +194,20 @@ class _HistoryPageState extends State<HistoryPage> {
 
   List<RecognizeResponse> _applyDistanceSort(List<RecognizeResponse> items) {
     if (!_sortByDistance) return items;
-    final centerLat = double.tryParse(_centerLatController.text.trim());
-    final centerLng = double.tryParse(_centerLngController.text.trim());
+    var centerLat = double.tryParse(_centerLatController.text.trim());
+    var centerLng = double.tryParse(_centerLngController.text.trim());
+    if (centerLat == null || centerLng == null) {
+      final minLat = double.tryParse(_minLatController.text.trim());
+      final maxLat = double.tryParse(_maxLatController.text.trim());
+      final minLng = double.tryParse(_minLngController.text.trim());
+      final maxLng = double.tryParse(_maxLngController.text.trim());
+      if (centerLat == null && minLat != null && maxLat != null) {
+        centerLat = (minLat + maxLat) / 2;
+      }
+      if (centerLng == null && minLng != null && maxLng != null) {
+        centerLng = (minLng + maxLng) / 2;
+      }
+    }
     if (centerLat == null || centerLng == null) return items;
     final sorted = List<RecognizeResponse>.from(items);
     final cache = <int, double>{};
