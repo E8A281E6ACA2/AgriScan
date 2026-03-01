@@ -165,6 +165,7 @@ class ApiService {
     String? cropType,
     String? startDate,
     String? endDate,
+    bool? feedbackOnly,
   }) async {
     final params = <String, dynamic>{
       'limit': limit,
@@ -181,6 +182,9 @@ class ApiService {
     }
     if (endDate != null && endDate.isNotEmpty) {
       params['end_date'] = endDate;
+    }
+    if (feedbackOnly != null) {
+      params['feedback_only'] = feedbackOnly ? '1' : '0';
     }
 
     final response = await _dio.get('/notes', queryParameters: params);

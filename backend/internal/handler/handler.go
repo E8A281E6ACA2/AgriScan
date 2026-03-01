@@ -687,6 +687,7 @@ func (h *Handler) GetNotes(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	category := c.DefaultQuery("category", "")
 	cropType := c.DefaultQuery("crop_type", "")
+	feedbackOnlyStr := c.DefaultQuery("feedback_only", "")
 	startDateStr := c.DefaultQuery("start_date", "")
 	endDateStr := c.DefaultQuery("end_date", "")
 
@@ -715,7 +716,8 @@ func (h *Handler) GetNotes(c *gin.Context) {
 		}
 	}
 
-	notes, err := h.svc.GetNotes(actor.UserID, limit, offset, category, cropType, startDate, endDate)
+	feedbackOnly := feedbackOnlyStr == "1" || strings.EqualFold(feedbackOnlyStr, "true")
+	notes, err := h.svc.GetNotes(actor.UserID, limit, offset, category, cropType, startDate, endDate, feedbackOnly)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -740,6 +742,7 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	category := c.DefaultQuery("category", "")
 	cropType := c.DefaultQuery("crop_type", "")
+	feedbackOnlyStr := c.DefaultQuery("feedback_only", "")
 	startDateStr := c.DefaultQuery("start_date", "")
 	endDateStr := c.DefaultQuery("end_date", "")
 	fields := c.DefaultQuery("fields", "")
@@ -766,6 +769,14 @@ func (h *Handler) ExportNotes(c *gin.Context) {
 		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
 		if startDate == nil || startDate.Before(cutoff) {
 			startDate = &cutoff
+		}
+	}
+
+	feedbackOnly := feedbackOnlyStr == "1" || strings.EqualFold(feedbackOnlyStr, "true")
+	if feedbackOnly {
+		fields = strings.TrimSpace(fields)
+		if fields == "" {
+			fields = "id,created_at,image_id,result_id,image_url,category,crop_type,confidence,description,growth_stage,possible_issue,provider,note,raw_text,is_correct,corrected_type,feedback_note,feedback_category,feedback_tags"
 		}
 	}
 

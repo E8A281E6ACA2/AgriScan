@@ -450,8 +450,8 @@ func (s *Service) CreateNote(userID uint, imageID uint, resultID *uint, note str
 }
 
 // GetNotes 获取手记列表
-func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time) ([]model.FieldNote, error) {
-	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType, startDate, endDate)
+func (s *Service) GetNotes(userID uint, limit, offset int, category, cropType string, startDate, endDate *time.Time, feedbackOnly bool) ([]model.FieldNote, error) {
+	return s.repo.GetNotesByUserID(userID, limit, offset, category, cropType, startDate, endDate, feedbackOnly)
 }
 
 // ExportTemplate

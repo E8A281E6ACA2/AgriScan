@@ -18,6 +18,7 @@ class _NotesPageState extends State<NotesPage> {
   String _cropType = 'all';
   DateTime? _startDate;
   DateTime? _endDate;
+  bool _feedbackOnly = false;
   static final DateFormat _dateFmt = DateFormat('yyyy-MM-dd');
 
   static const List<String> _categories = [
@@ -125,6 +126,7 @@ class _NotesPageState extends State<NotesPage> {
         cropType: _cropType == 'all' ? null : _cropType,
         startDate: _startDate == null ? null : _dateFmt.format(_startDate!),
         endDate: _endDate == null ? null : _dateFmt.format(_endDate!),
+        feedbackOnly: _feedbackOnly,
       );
       setState(() => _notes = res.results);
     } catch (e) {
@@ -251,6 +253,21 @@ class _NotesPageState extends State<NotesPage> {
                   icon: const Icon(Icons.clear),
                   tooltip: '清除日期',
                 ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _feedbackOnly,
+                  onChanged: (val) {
+                    setState(() => _feedbackOnly = val ?? false);
+                    _loadNotes();
+                  },
+                ),
+                const Text('仅看纠错草稿'),
               ],
             ),
           ),
@@ -509,6 +526,9 @@ class _NotesPageState extends State<NotesPage> {
       }
       if (_endDate != null) {
         params['end_date'] = _dateFmt.format(_endDate!);
+      }
+      if (_feedbackOnly) {
+        params['feedback_only'] = '1';
       }
       if (fields.isNotEmpty) {
         params['fields'] = fields.join(',');
