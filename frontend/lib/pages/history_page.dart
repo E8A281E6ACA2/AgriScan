@@ -22,6 +22,7 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _maxConfController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
+  String _sourceFilter = '';
   final TextEditingController _minLatController = TextEditingController();
   final TextEditingController _maxLatController = TextEditingController();
   final TextEditingController _minLngController = TextEditingController();
@@ -72,6 +73,7 @@ class _HistoryPageState extends State<HistoryPage> {
         cropType: _cropFilterController.text.trim(),
         minConfidence: minConf,
         maxConfidence: maxConf,
+        source: _sourceFilter.isEmpty ? null : _sourceFilter,
         minLat: minLat,
         maxLat: maxLat,
         minLng: minLng,
@@ -105,6 +107,7 @@ class _HistoryPageState extends State<HistoryPage> {
         cropType: _cropFilterController.text.trim(),
         minConfidence: minConf,
         maxConfidence: maxConf,
+        source: _sourceFilter.isEmpty ? null : _sourceFilter,
         minLat: minLat,
         maxLat: maxLat,
         minLng: minLng,
@@ -582,6 +585,21 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
               ),
               SizedBox(
+                width: 120,
+                child: DropdownButtonFormField<String>(
+                  value: _sourceFilter,
+                  decoration: const InputDecoration(labelText: '来源'),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('全部')),
+                    DropdownMenuItem(value: 'camera', child: Text('拍照')),
+                    DropdownMenuItem(value: 'gallery', child: Text('相册')),
+                    DropdownMenuItem(value: 'url', child: Text('URL')),
+                    DropdownMenuItem(value: 'unknown', child: Text('未知')),
+                  ],
+                  onChanged: (val) => setState(() => _sourceFilter = val ?? ''),
+                ),
+              ),
+              SizedBox(
                 width: 150,
                 child: TextField(
                   controller: _startDateController,
@@ -674,6 +692,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   _maxConfController.clear();
                   _startDateController.clear();
                   _endDateController.clear();
+                  _sourceFilter = '';
                   _minLatController.clear();
                   _maxLatController.clear();
                   _minLngController.clear();

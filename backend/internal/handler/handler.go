@@ -353,6 +353,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
 	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
 	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	minLatStr := strings.TrimSpace(c.DefaultQuery("min_lat", ""))
 	maxLatStr := strings.TrimSpace(c.DefaultQuery("max_lat", ""))
 	minLngStr := strings.TrimSpace(c.DefaultQuery("min_lng", ""))
@@ -450,7 +451,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			startDate = &cutoff
 		}
 	}
-	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
+	results, err := h.svc.GetHistory(actor.UserID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng, source)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

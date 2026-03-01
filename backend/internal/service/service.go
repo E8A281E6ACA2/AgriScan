@@ -223,8 +223,8 @@ func (s *Service) GetResultByID(id uint) (*model.RecognitionResult, error) {
 }
 
 // GetHistory 获取用户历史记录
-func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64) ([]model.RecognitionResult, error) {
-	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng)
+func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf, minLat, maxLat, minLng, maxLng *float64, source string) ([]model.RecognitionResult, error) {
+	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf, minLat, maxLat, minLng, maxLng, source)
 }
 
 func (s *Service) GetFeedbackMap(resultIDs []uint) (map[uint]model.UserFeedback, error) {
