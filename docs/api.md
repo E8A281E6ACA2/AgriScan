@@ -171,6 +171,17 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 - `low_confidence_threshold`
 - `label_today`
 
+**GET** `/admin/failures/top`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| days | int | 7 | 统计天数 |
+| limit | int | 10 | Top 数量 |
+| stage | string | - | 阶段过滤(可选) |
+
+返回字段：
+- stage / error_code / error_message / count / retry_total
+
 **GET** `/admin/settings`
 
 **PUT** `/admin/settings/:key`

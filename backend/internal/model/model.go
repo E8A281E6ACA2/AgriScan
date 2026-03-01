@@ -55,6 +55,20 @@ type RecognitionResult struct {
 	Provider      string         `gorm:"size:32" json:"provider"` // 识别提供商
 }
 
+type RecognitionFailure struct {
+	ID           uint       `gorm:"primarykey" json:"id"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	UserID       uint       `gorm:"index" json:"user_id"`
+	ImageID      *uint      `gorm:"uniqueIndex:idx_failure_image_stage" json:"image_id"`
+	Provider     string     `gorm:"size:32;index" json:"provider"`
+	Stage        string     `gorm:"size:32;uniqueIndex:idx_failure_image_stage" json:"stage"`
+	ErrorCode    string     `gorm:"size:64;index" json:"error_code"`
+	ErrorMessage string     `gorm:"type:text" json:"error_message"`
+	RetryCount   int        `json:"retry_count"`
+	LastTriedAt  *time.Time `gorm:"index" json:"last_tried_at"`
+}
+
 type UserFeedback struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
 	CreatedAt     time.Time      `json:"created_at"`

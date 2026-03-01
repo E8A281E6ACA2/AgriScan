@@ -44,6 +44,9 @@ class _AdminPageState extends State<AdminPage> {
   final _qcOffsetController = TextEditingController(text: '0');
   final _labelTemplatesController = TextEditingController();
   final _cropListController = TextEditingController();
+  final _failTopDaysController = TextEditingController(text: '7');
+  final _failTopLimitController = TextEditingController(text: '10');
+  final _failTopStageController = TextEditingController();
   final _searchProviderController = TextEditingController();
   final _searchCropController = TextEditingController();
   final _searchMinConfController = TextEditingController();
@@ -96,6 +99,7 @@ class _AdminPageState extends State<AdminPage> {
   final Set<int> _failedSelected = {};
   List<_TemplateDraft> _templateDrafts = [_TemplateDraft()];
   List<TextEditingController> _cropDrafts = [TextEditingController()];
+  List<FailureTop> _failureTop = [];
   AdminStats? _stats;
   EvalSummary? _eval;
   AdminMetrics? _metrics;
@@ -140,6 +144,9 @@ class _AdminPageState extends State<AdminPage> {
     _qcOffsetController.dispose();
     _labelTemplatesController.dispose();
     _cropListController.dispose();
+    _failTopDaysController.dispose();
+    _failTopLimitController.dispose();
+    _failTopStageController.dispose();
     _searchProviderController.dispose();
     _searchCropController.dispose();
     _searchMinConfController.dispose();
@@ -218,6 +225,27 @@ class _AdminPageState extends State<AdminPage> {
       if (mounted) setState(() => _metrics = metrics);
     } catch (e) {
       _toast('指标加载失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadFailureTop() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final days = int.tryParse(_failTopDaysController.text) ?? 7;
+    final limit = int.tryParse(_failTopLimitController.text) ?? 10;
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminFailureTop(
+        days: days,
+        limit: limit,
+        stage: _failTopStageController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      setState(() => _failureTop = items);
+    } catch (e) {
+      _toast('失败原因加载失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1929,6 +1957,67 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
               ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('失败原因Top', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        SizedBox(
+                          width: 100,
+                          child: TextField(
+                            controller: _failTopDaysController,
+                            decoration: const InputDecoration(labelText: '天数'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 100,
+                          child: TextField(
+                            controller: _failTopLimitController,
+                            decoration: const InputDecoration(labelText: '数量'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            controller: _failTopStageController,
+                            decoration: const InputDecoration(labelText: '阶段(可选)'),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: _loading ? null : _loadFailureTop,
+                          child: const Text('刷新'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (_failureTop.isEmpty)
+                      const Text('暂无数据')
+                    else
+                      ..._failureTop.map((item) {
+                        final title =
+                            '${item.errorCode.isEmpty ? "unknown" : item.errorCode} · ${item.count} / 重试 ${item.retryTotal}';
+                        final subtitle = item.errorMessage.isEmpty ? '无错误信息' : item.errorMessage;
+                        return ListTile(
+                          dense: true,
+                          title: Text(title),
+                          subtitle: Text(subtitle),
+                          trailing: Text(item.stage),
+                        );
+                      }).toList(),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             Card(
               child: Padding(

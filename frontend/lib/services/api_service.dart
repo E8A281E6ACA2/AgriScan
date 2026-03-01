@@ -468,6 +468,25 @@ class ApiService {
     return AdminMetrics.fromJson(response.data);
   }
 
+  Future<List<FailureTop>> adminFailureTop({
+    int days = 7,
+    int limit = 10,
+    String? stage,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/failures/top',
+      queryParameters: {
+        'days': days,
+        'limit': limit,
+        if (stage != null && stage.isNotEmpty) 'stage': stage,
+      },
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => FailureTop.fromJson(e)).toList();
+  }
+
   Future<List<AdminAuditLog>> adminAuditLogs({
     int limit = 50,
     int offset = 0,
@@ -1672,6 +1691,32 @@ class AdminMetrics {
       lowConfidenceTotal: json['low_confidence_total'] ?? 0,
       lowConfidenceRatio: (json['low_confidence_ratio'] ?? 0).toDouble(),
       lowConfidenceThreshold: (json['low_confidence_threshold'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class FailureTop {
+  final String stage;
+  final String errorCode;
+  final String errorMessage;
+  final int count;
+  final int retryTotal;
+
+  FailureTop({
+    required this.stage,
+    required this.errorCode,
+    required this.errorMessage,
+    required this.count,
+    required this.retryTotal,
+  });
+
+  factory FailureTop.fromJson(Map<String, dynamic> json) {
+    return FailureTop(
+      stage: json['stage'] ?? '',
+      errorCode: json['error_code'] ?? '',
+      errorMessage: (json['error_message'] ?? '').toString(),
+      count: json['count'] ?? 0,
+      retryTotal: json['retry_total'] ?? 0,
     );
   }
 }

@@ -74,18 +74,21 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 
 	img, err := h.svc.CreateImageFromURL(actor.UserID, req.ImageURL)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, nil, "", "create_image_url", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	result, err := h.svc.Recognize(img.OriginalURL)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	savedResult, err := h.svc.SaveResult(img.ID, result)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, &img.ID, "", "save_result", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -144,6 +147,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		img, err := h.svc.UploadImageBase64(actor.UserID, imageData, lat, lng)
 		if err != nil {
 			log.Printf("UploadImageBase64 failed: %v", err)
+			h.svc.RecordFailure(actor.UserID, nil, "", "upload_base64", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -165,6 +169,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	// 上传到对象存储
 	img, err := h.svc.UploadImage(actor.UserID, file, lat, lng)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, nil, "", "upload_file", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -208,6 +213,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 	// 调用大模型识别
 	result, err := h.svc.Recognize(img.OriginalURL)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -215,6 +221,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 	// 保存识别结果
 	savedResult, err := h.svc.SaveResult(req.ImageID, result)
 	if err != nil {
+		h.svc.RecordFailure(actor.UserID, &img.ID, "", "save_result", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -671,6 +678,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/users", h.AdminListUsers)
 		v1.GET("/admin/stats", h.AdminStats)
 		v1.GET("/admin/metrics", h.AdminMetrics)
+		v1.GET("/admin/failures/top", h.AdminFailureTop)
 		v1.GET("/admin/settings", h.AdminSettings)
 		v1.PUT("/admin/settings/:key", h.AdminUpdateSetting)
 		v1.GET("/admin/plan-settings", h.AdminPlanSettings)

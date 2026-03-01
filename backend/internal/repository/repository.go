@@ -36,6 +36,7 @@ func NewRepository(dsn string) (*Repository, error) {
 		&model.DeviceUsage{},
 		&model.Image{},
 		&model.RecognitionResult{},
+		&model.RecognitionFailure{},
 		&model.UserFeedback{},
 		&model.FieldNote{},
 		&model.ExportTemplate{},

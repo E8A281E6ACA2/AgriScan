@@ -78,6 +78,22 @@ func (h *Handler) AdminMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, metrics)
 }
 
+// GET /api/v1/admin/failures/top
+func (h *Handler) AdminFailureTop(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	stage := strings.TrimSpace(c.DefaultQuery("stage", ""))
+	items, err := h.svc.ListFailureTop(days, limit, stage)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "days": days, "limit": limit})
+}
+
 // GET /api/v1/admin/settings
 func (h *Handler) AdminSettings(c *gin.Context) {
 	if !h.requireAdmin(c) {
