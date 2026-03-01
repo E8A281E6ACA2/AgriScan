@@ -22,6 +22,7 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _maxConfController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
+  final TextEditingController _feedbackNoteController = TextEditingController();
   String _sourceFilter = '';
   final TextEditingController _minLatController = TextEditingController();
   final TextEditingController _maxLatController = TextEditingController();
@@ -32,6 +33,12 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _presetNameController = TextEditingController();
   List<_GeoPreset> _geoPresets = [];
   bool _sortByDistance = false;
+  bool _feedbackSubmitting = false;
+  List<Crop> _feedbackCrops = [];
+  String _feedbackCategory = 'disease';
+  List<String> _feedbackTags = [];
+  List<String> _feedbackAvailableTags = [];
+  String? _feedbackCorrectedType;
 
   @override
   void initState() {
@@ -48,6 +55,7 @@ class _HistoryPageState extends State<HistoryPage> {
     _maxConfController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
+    _feedbackNoteController.dispose();
     _minLatController.dispose();
     _maxLatController.dispose();
     _minLngController.dispose();
@@ -56,6 +64,227 @@ class _HistoryPageState extends State<HistoryPage> {
     _centerLngController.dispose();
     _presetNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _ensureFeedbackCrops() async {
+    if (_feedbackCrops.isNotEmpty) return;
+    final api = context.read<ApiService>();
+    try {
+      final items = await api.getCrops();
+      if (mounted) setState(() => _feedbackCrops = items);
+    } catch (_) {}
+  }
+
+  Future<void> _loadFeedbackTags() async {
+    if (_feedbackCategory == 'crop' || _feedbackCategory == 'other') {
+      if (mounted) setState(() => _feedbackAvailableTags = []);
+      return;
+    }
+    final api = context.read<ApiService>();
+    try {
+      final tags = await api.getTags(category: _feedbackCategory);
+      if (mounted) setState(() => _feedbackAvailableTags = tags);
+    } catch (_) {
+      if (mounted) setState(() => _feedbackAvailableTags = []);
+    }
+  }
+
+  Future<void> _submitHistoryFeedback(RecognizeResponse item, bool isCorrect) async {
+    if (_feedbackSubmitting) return;
+    final api = context.read<ApiService>();
+    if (!isCorrect && (_feedbackCorrectedType == null || _feedbackCorrectedType!.isEmpty)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请先选择正确类型')),
+        );
+      }
+      return;
+    }
+    setState(() => _feedbackSubmitting = true);
+    try {
+      await api.submitFeedback(FeedbackRequest(
+        resultId: item.resultId,
+        correctedType: isCorrect ? null : _feedbackCorrectedType,
+        feedbackNote: _feedbackNoteController.text.trim(),
+        isCorrect: isCorrect,
+        category: isCorrect ? null : _feedbackCategory,
+        tags: isCorrect ? null : _feedbackTags,
+      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('感谢反馈')),
+        );
+      }
+      _feedbackNoteController.clear();
+      _feedbackTags.clear();
+      await _loadHistory();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('反馈失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _feedbackSubmitting = false);
+    }
+  }
+
+  Future<void> _showHistoryFeedbackDialog(RecognizeResponse item) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('纠错反馈'),
+        content: const Text('这次识别是否正确？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showHistoryCorrectionSheet(item);
+            },
+            child: const Text('错误'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _submitHistoryFeedback(item, true);
+            },
+            child: const Text('正确'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showHistoryCorrectionSheet(RecognizeResponse item) async {
+    await _ensureFeedbackCrops();
+    if (_feedbackCrops.isNotEmpty && _feedbackCorrectedType == null) {
+      _feedbackCorrectedType = _feedbackCrops.first.code;
+    }
+    _feedbackCategory = 'disease';
+    _feedbackTags.clear();
+    await _loadFeedbackTags();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '选择正确类型',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _feedbackCorrectedType,
+                  decoration: const InputDecoration(
+                    labelText: '作物类型',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _feedbackCrops
+                      .map((c) => DropdownMenuItem(
+                            value: c.code,
+                            child: Text('${c.name} (${c.code})'),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => _feedbackCorrectedType = val),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('病害'),
+                      selected: _feedbackCategory == 'disease',
+                      onSelected: (_) => setState(() {
+                        _feedbackCategory = 'disease';
+                        _feedbackTags.clear();
+                        _loadFeedbackTags();
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('虫害'),
+                      selected: _feedbackCategory == 'pest',
+                      onSelected: (_) => setState(() {
+                        _feedbackCategory = 'pest';
+                        _feedbackTags.clear();
+                        _loadFeedbackTags();
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('杂草'),
+                      selected: _feedbackCategory == 'weed',
+                      onSelected: (_) => setState(() {
+                        _feedbackCategory = 'weed';
+                        _feedbackTags.clear();
+                        _loadFeedbackTags();
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _feedbackAvailableTags.map((t) {
+                    final selected = _feedbackTags.contains(t);
+                    return FilterChip(
+                      label: Text(t),
+                      selected: selected,
+                      onSelected: (val) {
+                        setState(() {
+                          if (val) {
+                            _feedbackTags.add(t);
+                          } else {
+                            _feedbackTags.remove(t);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _feedbackNoteController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: '补充说明（可选）',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _feedbackSubmitting
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            _submitHistoryFeedback(item, false);
+                          },
+                    child: Text(_feedbackSubmitting ? '提交中...' : '提交纠错'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
   
   Future<void> _loadHistory() async {
@@ -523,6 +752,15 @@ class _HistoryPageState extends State<HistoryPage> {
                 const SizedBox(height: 16),
                 _buildDetailRow('可能问题', item.possibleIssue!),
               ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showHistoryFeedbackDialog(item),
+                  icon: const Icon(Icons.feedback_outlined),
+                  label: const Text('纠错反馈'),
+                ),
+              ),
             ],
           ),
         ),
