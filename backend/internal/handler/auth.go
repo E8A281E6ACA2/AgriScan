@@ -244,3 +244,11 @@ func mapEntitlementError(c *gin.Context, err error) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }
+
+func (h *Handler) consumeRecognition(c *gin.Context, actor *Actor) bool {
+	if err := h.svc.ConsumeRecognition(actor.User, actor.DeviceID); err != nil {
+		mapEntitlementError(c, err)
+		return false
+	}
+	return true
+}

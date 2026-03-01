@@ -67,8 +67,7 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ConsumeRecognition(actor.User, actor.DeviceID); err != nil {
-		mapEntitlementError(c, err)
+	if !h.consumeRecognition(c, actor) {
 		return
 	}
 
@@ -205,8 +204,7 @@ func (h *Handler) Recognize(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ConsumeRecognition(actor.User, actor.DeviceID); err != nil {
-		mapEntitlementError(c, err)
+	if !h.consumeRecognition(c, actor) {
 		return
 	}
 

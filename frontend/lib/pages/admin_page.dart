@@ -1942,6 +1942,31 @@ class _AdminPageState extends State<AdminPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Text('权益与消耗', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          _statChip('用户额度总', _stats!.userQuotaTotal),
+                          _statChip('用户已用', _stats!.userQuotaUsed),
+                          _statChip('用户广告券', _stats!.userAdCredits),
+                          _statChip('匿名识别', _stats!.deviceRecognize),
+                          _statChip('匿名广告券', _stats!.deviceAdCredits),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            if (_stats != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       const Text('标注进度概览', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Wrap(

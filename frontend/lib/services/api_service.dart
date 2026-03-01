@@ -1616,6 +1616,11 @@ class AdminStats {
   final int labelPending;
   final int labelApproved;
   final int labelToday;
+  final int userQuotaTotal;
+  final int userQuotaUsed;
+  final int userAdCredits;
+  final int deviceRecognize;
+  final int deviceAdCredits;
 
   AdminStats({
     required this.usersTotal,
@@ -1630,6 +1635,11 @@ class AdminStats {
     required this.labelPending,
     required this.labelApproved,
     required this.labelToday,
+    required this.userQuotaTotal,
+    required this.userQuotaUsed,
+    required this.userAdCredits,
+    required this.deviceRecognize,
+    required this.deviceAdCredits,
   });
 
   factory AdminStats.fromJson(Map<String, dynamic> json) {
@@ -1646,6 +1656,11 @@ class AdminStats {
       labelPending: json['label_pending'] ?? 0,
       labelApproved: json['label_approved'] ?? 0,
       labelToday: json['label_today'] ?? 0,
+      userQuotaTotal: json['user_quota_total'] ?? 0,
+      userQuotaUsed: json['user_quota_used'] ?? 0,
+      userAdCredits: json['user_ad_credits'] ?? 0,
+      deviceRecognize: json['device_recognize'] ?? 0,
+      deviceAdCredits: json['device_ad_credits'] ?? 0,
     );
   }
 }

@@ -29,6 +29,11 @@ type AdminStats struct {
 	LabelPending      int64 `json:"label_pending"`
 	LabelApproved     int64 `json:"label_approved"`
 	LabelToday        int64 `json:"label_today"`
+	UserQuotaTotal    int64 `json:"user_quota_total"`
+	UserQuotaUsed     int64 `json:"user_quota_used"`
+	UserAdCredits     int64 `json:"user_ad_credits"`
+	DeviceRecognize   int64 `json:"device_recognize"`
+	DeviceAdCredits   int64 `json:"device_ad_credits"`
 }
 
 type AdminMetrics struct {
@@ -201,6 +206,21 @@ func (s *Service) GetAdminStats() (AdminStats, error) {
 	now := time.Now()
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	if stats.LabelToday, err = s.repo.CountNotesSince(dayStart); err != nil {
+		return stats, err
+	}
+	if stats.UserQuotaTotal, err = s.repo.SumUserQuotaTotal(); err != nil {
+		return stats, err
+	}
+	if stats.UserQuotaUsed, err = s.repo.SumUserQuotaUsed(); err != nil {
+		return stats, err
+	}
+	if stats.UserAdCredits, err = s.repo.SumUserAdCredits(); err != nil {
+		return stats, err
+	}
+	if stats.DeviceRecognize, err = s.repo.SumDeviceRecognizeCount(); err != nil {
+		return stats, err
+	}
+	if stats.DeviceAdCredits, err = s.repo.SumDeviceAdCredits(); err != nil {
 		return stats, err
 	}
 	return stats, nil

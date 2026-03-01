@@ -170,6 +170,11 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 - `low_confidence_ratio`
 - `low_confidence_threshold`
 - `label_today`
+- `user_quota_total`
+- `user_quota_used`
+- `user_ad_credits`
+- `device_recognize`
+- `device_ad_credits`
 
 **GET** `/admin/failures/top`
 

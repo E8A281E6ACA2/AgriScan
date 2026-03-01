@@ -110,6 +110,46 @@ func (r *Repository) CountUsersByStatus(status string) (int64, error) {
 	return c, err
 }
 
+func (r *Repository) SumUserQuotaTotal() (int64, error) {
+	var v int64
+	err := r.db.Model(&model.User{}).
+		Select("coalesce(sum(quota_total),0)").
+		Scan(&v).Error
+	return v, err
+}
+
+func (r *Repository) SumUserQuotaUsed() (int64, error) {
+	var v int64
+	err := r.db.Model(&model.User{}).
+		Select("coalesce(sum(quota_used),0)").
+		Scan(&v).Error
+	return v, err
+}
+
+func (r *Repository) SumUserAdCredits() (int64, error) {
+	var v int64
+	err := r.db.Model(&model.User{}).
+		Select("coalesce(sum(ad_credits),0)").
+		Scan(&v).Error
+	return v, err
+}
+
+func (r *Repository) SumDeviceRecognizeCount() (int64, error) {
+	var v int64
+	err := r.db.Model(&model.DeviceUsage{}).
+		Select("coalesce(sum(recognize_count),0)").
+		Scan(&v).Error
+	return v, err
+}
+
+func (r *Repository) SumDeviceAdCredits() (int64, error) {
+	var v int64
+	err := r.db.Model(&model.DeviceUsage{}).
+		Select("coalesce(sum(ad_credits),0)").
+		Scan(&v).Error
+	return v, err
+}
+
 // Label queue
 func (r *Repository) ListLabelNotes(limit, offset int, status, category, cropType string) ([]model.FieldNote, error) {
 	var items []model.FieldNote
