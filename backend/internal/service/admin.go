@@ -1358,7 +1358,7 @@ func (s *Service) ExportFailedResultsJSON(w io.Writer, days int, provider, cropT
 	return json.NewEncoder(w).Encode(items)
 }
 
-func (s *Service) SearchResults(limit, offset int, provider, cropType, source string, minConf, maxConf *float64, start, end *time.Time) ([]RecognizeResultView, error) {
+func (s *Service) SearchResults(limit, offset int, provider, cropType, source string, minConf, maxConf *float64, minDuration, maxDuration *int, start, end *time.Time) ([]RecognizeResultView, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -1380,6 +1380,12 @@ func (s *Service) SearchResults(limit, offset int, provider, cropType, source st
 	}
 	if maxConf != nil {
 		query = query.Where("recognition_results.confidence <= ?", *maxConf)
+	}
+	if minDuration != nil {
+		query = query.Where("recognition_results.duration_ms >= ?", *minDuration)
+	}
+	if maxDuration != nil {
+		query = query.Where("recognition_results.duration_ms <= ?", *maxDuration)
 	}
 	if start != nil {
 		query = query.Where("recognition_results.created_at >= ?", *start)

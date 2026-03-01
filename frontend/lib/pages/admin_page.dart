@@ -59,6 +59,8 @@ class _AdminPageState extends State<AdminPage> {
   final _searchCropController = TextEditingController();
   final _searchMinConfController = TextEditingController();
   final _searchMaxConfController = TextEditingController();
+  final _searchMinDurationController = TextEditingController();
+  final _searchMaxDurationController = TextEditingController();
   final _searchStartController = TextEditingController();
   final _searchEndController = TextEditingController();
   final _searchLimitController = TextEditingController(text: '50');
@@ -170,6 +172,8 @@ class _AdminPageState extends State<AdminPage> {
     _searchCropController.dispose();
     _searchMinConfController.dispose();
     _searchMaxConfController.dispose();
+    _searchMinDurationController.dispose();
+    _searchMaxDurationController.dispose();
     _searchStartController.dispose();
     _searchEndController.dispose();
     _searchLimitController.dispose();
@@ -1100,6 +1104,8 @@ class _AdminPageState extends State<AdminPage> {
     final nextOffset = append ? offset + limit : offset;
     final minText = _searchMinConfController.text.trim();
     final maxText = _searchMaxConfController.text.trim();
+    final minDurationText = _searchMinDurationController.text.trim();
+    final maxDurationText = _searchMaxDurationController.text.trim();
     double? minConf;
     double? maxConf;
     if (minText.isNotEmpty) {
@@ -1130,6 +1136,28 @@ class _AdminPageState extends State<AdminPage> {
       _toast('置信度范围有误');
       return;
     }
+    int? minDurationMs;
+    int? maxDurationMs;
+    if (minDurationText.isNotEmpty) {
+      final v = int.tryParse(minDurationText);
+      if (v == null || v < 0) {
+        _toast('最小耗时格式错误');
+        return;
+      }
+      minDurationMs = v;
+    }
+    if (maxDurationText.isNotEmpty) {
+      final v = int.tryParse(maxDurationText);
+      if (v == null || v < 0) {
+        _toast('最大耗时格式错误');
+        return;
+      }
+      maxDurationMs = v;
+    }
+    if (minDurationMs != null && maxDurationMs != null && minDurationMs > maxDurationMs) {
+      _toast('耗时范围有误');
+      return;
+    }
     setState(() => _loading = true);
     try {
       final items = await api.adminSearchResults(
@@ -1140,6 +1168,8 @@ class _AdminPageState extends State<AdminPage> {
         source: _searchSource.isEmpty ? null : _searchSource,
         minConfidence: minConf,
         maxConfidence: maxConf,
+        minDurationMs: minDurationMs,
+        maxDurationMs: maxDurationMs,
         startDate: _searchStartController.text.trim(),
         endDate: _searchEndController.text.trim(),
         adminToken: token.isEmpty ? null : token,
@@ -2929,6 +2959,22 @@ class _AdminPageState extends State<AdminPage> {
                                     child: TextField(
                                       controller: _searchMaxConfController,
                                       decoration: const InputDecoration(labelText: '最大置信度'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _searchMinDurationController,
+                                      decoration: const InputDecoration(labelText: '最小耗时(ms)'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 120,
+                                    child: TextField(
+                                      controller: _searchMaxDurationController,
+                                      decoration: const InputDecoration(labelText: '最大耗时(ms)'),
                                       keyboardType: TextInputType.number,
                                     ),
                                   ),

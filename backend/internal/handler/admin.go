@@ -852,6 +852,8 @@ func (h *Handler) AdminSearchResults(c *gin.Context) {
 	source := strings.TrimSpace(c.DefaultQuery("source", ""))
 	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
 	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	minDurationStr := strings.TrimSpace(c.DefaultQuery("min_duration_ms", ""))
+	maxDurationStr := strings.TrimSpace(c.DefaultQuery("max_duration_ms", ""))
 	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -887,7 +889,37 @@ func (h *Handler) AdminSearchResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
 		return
 	}
-	items, err := h.svc.SearchResults(limit, offset, provider, cropType, source, minConf, maxConf, startDate, endDate)
+	var minDuration *int
+	var maxDuration *int
+	if minDurationStr != "" {
+		if v, err := strconv.Atoi(minDurationStr); err == nil {
+			if v < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_duration_ms"})
+				return
+			}
+			minDuration = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_duration_ms"})
+			return
+		}
+	}
+	if maxDurationStr != "" {
+		if v, err := strconv.Atoi(maxDurationStr); err == nil {
+			if v < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_duration_ms"})
+				return
+			}
+			maxDuration = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_duration_ms"})
+			return
+		}
+	}
+	if minDuration != nil && maxDuration != nil && *minDuration > *maxDuration {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid duration range"})
+		return
+	}
+	items, err := h.svc.SearchResults(limit, offset, provider, cropType, source, minConf, maxConf, minDuration, maxDuration, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
