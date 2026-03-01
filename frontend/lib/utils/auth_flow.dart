@@ -23,6 +23,14 @@ Future<bool> ensureRecognitionAllowed(BuildContext context, ApiService api) asyn
     if (!ok) return false;
   }
 
+  if (ent.quotaRemaining == 0) {
+    final ok = await _quotaFlow(context);
+    if (ok && context.mounted) {
+      Navigator.pushNamed(context, '/membership');
+    }
+    return false;
+  }
+
   return true;
 }
 
@@ -93,6 +101,29 @@ Future<bool> _adFlow(BuildContext context, ApiService api) async {
     _showToast(context, '广告奖励失败: $e');
     return false;
   }
+}
+
+Future<bool> _quotaFlow(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('额度已用完'),
+        content: const Text('当前额度不足，是否前往会员中心开通？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('去开通'),
+          ),
+        ],
+      );
+    },
+  );
+  return ok == true;
 }
 
 Future<String?> _promptText(
