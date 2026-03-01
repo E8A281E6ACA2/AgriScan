@@ -85,6 +85,7 @@ class _AdminPageState extends State<AdminPage> {
   List<EvalSetRun> _evalSetRuns = [];
   EvalSet? _selectedEvalSet;
   final Set<int> _qcSelected = {};
+  final Set<int> _searchSelected = {};
   final Set<int> _lowConfSelected = {};
   final Set<int> _failedSelected = {};
   AdminStats? _stats;
@@ -877,9 +878,36 @@ class _AdminPageState extends State<AdminPage> {
           _searchResults = items;
           _searchOffsetController.text = nextOffset.toString();
         }
+        if (!append) {
+          _searchSelected.clear();
+        }
       });
     } catch (e) {
       _toast('结果搜索失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _addSearchToQC() async {
+    if (_searchSelected.isEmpty) {
+      _toast('请选择结果');
+      return;
+    }
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    setState(() => _loading = true);
+    try {
+      final created = await api.adminCreateQCSamplesFromResults(
+        ids: _searchSelected.toList(),
+        reason: 'manual_search',
+        adminToken: token.isEmpty ? null : token,
+      );
+      _toast('已加入质检 $created 条');
+      _searchSelected.clear();
+      await _loadQCSamples();
+    } catch (e) {
+      _toast('加入质检失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -951,6 +979,16 @@ class _AdminPageState extends State<AdminPage> {
         _failedSelected.add(id);
       } else {
         _failedSelected.remove(id);
+      }
+    });
+  }
+
+  void _toggleSearchResult(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _searchSelected.add(id);
+      } else {
+        _searchSelected.remove(id);
       }
     });
   }
@@ -1080,6 +1118,13 @@ class _AdminPageState extends State<AdminPage> {
                 _labelQCSample(sample);
               },
               child: const Text('回写标注'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _openAdminNote(sample.resultId);
+              },
+              child: const Text('打开手记'),
             ),
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
           ],
@@ -2144,6 +2189,10 @@ class _AdminPageState extends State<AdminPage> {
                                     onPressed: _loading ? null : () => _loadSearchResults(append: true),
                                     child: const Text('加载更多'),
                                   ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _addSearchToQC,
+                                    child: const Text('加入质检'),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -2151,11 +2200,16 @@ class _AdminPageState extends State<AdminPage> {
                                 const Text('暂无结果')
                               else
                                 ..._searchResults.map((r) {
+                                  final selected = _searchSelected.contains(r.resultId);
                                   final title = r.cropType.isEmpty ? '未识别' : r.cropType;
                                   final subtitle =
                                       '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
                                   return Card(
                                     child: ListTile(
+                                      leading: Checkbox(
+                                        value: selected,
+                                        onChanged: (v) => _toggleSearchResult(r.resultId, v ?? false),
+                                      ),
                                       title: Text('Result#${r.resultId} · $title'),
                                       subtitle: Text(subtitle),
                                       trailing: Row(
