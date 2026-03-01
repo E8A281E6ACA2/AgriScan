@@ -625,6 +625,19 @@ Web/跨端 Base64 方式：
 
 ### 5. 提交反馈
 
+### 4.1 导出历史记录（CSV/JSON）
+
+**GET** `/history/export`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| format | string | csv | csv/json |
+| crop_type | string | - | 按作物过滤 |
+| min_conf | float | - | 置信度下限(0-1) |
+| max_conf | float | - | 置信度上限(0-1) |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
 **POST** `/feedback`
 
 ```json

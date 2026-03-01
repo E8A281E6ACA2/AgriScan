@@ -398,6 +398,90 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	})
 }
 
+// ExportHistory 导出历史记录 CSV/JSON
+// GET /api/v1/history/export
+func (h *Handler) ExportHistory(c *gin.Context) {
+	actor, ok := h.requireActor(c)
+	if !ok {
+		return
+	}
+
+	ent, err := h.svc.GetEntitlements(actor.User, actor.DeviceID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if ent.RequireLogin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login_required"})
+		return
+	}
+
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
+	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	startDateStr := c.DefaultQuery("start_date", "")
+	endDateStr := c.DefaultQuery("end_date", "")
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+
+	startDate, endDate, err := parseDateRange(startDateStr, endDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var minConf *float64
+	var maxConf *float64
+	if minConfStr != "" {
+		if v, err := strconv.ParseFloat(minConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+				return
+			}
+			minConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+			return
+		}
+	}
+	if maxConfStr != "" {
+		if v, err := strconv.ParseFloat(maxConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+				return
+			}
+			maxConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+			return
+		}
+	}
+	if minConf != nil && maxConf != nil && *minConf > *maxConf {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
+		return
+	}
+
+	if ent.RetentionDays > 0 {
+		cutoff := time.Now().AddDate(0, 0, -ent.RetentionDays)
+		if startDate == nil || startDate.Before(cutoff) {
+			startDate = &cutoff
+		}
+	}
+
+	if format == "json" {
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=history.json")
+		if err := h.svc.ExportHistoryJSON(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf); err != nil {
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=history.csv")
+	if err := h.svc.ExportHistoryCSV(c.Writer, actor.UserID, startDate, endDate, cropType, minConf, maxConf); err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+}
+
 // SubmitFeedback 提交用户反馈
 // POST /api/v1/feedback
 func (h *Handler) SubmitFeedback(c *gin.Context) {
@@ -642,6 +726,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.POST("/recognize-url", h.RecognizeByURL)
 		v1.GET("/result/:id", h.GetResult)
 		v1.GET("/history", h.GetHistory)
+		v1.GET("/history/export", h.ExportHistory)
 		v1.POST("/feedback", h.SubmitFeedback)
 		v1.GET("/providers", h.GetLLMProviders)
 		v1.GET("/plans", h.GetPlans)

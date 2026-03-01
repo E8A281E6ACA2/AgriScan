@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
+import '../utils/export_helper.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -55,6 +56,35 @@ class _HistoryPageState extends State<HistoryPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加载历史失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportHistory(String format) async {
+    final api = context.read<ApiService>();
+    try {
+      final minConf = double.tryParse(_minConfController.text.trim());
+      final maxConf = double.tryParse(_maxConfController.text.trim());
+      final bytes = await api.exportHistory(
+        format: format,
+        cropType: _cropFilterController.text.trim(),
+        minConfidence: minConf,
+        maxConfidence: maxConf,
+        startDate: _startDateController.text.trim(),
+        endDate: _endDateController.text.trim(),
+      );
+      final name = format == 'json' ? 'history.json' : 'history.csv';
+      final path = await saveBytesAsFile(name, bytes);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出成功: $path')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e')),
         );
       }
     }
@@ -420,6 +450,14 @@ class _HistoryPageState extends State<HistoryPage> {
               ElevatedButton(
                 onPressed: _loadHistory,
                 child: const Text('筛选'),
+              ),
+              OutlinedButton(
+                onPressed: () => _exportHistory('csv'),
+                child: const Text('导出CSV'),
+              ),
+              OutlinedButton(
+                onPressed: () => _exportHistory('json'),
+                child: const Text('导出JSON'),
               ),
               OutlinedButton(
                 onPressed: () {

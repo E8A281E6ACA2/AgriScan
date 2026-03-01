@@ -112,6 +112,29 @@ class ApiService {
     return HistoryResponse.fromJson(response.data);
   }
 
+  Future<Uint8List> exportHistory({
+    String format = 'csv',
+    String? cropType,
+    double? minConfidence,
+    double? maxConfidence,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final response = await _dio.get(
+      '/history/export',
+      queryParameters: {
+        'format': format,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (minConfidence != null) 'min_conf': minConfidence,
+        if (maxConfidence != null) 'max_conf': maxConfidence,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
   // 创建手记
   Future<Note> createNote(NoteRequest request) async {
     final response = await _dio.post('/notes', data: request.toJson());

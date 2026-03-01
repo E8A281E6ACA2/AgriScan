@@ -7,10 +7,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -213,6 +216,79 @@ func (s *Service) GetResultByID(id uint) (*model.RecognitionResult, error) {
 // GetHistory 获取用户历史记录
 func (s *Service) GetHistory(userID uint, limit, offset int, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) ([]model.RecognitionResult, error) {
 	return s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+}
+
+func (s *Service) ExportHistoryCSV(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) error {
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	_ = writer.Write([]string{"result_id", "image_id", "image_url", "crop_type", "confidence", "provider", "created_at"})
+	limit := 1000
+	offset := 0
+	for {
+		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, r := range items {
+			_ = writer.Write([]string{
+				strconv.FormatUint(uint64(r.ID), 10),
+				strconv.FormatUint(uint64(r.ImageID), 10),
+				r.Image.OriginalURL,
+				r.CropType,
+				strconv.FormatFloat(r.Confidence, 'f', 4, 64),
+				r.Provider,
+				r.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		offset += len(items)
+	}
+	return writer.Error()
+}
+
+func (s *Service) ExportHistoryJSON(w io.Writer, userID uint, startDate, endDate *time.Time, cropType string, minConf, maxConf *float64) error {
+	encoder := json.NewEncoder(w)
+	_, err := io.WriteString(w, "[")
+	if err != nil {
+		return err
+	}
+	limit := 1000
+	offset := 0
+	first := true
+	for {
+		items, err := s.repo.GetResultsByUserID(userID, limit, offset, startDate, endDate, cropType, minConf, maxConf)
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, r := range items {
+			row := map[string]interface{}{
+				"result_id":  r.ID,
+				"image_id":   r.ImageID,
+				"image_url":  r.Image.OriginalURL,
+				"crop_type":  r.CropType,
+				"confidence": r.Confidence,
+				"provider":   r.Provider,
+				"created_at": r.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return err
+				}
+			}
+			if err := encoder.Encode(row); err != nil {
+				return err
+			}
+			first = false
+		}
+		offset += len(items)
+	}
+	_, err = io.WriteString(w, "]")
+	return err
 }
 
 // SaveFeedback 保存用户反馈
