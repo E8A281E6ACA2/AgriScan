@@ -498,7 +498,11 @@ class _HistoryPageState extends State<HistoryPage> {
               
               _buildDetailRow('作物类型', _formatCropName(item.cropType)),
               _buildDetailRow('置信度', '${(item.confidence * 100).toStringAsFixed(1)}%'),
-              _buildDetailRow('识别来源', item.provider),
+              _buildDetailRow('识别提供商', item.provider),
+              if (item.source != null && item.source!.isNotEmpty)
+                _buildDetailRow('来源', _formatSource(item.source!)),
+              if (item.durationMs != null && item.durationMs! > 0)
+                _buildDetailRow('耗时', '${(item.durationMs! / 1000).toStringAsFixed(2)}s'),
               
               if (item.description.isNotEmpty) ...[
                 const SizedBox(height: 16),
