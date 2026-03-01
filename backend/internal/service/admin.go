@@ -1302,6 +1302,54 @@ func (s *Service) ExportFailedResultsJSON(w io.Writer, days int, provider, cropT
 	return json.NewEncoder(w).Encode(items)
 }
 
+func (s *Service) SearchResults(limit, offset int, provider, cropType string, minConf, maxConf *float64, start, end *time.Time) ([]RecognizeResultView, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	var items []repository.QCResultRow
+	query := s.repo.DB().Model(&model.RecognitionResult{}).
+		Select("recognition_results.id as result_id, recognition_results.image_id as image_id, recognition_results.crop_type, recognition_results.confidence, recognition_results.provider, recognition_results.created_at as created_at, images.original_url as image_url").
+		Joins("JOIN images ON images.id = recognition_results.image_id")
+	if provider != "" {
+		query = query.Where("recognition_results.provider = ?", provider)
+	}
+	if cropType != "" {
+		query = query.Where("recognition_results.crop_type = ?", cropType)
+	}
+	if minConf != nil {
+		query = query.Where("recognition_results.confidence >= ?", *minConf)
+	}
+	if maxConf != nil {
+		query = query.Where("recognition_results.confidence <= ?", *maxConf)
+	}
+	if start != nil {
+		query = query.Where("recognition_results.created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("recognition_results.created_at < ?", *end)
+	}
+	err := query.Order("recognition_results.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RecognizeResultView, 0, len(items))
+	for _, it := range items {
+		out = append(out, RecognizeResultView{
+			ResultID:   it.ResultID,
+			ImageID:    it.ImageID,
+			ImageURL:   it.ImageURL,
+			CropType:   it.CropType,
+			Confidence: it.Confidence,
+			Provider:   it.Provider,
+			CreatedAt:  it.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	return out, nil
+}
+
 func (s *Service) CreateQCSamplesFromResults(ids []uint, reason string) (int, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {

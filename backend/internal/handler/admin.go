@@ -820,6 +820,60 @@ func (h *Handler) AdminExportFailedResults(c *gin.Context) {
 	}
 }
 
+// GET /api/v1/admin/results/search
+func (h *Handler) AdminSearchResults(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	provider := strings.TrimSpace(c.DefaultQuery("provider", ""))
+	cropType := strings.TrimSpace(c.DefaultQuery("crop_type", ""))
+	minConfStr := strings.TrimSpace(c.DefaultQuery("min_conf", ""))
+	maxConfStr := strings.TrimSpace(c.DefaultQuery("max_conf", ""))
+	startDate, endDate, err := parseDateRange(c.DefaultQuery("start_date", ""), c.DefaultQuery("end_date", ""))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var minConf *float64
+	var maxConf *float64
+	if minConfStr != "" {
+		if v, err := strconv.ParseFloat(minConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+				return
+			}
+			minConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_conf"})
+			return
+		}
+	}
+	if maxConfStr != "" {
+		if v, err := strconv.ParseFloat(maxConfStr, 64); err == nil {
+			if v < 0 || v > 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+				return
+			}
+			maxConf = &v
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_conf"})
+			return
+		}
+	}
+	if minConf != nil && maxConf != nil && *minConf > *maxConf {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid confidence range"})
+		return
+	}
+	items, err := h.svc.SearchResults(limit, offset, provider, cropType, minConf, maxConf, startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": items, "limit": limit, "offset": offset})
+}
+
 // POST /api/v1/admin/qc/samples/from-results
 func (h *Handler) AdminCreateQCSamplesFromResults(c *gin.Context) {
 	if !h.requireAdmin(c) {

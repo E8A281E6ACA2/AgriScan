@@ -706,6 +706,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
 		v1.GET("/admin/qc/samples/export", h.AdminExportQCSamples)
 		v1.GET("/admin/results/low-confidence", h.AdminListLowConfidenceResults)
 		v1.GET("/admin/results/failed", h.AdminListFailedResults)
+		v1.GET("/admin/results/search", h.AdminSearchResults)
 		v1.GET("/admin/results/low-confidence/export", h.AdminExportLowConfidenceResults)
 		v1.GET("/admin/results/failed/export", h.AdminExportFailedResults)
 		v1.GET("/admin/export/eval", h.AdminExportEval)

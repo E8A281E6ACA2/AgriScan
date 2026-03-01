@@ -38,6 +38,14 @@ class _AdminPageState extends State<AdminPage> {
   final _qcThresholdController = TextEditingController(text: '0.5');
   final _qcStatusController = TextEditingController(text: 'pending');
   final _qcReasonController = TextEditingController();
+  final _searchProviderController = TextEditingController();
+  final _searchCropController = TextEditingController();
+  final _searchMinConfController = TextEditingController();
+  final _searchMaxConfController = TextEditingController();
+  final _searchStartController = TextEditingController();
+  final _searchEndController = TextEditingController();
+  final _searchLimitController = TextEditingController(text: '50');
+  final _searchOffsetController = TextEditingController(text: '0');
   final _lowConfDaysController = TextEditingController(text: '30');
   final _lowConfLimitController = TextEditingController(text: '50');
   final _lowConfOffsetController = TextEditingController(text: '0');
@@ -70,6 +78,7 @@ class _AdminPageState extends State<AdminPage> {
   List<AppSetting> _settings = [];
   List<EvalRun> _evalRuns = [];
   List<QCSample> _qcSamples = [];
+  List<AdminResultItem> _searchResults = [];
   List<AdminResultItem> _lowConfResults = [];
   List<AdminResultItem> _failedResults = [];
   List<EvalSet> _evalSets = [];
@@ -128,6 +137,14 @@ class _AdminPageState extends State<AdminPage> {
     _qcThresholdController.dispose();
     _qcStatusController.dispose();
     _qcReasonController.dispose();
+    _searchProviderController.dispose();
+    _searchCropController.dispose();
+    _searchMinConfController.dispose();
+    _searchMaxConfController.dispose();
+    _searchStartController.dispose();
+    _searchEndController.dispose();
+    _searchLimitController.dispose();
+    _searchOffsetController.dispose();
     _lowConfDaysController.dispose();
     _lowConfLimitController.dispose();
     _lowConfOffsetController.dispose();
@@ -792,6 +809,79 @@ class _AdminPageState extends State<AdminPage> {
       _toast('导出成功: $path');
     } catch (e) {
       _toast('导出失败: $e');
+    }
+  }
+
+  Future<void> _loadSearchResults({bool append = false}) async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    var limit = int.tryParse(_searchLimitController.text) ?? 50;
+    var offset = int.tryParse(_searchOffsetController.text) ?? 0;
+    if (limit <= 0) limit = 50;
+    if (offset < 0) offset = 0;
+    final nextOffset = append ? offset + limit : offset;
+    final minText = _searchMinConfController.text.trim();
+    final maxText = _searchMaxConfController.text.trim();
+    double? minConf;
+    double? maxConf;
+    if (minText.isNotEmpty) {
+      final v = double.tryParse(minText);
+      if (v == null) {
+        _toast('最小置信度格式错误');
+        return;
+      }
+      if (v < 0 || v > 1) {
+        _toast('最小置信度需在0-1');
+        return;
+      }
+      minConf = v;
+    }
+    if (maxText.isNotEmpty) {
+      final v = double.tryParse(maxText);
+      if (v == null) {
+        _toast('最大置信度格式错误');
+        return;
+      }
+      if (v < 0 || v > 1) {
+        _toast('最大置信度需在0-1');
+        return;
+      }
+      maxConf = v;
+    }
+    if (minConf != null && maxConf != null && minConf > maxConf) {
+      _toast('置信度范围有误');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final items = await api.adminSearchResults(
+        limit: limit,
+        offset: nextOffset,
+        provider: _searchProviderController.text.trim(),
+        cropType: _searchCropController.text.trim(),
+        minConfidence: minConf,
+        maxConfidence: maxConf,
+        startDate: _searchStartController.text.trim(),
+        endDate: _searchEndController.text.trim(),
+        adminToken: token.isEmpty ? null : token,
+      );
+      setState(() {
+        if (append) {
+          if (items.isEmpty) {
+            _toast('没有更多结果');
+          } else {
+            _searchResults = [..._searchResults, ...items];
+            _searchOffsetController.text = nextOffset.toString();
+          }
+        } else {
+          _searchResults = items;
+          _searchOffsetController.text = nextOffset.toString();
+        }
+      });
+    } catch (e) {
+      _toast('结果搜索失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -1977,6 +2067,117 @@ class _AdminPageState extends State<AdminPage> {
                                   );
                                 }).toList(),
                               ],
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('结果搜索', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _searchProviderController,
+                                      decoration: const InputDecoration(labelText: '提供商(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _searchCropController,
+                                      decoration: const InputDecoration(labelText: '作物(可选)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _searchMinConfController,
+                                      decoration: const InputDecoration(labelText: '最小置信度'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _searchMaxConfController,
+                                      decoration: const InputDecoration(labelText: '最大置信度'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _searchStartController,
+                                      decoration: const InputDecoration(labelText: '开始日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _searchEndController,
+                                      decoration: const InputDecoration(labelText: '结束日期(YYYY-MM-DD)'),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _searchLimitController,
+                                      decoration: const InputDecoration(labelText: '数量'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _searchOffsetController,
+                                      decoration: const InputDecoration(labelText: '偏移'),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _loadSearchResults,
+                                    child: const Text('搜索'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : () => _loadSearchResults(append: true),
+                                    child: const Text('加载更多'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (_searchResults.isEmpty)
+                                const Text('暂无结果')
+                              else
+                                ..._searchResults.map((r) {
+                                  final title = r.cropType.isEmpty ? '未识别' : r.cropType;
+                                  final subtitle =
+                                      '${r.createdAt} | conf ${r.confidence.toStringAsFixed(2)} | ${r.provider}';
+                                  return Card(
+                                    child: ListTile(
+                                      title: Text('Result#${r.resultId} · $title'),
+                                      subtitle: Text(subtitle),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: '打开手记',
+                                            onPressed: _loading ? null : () => _openAdminNote(r.resultId),
+                                            icon: const Icon(Icons.note),
+                                          ),
+                                          if (r.imageUrl.isNotEmpty)
+                                            SizedBox(
+                                              width: 48,
+                                              height: 48,
+                                              child: Image.network(r.imageUrl, fit: BoxFit.cover),
+                                            ),
+                                        ],
+                                      ),
+                                      onTap: () => _showResultDetail(r),
+                                    ),
+                                  );
+                                }).toList(),
                               const SizedBox(height: 16),
                               const Divider(),
                               const SizedBox(height: 8),

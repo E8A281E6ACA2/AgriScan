@@ -860,6 +860,35 @@ class ApiService {
     return list.map((e) => AdminResultItem.fromJson(e)).toList();
   }
 
+  Future<List<AdminResultItem>> adminSearchResults({
+    int limit = 20,
+    int offset = 0,
+    String? provider,
+    String? cropType,
+    double? minConfidence,
+    double? maxConfidence,
+    String? startDate,
+    String? endDate,
+    String? adminToken,
+  }) async {
+    final response = await _dio.get(
+      '/admin/results/search',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+        if (cropType != null && cropType.isNotEmpty) 'crop_type': cropType,
+        if (minConfidence != null) 'min_conf': minConfidence,
+        if (maxConfidence != null) 'max_conf': maxConfidence,
+        if (startDate != null && startDate.isNotEmpty) 'start_date': startDate,
+        if (endDate != null && endDate.isNotEmpty) 'end_date': endDate,
+      },
+      options: _adminOptions(adminToken),
+    );
+    final list = response.data['results'] as List? ?? [];
+    return list.map((e) => AdminResultItem.fromJson(e)).toList();
+  }
+
   Future<Uint8List> adminExportLowConfidenceResults({
     String format = 'csv',
     int days = 30,

@@ -410,6 +410,22 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 | start_date | string | - | 开始日期(YYYY-MM-DD) |
 | end_date | string | - | 结束日期(YYYY-MM-DD) |
 
+**GET** `/admin/results/search`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| limit | int | 20 | 分页大小 |
+| offset | int | 0 | 偏移 |
+| provider | string | - | 提供商过滤 |
+| crop_type | string | - | 作物过滤 |
+| min_conf | float | - | 最小置信度 |
+| max_conf | float | - | 最大置信度 |
+| start_date | string | - | 开始日期(YYYY-MM-DD) |
+| end_date | string | - | 结束日期(YYYY-MM-DD) |
+
+返回字段：
+- result_id / image_id / image_url / crop_type / confidence / provider / created_at
+
 **GET** `/admin/results/low-confidence/export`
 
 | 参数 | 类型 | 默认值 | 说明 |
