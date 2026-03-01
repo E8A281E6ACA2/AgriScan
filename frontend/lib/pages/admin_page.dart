@@ -2250,7 +2250,7 @@ class _AdminPageState extends State<AdminPage> {
                     else
                       ..._failureTop.map((item) {
                         final title =
-                            '${item.errorCode.isEmpty ? "unknown" : item.errorCode} · ${item.count} / 重试 ${item.retryTotal}';
+                            '${item.errorCode.isEmpty ? "unknown" : item.errorCode} · ${item.count} / 成功 ${item.successCount} / 重试 ${item.retryTotal}';
                         final subtitle = item.errorMessage.isEmpty ? '无错误信息' : item.errorMessage;
                         return ListTile(
                           dense: true,

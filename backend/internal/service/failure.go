@@ -13,6 +13,7 @@ type FailureTopView struct {
 	ErrorMessage string `json:"error_message"`
 	Count        int64  `json:"count"`
 	RetryTotal   int64  `json:"retry_total"`
+	SuccessCount int64  `json:"success_count"`
 }
 
 func (s *Service) RecordFailure(userID uint, imageID *uint, provider, stage string, err error) {
@@ -57,6 +58,7 @@ func (s *Service) ListFailureTop(days, limit int, stage string) ([]FailureTopVie
 			ErrorMessage: r.ErrorMessage,
 			Count:        r.Count,
 			RetryTotal:   r.RetryTotal,
+			SuccessCount: r.SuccessCount,
 		})
 	}
 	return out, nil

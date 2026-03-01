@@ -14,6 +14,7 @@ type FailureTopRow struct {
 	ErrorMessage string `json:"error_message"`
 	Count        int64  `json:"count"`
 	RetryTotal   int64  `json:"retry_total"`
+	SuccessCount int64  `json:"success_count"`
 }
 
 func (r *Repository) UpsertRecognitionFailure(item *model.RecognitionFailure) error {
@@ -44,12 +45,13 @@ func (r *Repository) UpsertRecognitionFailure(item *model.RecognitionFailure) er
 func (r *Repository) ListFailureTop(since time.Time, limit int, stage string) ([]FailureTopRow, error) {
 	rows := make([]FailureTopRow, 0)
 	query := r.db.Model(&model.RecognitionFailure{}).
-		Select("stage, error_code, max(error_message) as error_message, count(*) as count, sum(retry_count) as retry_total").
-		Where("created_at >= ?", since)
+		Select("recognition_failures.stage, recognition_failures.error_code, max(recognition_failures.error_message) as error_message, count(*) as count, sum(recognition_failures.retry_count) as retry_total, sum(case when recognition_results.id is not null then 1 else 0 end) as success_count").
+		Joins("LEFT JOIN recognition_results ON recognition_results.image_id = recognition_failures.image_id").
+		Where("recognition_failures.created_at >= ?", since)
 	if stage != "" {
-		query = query.Where("stage = ?", stage)
+		query = query.Where("recognition_failures.stage = ?", stage)
 	}
-	err := query.Group("stage, error_code").
+	err := query.Group("recognition_failures.stage, recognition_failures.error_code").
 		Order("count DESC").
 		Limit(limit).
 		Scan(&rows).Error

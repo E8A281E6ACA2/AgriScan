@@ -1830,6 +1830,7 @@ class FailureTop {
   final String errorMessage;
   final int count;
   final int retryTotal;
+  final int successCount;
 
   FailureTop({
     required this.stage,
@@ -1837,6 +1838,7 @@ class FailureTop {
     required this.errorMessage,
     required this.count,
     required this.retryTotal,
+    required this.successCount,
   });
 
   factory FailureTop.fromJson(Map<String, dynamic> json) {
@@ -1846,6 +1848,7 @@ class FailureTop {
       errorMessage: (json['error_message'] ?? '').toString(),
       count: json['count'] ?? 0,
       retryTotal: json['retry_total'] ?? 0,
+      successCount: json['success_count'] ?? 0,
     );
   }
 }
