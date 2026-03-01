@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"agri-scan/internal/llm"
 	"agri-scan/internal/model"
 	"agri-scan/internal/service"
 	"errors"
@@ -59,6 +60,39 @@ type RecognizeURLRequest struct {
 	Source   string `json:"source"`
 }
 
+const recognizeRetryMax = 2
+const recognizeRetryDelay = 300 * time.Millisecond
+
+func shouldRetryRecognize(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "invalid_request") ||
+		strings.Contains(msg, "invalid_parameter") ||
+		strings.Contains(msg, "invalid") ||
+		strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "forbidden") ||
+		strings.Contains(msg, "not found") {
+		return false
+	}
+	if strings.Contains(msg, "timeout") ||
+		strings.Contains(msg, "timed out") ||
+		strings.Contains(msg, "temporary") ||
+		strings.Contains(msg, "temporarily") ||
+		strings.Contains(msg, "rate limit") ||
+		strings.Contains(msg, "429") ||
+		strings.Contains(msg, "overload") ||
+		strings.Contains(msg, "server error") ||
+		strings.Contains(msg, "status 5") ||
+		strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "dial tcp") {
+		return true
+	}
+	return false
+}
+
 // RecognizeByURL 使用外部图片 URL 识别
 // POST /api/v1/recognize-url
 func (h *Handler) RecognizeByURL(c *gin.Context) {
@@ -85,9 +119,18 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 	}
 
 	started := time.Now()
-	result, err := h.svc.Recognize(img.OriginalURL)
-	if err != nil {
+	var result *llm.RecognitionResult
+	var err error
+	for attempt := 1; attempt <= recognizeRetryMax; attempt++ {
+		result, err = h.svc.Recognize(img.OriginalURL)
+		if err == nil {
+			break
+		}
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
+		if attempt < recognizeRetryMax && shouldRetryRecognize(err) {
+			time.Sleep(recognizeRetryDelay)
+			continue
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -225,9 +268,18 @@ func (h *Handler) Recognize(c *gin.Context) {
 
 	// 调用大模型识别
 	started := time.Now()
-	result, err := h.svc.Recognize(img.OriginalURL)
-	if err != nil {
+	var result *llm.RecognitionResult
+	var err error
+	for attempt := 1; attempt <= recognizeRetryMax; attempt++ {
+		result, err = h.svc.Recognize(img.OriginalURL)
+		if err == nil {
+			break
+		}
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
+		if attempt < recognizeRetryMax && shouldRetryRecognize(err) {
+			time.Sleep(recognizeRetryDelay)
+			continue
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
