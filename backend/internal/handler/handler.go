@@ -50,10 +50,13 @@ type RecognizeResponse struct {
 	RiskLevel      string   `json:"risk_level"`
 	RiskNote       string   `json:"risk_note"`
 	FeedbackCorrect *bool    `json:"feedback_correct,omitempty"`
+	Source         string   `json:"source,omitempty"`
+	DurationMs     int      `json:"duration_ms,omitempty"`
 }
 
 type RecognizeURLRequest struct {
 	ImageURL string `json:"image_url" binding:"required"`
+	Source   string `json:"source"`
 }
 
 // RecognizeByURL 使用外部图片 URL 识别
@@ -81,14 +84,20 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		return
 	}
 
+	started := time.Now()
 	result, err := h.svc.Recognize(img.OriginalURL)
 	if err != nil {
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	durationMs := int(time.Since(started).Milliseconds())
 
-	savedResult, err := h.svc.SaveResult(img.ID, result)
+	source := strings.TrimSpace(req.Source)
+	if source == "" {
+		source = "url"
+	}
+	savedResult, err := h.svc.SaveResult(img.ID, result, source, durationMs)
 	if err != nil {
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "save_result", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -115,6 +124,8 @@ func (h *Handler) RecognizeByURL(c *gin.Context) {
 		Longitude:      img.Longitude,
 		RiskLevel:      riskLevel,
 		RiskNote:       riskNote,
+		Source:         savedResult.Source,
+		DurationMs:     savedResult.DurationMs,
 	})
 }
 
@@ -187,7 +198,8 @@ func (h *Handler) UploadImage(c *gin.Context) {
 // POST /api/v1/recognize
 func (h *Handler) Recognize(c *gin.Context) {
 	var req struct {
-		ImageID uint `json:"image_id" binding:"required"`
+		ImageID uint   `json:"image_id" binding:"required"`
+		Source  string `json:"source"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -212,15 +224,21 @@ func (h *Handler) Recognize(c *gin.Context) {
 	}
 
 	// 调用大模型识别
+	started := time.Now()
 	result, err := h.svc.Recognize(img.OriginalURL)
 	if err != nil {
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "recognize", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	durationMs := int(time.Since(started).Milliseconds())
 
 	// 保存识别结果
-	savedResult, err := h.svc.SaveResult(req.ImageID, result)
+	source := strings.TrimSpace(req.Source)
+	if source == "" {
+		source = "unknown"
+	}
+	savedResult, err := h.svc.SaveResult(req.ImageID, result, source, durationMs)
 	if err != nil {
 		h.svc.RecordFailure(actor.UserID, &img.ID, "", "save_result", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -248,6 +266,8 @@ func (h *Handler) Recognize(c *gin.Context) {
 		Longitude:      img.Longitude,
 		RiskLevel:      riskLevel,
 		RiskNote:       riskNote,
+		Source:         savedResult.Source,
+		DurationMs:     savedResult.DurationMs,
 	})
 }
 
@@ -305,6 +325,8 @@ func (h *Handler) GetResult(c *gin.Context) {
 		RiskLevel:      riskLevel,
 		RiskNote:       riskNote,
 		FeedbackCorrect: feedbackCorrect,
+		Source:         result.Source,
+		DurationMs:     result.DurationMs,
 	})
 }
 
@@ -469,6 +491,8 @@ func (h *Handler) GetHistory(c *gin.Context) {
 			RiskLevel:      riskLevel,
 			RiskNote:       riskNote,
 			FeedbackCorrect: feedbackCorrect,
+			Source:         r.Source,
+			DurationMs:     r.DurationMs,
 		}
 		response = append(response, resp)
 	}

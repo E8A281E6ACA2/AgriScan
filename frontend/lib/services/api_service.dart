@@ -77,9 +77,10 @@ class ApiService {
   }
   
   // 发起识别
-  Future<RecognizeResponse> recognize(int imageId) async {
+  Future<RecognizeResponse> recognize(int imageId, {String? source}) async {
     final response = await _dio.post('/recognize', data: {
       'image_id': imageId,
+      if (source != null && source.isNotEmpty) 'source': source,
     });
     return RecognizeResponse.fromJson(response.data);
   }
@@ -1167,6 +1168,8 @@ class RecognizeResponse {
   final String? riskLevel;
   final String? riskNote;
   final bool? feedbackCorrect;
+  final String? source;
+  final int? durationMs;
   
   RecognizeResponse({
     this.rawText,
@@ -1186,6 +1189,8 @@ class RecognizeResponse {
     this.riskLevel,
     this.riskNote,
     this.feedbackCorrect,
+    this.source,
+    this.durationMs,
   });
   
   factory RecognizeResponse.fromJson(Map<String, dynamic> json) {
@@ -1207,6 +1212,8 @@ class RecognizeResponse {
       riskLevel: json['risk_level'],
       riskNote: json['risk_note'],
       feedbackCorrect: json['feedback_correct'] == null ? null : json['feedback_correct'] as bool,
+      source: json['source'],
+      durationMs: json['duration_ms'] == null ? null : (json['duration_ms'] as num).toInt(),
     );
   }
 }

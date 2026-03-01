@@ -72,7 +72,7 @@ class _CameraPageState extends State<CameraPage> {
       );
       provider.setUploadResponse(uploadRes);
 
-      final result = await api.recognize(uploadRes.imageId);
+      final result = await api.recognize(uploadRes.imageId, source: 'camera');
       provider.setRecognizeResult(result);
       provider.setRecognizeMeta(
         source: '拍照',

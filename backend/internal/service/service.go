@@ -170,7 +170,7 @@ func (s *Service) Recognize(imageURL string) (*llm.RecognitionResult, error) {
 }
 
 // SaveResult 保存识别结果
-func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*model.RecognitionResult, error) {
+func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult, source string, durationMs int) (*model.RecognitionResult, error) {
 	// 检查是否已存在结果
 	existing, err := s.repo.GetResultByImageID(imageID)
 	if err == nil && existing != nil {
@@ -182,6 +182,12 @@ func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*mode
 		existing.GrowthStage = result.GrowthStage
 		existing.PossibleIssue = result.PossibleIssue
 		existing.Provider = s.llm.Name()
+		if source != "" {
+			existing.Source = source
+		}
+		if durationMs > 0 {
+			existing.DurationMs = durationMs
+		}
 		return existing, s.repo.DB().Save(existing).Error
 	}
 
@@ -195,6 +201,8 @@ func (s *Service) SaveResult(imageID uint, result *llm.RecognitionResult) (*mode
 		GrowthStage:   result.GrowthStage,
 		PossibleIssue: result.PossibleIssue,
 		Provider:      s.llm.Name(),
+		Source:        source,
+		DurationMs:    durationMs,
 	}
 
 	err = s.repo.CreateResult(saved)

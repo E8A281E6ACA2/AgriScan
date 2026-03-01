@@ -53,6 +53,8 @@ type RecognitionResult struct {
 	GrowthStage   *string        `json:"growth_stage"`
 	PossibleIssue *string        `json:"possible_issue"`
 	Provider      string         `gorm:"size:32" json:"provider"` // 识别提供商
+	Source        string         `gorm:"size:16;index" json:"source"`
+	DurationMs    int            `json:"duration_ms"`
 }
 
 type RecognitionFailure struct {
