@@ -42,6 +42,8 @@ class _AdminPageState extends State<AdminPage> {
   final _qcReasonController = TextEditingController();
   final _qcLimitController = TextEditingController(text: '50');
   final _qcOffsetController = TextEditingController(text: '0');
+  final _labelTemplatesController = TextEditingController();
+  final _cropListController = TextEditingController();
   final _searchProviderController = TextEditingController();
   final _searchCropController = TextEditingController();
   final _searchMinConfController = TextEditingController();
@@ -134,6 +136,8 @@ class _AdminPageState extends State<AdminPage> {
     _qcReasonController.dispose();
     _qcLimitController.dispose();
     _qcOffsetController.dispose();
+    _labelTemplatesController.dispose();
+    _cropListController.dispose();
     _searchProviderController.dispose();
     _searchCropController.dispose();
     _searchMinConfController.dispose();
@@ -393,8 +397,12 @@ class _AdminPageState extends State<AdminPage> {
     try {
       final items = await api.adminSettings(adminToken: token.isEmpty ? null : token);
       final labelOn = items.any((s) => s.key == 'label_flow_enabled' && _isTrue(s.value));
+      final labelRaw = _settingValue(items, 'label_templates_json');
+      final cropRaw = _settingValue(items, 'crop_list_json');
       final templates = _parseLabelTemplates(_settingValue(items, 'label_templates_json'));
       final crops = _parseCropSuggestions(_settingValue(items, 'crop_list_json'));
+      _labelTemplatesController.text = labelRaw;
+      _cropListController.text = cropRaw;
       setState(() {
         _settings = items;
         _labelFlowEnabled = labelOn;
@@ -403,6 +411,78 @@ class _AdminPageState extends State<AdminPage> {
       });
     } catch (e) {
       _toast('系统配置失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveLabelTemplatesConfig() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final raw = _labelTemplatesController.text.trim();
+    if (raw.isEmpty) {
+      _toast('模板不能为空');
+      return;
+    }
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      _toast('模板JSON格式错误');
+      return;
+    }
+    if (decoded is! List) {
+      _toast('模板需为JSON数组');
+      return;
+    }
+    final normalized = jsonEncode(decoded);
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdateSetting(
+        'label_templates_json',
+        AppSettingUpdate(value: normalized),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _labelTemplatesController.text = normalized;
+      _toast('已保存');
+      await _loadSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveCropListConfig() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final raw = _cropListController.text.trim();
+    List<String> list = [];
+    if (raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          list = _normalizeStringList(decoded);
+        } else {
+          list = _splitTextList(raw);
+        }
+      } catch (_) {
+        list = _splitTextList(raw);
+      }
+    }
+    final normalized = jsonEncode(list);
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdateSetting(
+        'crop_list_json',
+        AppSettingUpdate(value: normalized),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _cropListController.text = normalized;
+      _toast('已保存');
+      await _loadSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -2065,6 +2145,58 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 );
                               }).toList(),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('标注配置', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _labelTemplatesController,
+                                decoration: const InputDecoration(
+                                  labelText: '标签模板(JSON数组)',
+                                  hintText: '[{"label":"病害-锈病","category":"disease","tags":["锈病"]}]',
+                                ),
+                                minLines: 3,
+                                maxLines: 8,
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _saveLabelTemplatesConfig,
+                                    child: const Text('保存模板'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadSettings,
+                                    child: const Text('重新加载'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _cropListController,
+                                decoration: const InputDecoration(
+                                  labelText: '作物清单(JSON数组或逗号分隔)',
+                                  hintText: '["水稻","小麦","玉米"] 或 水稻,小麦,玉米',
+                                ),
+                                minLines: 2,
+                                maxLines: 5,
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _saveCropListConfig,
+                                    child: const Text('保存作物'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadSettings,
+                                    child: const Text('重新加载'),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 16),
                               const Divider(),
                               const SizedBox(height: 8),
