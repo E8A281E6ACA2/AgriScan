@@ -218,6 +218,11 @@ class _ResultPageState extends State<ResultPage> {
             title: const Text('识别结果'),
             actions: [
               IconButton(
+                icon: const Icon(Icons.feedback_outlined),
+                tooltip: '纠错反馈',
+                onPressed: () => _showQuickFeedback(),
+              ),
+              IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () {
                   provider.reset();
