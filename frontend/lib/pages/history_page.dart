@@ -1,7 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 import '../utils/export_helper.dart';
@@ -24,8 +26,11 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _maxLatController = TextEditingController();
   final TextEditingController _minLngController = TextEditingController();
   final TextEditingController _maxLngController = TextEditingController();
+  final TextEditingController _centerLatController = TextEditingController();
+  final TextEditingController _centerLngController = TextEditingController();
   final TextEditingController _presetNameController = TextEditingController();
   List<_GeoPreset> _geoPresets = [];
+  bool _sortByDistance = false;
 
   @override
   void initState() {
@@ -46,6 +51,8 @@ class _HistoryPageState extends State<HistoryPage> {
     _maxLatController.dispose();
     _minLngController.dispose();
     _maxLngController.dispose();
+    _centerLatController.dispose();
+    _centerLngController.dispose();
     _presetNameController.dispose();
     super.dispose();
   }
@@ -72,8 +79,9 @@ class _HistoryPageState extends State<HistoryPage> {
         startDate: _startDateController.text.trim(),
         endDate: _endDateController.text.trim(),
       );
-      provider.setHistory(response.results);
-      provider.setSimilar(_findSimilar(response.results));
+      final sorted = _applyDistanceSort(response.results);
+      provider.setHistory(sorted);
+      provider.setSimilar(_findSimilar(sorted));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -183,6 +191,38 @@ class _HistoryPageState extends State<HistoryPage> {
     final crop = result.cropType;
     return history.where((h) => h.cropType == crop && h.imageUrl != null && h.imageUrl!.isNotEmpty).take(6).toList();
   }
+
+  List<RecognizeResponse> _applyDistanceSort(List<RecognizeResponse> items) {
+    if (!_sortByDistance) return items;
+    final centerLat = double.tryParse(_centerLatController.text.trim());
+    final centerLng = double.tryParse(_centerLngController.text.trim());
+    if (centerLat == null || centerLng == null) return items;
+    final sorted = List<RecognizeResponse>.from(items);
+    final cache = <int, double>{};
+    double distanceFor(RecognizeResponse r) {
+      return cache.putIfAbsent(r.resultId, () {
+        final lat = r.latitude;
+        final lng = r.longitude;
+        if (lat == null || lng == null) return double.infinity;
+        return _distanceKm(centerLat, centerLng, lat, lng);
+      });
+    }
+
+    sorted.sort((a, b) => distanceFor(a).compareTo(distanceFor(b)));
+    return sorted;
+  }
+
+  double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
+    const earth = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(lat1)) * cos(_degToRad(lat2)) * sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earth * c;
+  }
+
+  double _degToRad(double deg) => deg * (pi / 180.0);
   
   @override
   Widget build(BuildContext context) {
@@ -558,6 +598,34 @@ class _HistoryPageState extends State<HistoryPage> {
                   keyboardType: TextInputType.number,
                 ),
               ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _centerLatController,
+                  decoration: const InputDecoration(labelText: '中心纬度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _centerLngController,
+                  decoration: const InputDecoration(labelText: '中心经度'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 140,
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _sortByDistance,
+                      onChanged: (v) => setState(() => _sortByDistance = v ?? false),
+                    ),
+                    const Expanded(child: Text('按距离排序')),
+                  ],
+                ),
+              ),
               ElevatedButton(
                 onPressed: _loadHistory,
                 child: const Text('筛选'),
@@ -581,6 +649,9 @@ class _HistoryPageState extends State<HistoryPage> {
                   _maxLatController.clear();
                   _minLngController.clear();
                   _maxLngController.clear();
+                  _centerLatController.clear();
+                  _centerLngController.clear();
+                  _sortByDistance = false;
                   _loadHistory();
                 },
                 child: const Text('清空'),
