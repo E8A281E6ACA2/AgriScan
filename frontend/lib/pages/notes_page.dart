@@ -47,6 +47,11 @@ class _NotesPageState extends State<NotesPage> {
     'provider',
     'note',
     'raw_text',
+    'is_correct',
+    'corrected_type',
+    'feedback_note',
+    'feedback_category',
+    'feedback_tags',
   ];
 
   static const Map<String, List<String>> _fieldPresets = {
@@ -73,6 +78,11 @@ class _NotesPageState extends State<NotesPage> {
       'possible_issue',
       'provider',
       'note',
+      'is_correct',
+      'corrected_type',
+      'feedback_note',
+      'feedback_category',
+      'feedback_tags',
     ],
     '研究用': [
       'id',
@@ -89,6 +99,11 @@ class _NotesPageState extends State<NotesPage> {
       'provider',
       'note',
       'raw_text',
+      'is_correct',
+      'corrected_type',
+      'feedback_note',
+      'feedback_category',
+      'feedback_tags',
     ],
   };
   List<ExportTemplate> _templates = [];

@@ -68,6 +68,14 @@ func (s *Service) ExportNotesCSV(w io.Writer, userID uint, limit, offset int, ca
 			"note":           n.Note,
 			"raw_text":       n.RawText,
 			"tags":           n.Tags,
+			"is_correct":     "",
+			"corrected_type": n.CorrectedType,
+			"feedback_note":  n.FeedbackNote,
+			"feedback_category": n.FeedbackCategory,
+			"feedback_tags":  n.FeedbackTags,
+		}
+		if n.IsCorrect != nil {
+			row["is_correct"] = strconv.FormatBool(*n.IsCorrect)
 		}
 
 		out := make([]string, 0, len(columns))
@@ -133,6 +141,11 @@ func (s *Service) ExportNotesJSON(w io.Writer, userID uint, limit, offset int, c
 			"note":           n.Note,
 			"raw_text":       n.RawText,
 			"tags":           n.Tags,
+			"is_correct":     n.IsCorrect,
+			"corrected_type": n.CorrectedType,
+			"feedback_note":  n.FeedbackNote,
+			"feedback_category": n.FeedbackCategory,
+			"feedback_tags":  n.FeedbackTags,
 		}
 
 		out := make(map[string]any, len(columns))
@@ -165,6 +178,11 @@ func parseFields(fields string) []string {
 		"provider",
 		"note",
 		"tags",
+		"is_correct",
+		"corrected_type",
+		"feedback_note",
+		"feedback_category",
+		"feedback_tags",
 	}
 	if strings.TrimSpace(fields) == "" {
 		return defaultCols
