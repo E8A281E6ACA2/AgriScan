@@ -201,7 +201,7 @@ class _ResultPageState extends State<ResultPage> {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text(provider.errorMessage ?? '未知错误'),
+                  Text(provider.errorMessage ?? '识别失败，请重试'),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),

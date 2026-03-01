@@ -84,7 +84,7 @@ class _GalleryPageState extends State<GalleryPage> {
         provider.setError(e.toString());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('识别失败: $e')),
+            SnackBar(content: Text(explainNetworkError(e))),
           );
         }
       } else {

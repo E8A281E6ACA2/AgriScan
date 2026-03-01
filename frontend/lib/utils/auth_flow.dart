@@ -148,6 +148,31 @@ String? _extractEntitlementError(Object error) {
   return null;
 }
 
+String explainNetworkError(Object error) {
+  if (error is DioException) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return '网络超时，请稍后重试';
+    }
+    if (error.type == DioExceptionType.connectionError) {
+      return '网络连接失败，请检查网络';
+    }
+    final status = error.response?.statusCode;
+    if (status != null) {
+      if (status >= 500) {
+        return '服务器开小差了，请稍后再试';
+      }
+      if (status >= 400) {
+        return '请求失败，请重试';
+      }
+    }
+  }
+  final msg = error.toString();
+  if (msg.contains('SocketException')) return '网络连接失败，请检查网络';
+  return '识别失败，请重试';
+}
+
 Future<bool> _quotaFlow(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
