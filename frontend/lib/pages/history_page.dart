@@ -364,6 +364,23 @@ class _HistoryPageState extends State<HistoryPage> {
                       '置信度: ${(item.confidence * 100).toStringAsFixed(1)}%',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
+                    if (item.source != null && item.source!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _formatSource(item.source!),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[800],
+                          ),
+                        ),
+                      ),
+                    ],
                     if (item.feedbackCorrect != null) ...[
                       const SizedBox(height: 6),
                       Container(
@@ -396,6 +413,21 @@ class _HistoryPageState extends State<HistoryPage> {
   String _formatCropName(String name) {
     if (name.isEmpty) return '未知作物';
     return name[0].toUpperCase() + name.substring(1);
+  }
+
+  String _formatSource(String source) {
+    switch (source) {
+      case 'camera':
+        return '拍照';
+      case 'gallery':
+        return '相册';
+      case 'url':
+        return 'URL';
+      case 'unknown':
+        return '未知';
+      default:
+        return source;
+    }
   }
   
   void _showDetail(RecognizeResponse item) {
