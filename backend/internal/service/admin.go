@@ -28,6 +28,7 @@ type AdminStats struct {
 	MembershipPending int64 `json:"membership_pending"`
 	LabelPending      int64 `json:"label_pending"`
 	LabelApproved     int64 `json:"label_approved"`
+	LabelToday        int64 `json:"label_today"`
 }
 
 type AdminMetrics struct {
@@ -195,6 +196,11 @@ func (s *Service) GetAdminStats() (AdminStats, error) {
 		return stats, err
 	}
 	if stats.LabelApproved, err = s.repo.CountNotesByLabelStatus("approved"); err != nil {
+		return stats, err
+	}
+	now := time.Now()
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	if stats.LabelToday, err = s.repo.CountNotesSince(dayStart); err != nil {
 		return stats, err
 	}
 	return stats, nil

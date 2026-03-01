@@ -1596,6 +1596,7 @@ class AdminStats {
   final int membershipPending;
   final int labelPending;
   final int labelApproved;
+  final int labelToday;
 
   AdminStats({
     required this.usersTotal,
@@ -1609,6 +1610,7 @@ class AdminStats {
     required this.membershipPending,
     required this.labelPending,
     required this.labelApproved,
+    required this.labelToday,
   });
 
   factory AdminStats.fromJson(Map<String, dynamic> json) {
@@ -1624,6 +1626,7 @@ class AdminStats {
       membershipPending: json['membership_pending'] ?? 0,
       labelPending: json['label_pending'] ?? 0,
       labelApproved: json['label_approved'] ?? 0,
+      labelToday: json['label_today'] ?? 0,
     );
   }
 }

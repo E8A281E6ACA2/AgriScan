@@ -169,6 +169,7 @@ Header: `X-Admin-Token` 或管理员用户的 `X-Auth-Token`
 - `low_confidence_total`
 - `low_confidence_ratio`
 - `low_confidence_threshold`
+- `label_today`
 
 **GET** `/admin/settings`
 

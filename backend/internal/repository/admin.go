@@ -61,6 +61,12 @@ func (r *Repository) CountNotes() (int64, error) {
 	return c, err
 }
 
+func (r *Repository) CountNotesSince(t time.Time) (int64, error) {
+	var c int64
+	err := r.db.Model(&model.FieldNote{}).Where("created_at >= ?", t).Count(&c).Error
+	return c, err
+}
+
 func (r *Repository) CountFeedback() (int64, error) {
 	var c int64
 	err := r.db.Model(&model.UserFeedback{}).Count(&c).Error

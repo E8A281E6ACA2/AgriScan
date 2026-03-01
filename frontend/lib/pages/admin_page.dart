@@ -94,6 +94,8 @@ class _AdminPageState extends State<AdminPage> {
   final Set<int> _searchSelected = {};
   final Set<int> _lowConfSelected = {};
   final Set<int> _failedSelected = {};
+  List<_TemplateDraft> _templateDrafts = [_TemplateDraft()];
+  List<TextEditingController> _cropDrafts = [TextEditingController()];
   AdminStats? _stats;
   EvalSummary? _eval;
   AdminMetrics? _metrics;
@@ -167,6 +169,12 @@ class _AdminPageState extends State<AdminPage> {
     _evalSetDescController.dispose();
     _evalSetDaysController.dispose();
     _evalSetLimitController.dispose();
+    for (final d in _templateDrafts) {
+      d.dispose();
+    }
+    for (final c in _cropDrafts) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -408,9 +416,127 @@ class _AdminPageState extends State<AdminPage> {
         _labelFlowEnabled = labelOn;
         _labelTemplates = templates;
         _cropSuggestions = crops;
+        _setTemplateDrafts(templates);
+        _setCropDrafts(crops);
       });
     } catch (e) {
       _toast('系统配置失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _setTemplateDrafts(List<_LabelTemplate> templates) {
+    for (final d in _templateDrafts) {
+      d.dispose();
+    }
+    _templateDrafts = templates.map((t) => _TemplateDraft.fromTemplate(t)).toList();
+    if (_templateDrafts.isEmpty) {
+      _templateDrafts.add(_TemplateDraft());
+    }
+  }
+
+  void _setCropDrafts(List<String> crops) {
+    for (final c in _cropDrafts) {
+      c.dispose();
+    }
+    _cropDrafts = crops.map((c) => TextEditingController(text: c)).toList();
+    if (_cropDrafts.isEmpty) {
+      _cropDrafts.add(TextEditingController());
+    }
+  }
+
+  void _addTemplateDraft() {
+    setState(() => _templateDrafts.add(_TemplateDraft()));
+  }
+
+  void _removeTemplateDraft(int index) {
+    if (index < 0 || index >= _templateDrafts.length) return;
+    setState(() {
+      final draft = _templateDrafts.removeAt(index);
+      draft.dispose();
+      if (_templateDrafts.isEmpty) {
+        _templateDrafts.add(_TemplateDraft());
+      }
+    });
+  }
+
+  void _addCropDraft() {
+    setState(() => _cropDrafts.add(TextEditingController()));
+  }
+
+  void _removeCropDraft(int index) {
+    if (index < 0 || index >= _cropDrafts.length) return;
+    setState(() {
+      final ctrl = _cropDrafts.removeAt(index);
+      ctrl.dispose();
+      if (_cropDrafts.isEmpty) {
+        _cropDrafts.add(TextEditingController());
+      }
+    });
+  }
+
+  Future<void> _saveLabelTemplatesFromDrafts() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final items = <Map<String, dynamic>>[];
+    for (final draft in _templateDrafts) {
+      final label = draft.label.text.trim();
+      if (label.isEmpty) {
+        continue;
+      }
+      final category = draft.category.text.trim();
+      final note = draft.note.text.trim();
+      final tags = _splitTextList(draft.tags.text);
+      final item = <String, dynamic>{
+        'label': label,
+        'category': category,
+        'tags': tags,
+      };
+      if (note.isNotEmpty) {
+        item['note'] = note;
+      }
+      items.add(item);
+    }
+    if (items.isEmpty) {
+      _toast('模板不能为空');
+      return;
+    }
+    final normalized = jsonEncode(items);
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdateSetting(
+        'label_templates_json',
+        AppSettingUpdate(value: normalized),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _labelTemplatesController.text = normalized;
+      _toast('已保存');
+      await _loadSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveCropListFromDrafts() async {
+    final api = context.read<ApiService>();
+    final token = _tokenController.text.trim();
+    final list = _cropDrafts.map((c) => c.text.trim()).where((c) => c.isNotEmpty).toList();
+    final normalized = jsonEncode(list);
+    setState(() => _loading = true);
+    try {
+      await api.adminUpdateSetting(
+        'crop_list_json',
+        AppSettingUpdate(value: normalized),
+        adminToken: token.isEmpty ? null : token,
+      );
+      _cropListController.text = normalized;
+      _toast('已保存');
+      await _loadSettings();
+    } catch (e) {
+      _toast('保存失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1781,6 +1907,29 @@ class _AdminPageState extends State<AdminPage> {
                 ),
               ),
             const SizedBox(height: 8),
+            if (_stats != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('标注进度概览', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          _statChip('今日新增', _stats!.labelToday),
+                          _statChip('待标注', _stats!.labelPending),
+                          _statChip('已审核', _stats!.labelApproved),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -2150,6 +2299,71 @@ class _AdminPageState extends State<AdminPage> {
                               const SizedBox(height: 8),
                               const Text('标注配置', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
+                              const Text('模板编辑器', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              ..._templateDrafts.asMap().entries.map((entry) {
+                                final idx = entry.key;
+                                final draft = entry.value;
+                                return Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextField(
+                                                controller: draft.label,
+                                                decoration: const InputDecoration(labelText: '名称'),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: TextField(
+                                                controller: draft.category,
+                                                decoration: const InputDecoration(labelText: '类别'),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: _loading ? null : () => _removeTemplateDraft(idx),
+                                              icon: const Icon(Icons.delete_outline),
+                                            ),
+                                          ],
+                                        ),
+                                        TextField(
+                                          controller: draft.tags,
+                                          decoration: const InputDecoration(labelText: '标签(逗号)'),
+                                        ),
+                                        TextField(
+                                          controller: draft.note,
+                                          decoration: const InputDecoration(labelText: '备注(可选)'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              Row(
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _addTemplateDraft,
+                                    child: const Text('添加模板'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _saveLabelTemplatesFromDrafts,
+                                    child: const Text('保存模板'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadSettings,
+                                    child: const Text('重新加载'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              const Text('模板JSON', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
                               TextField(
                                 controller: _labelTemplatesController,
                                 decoration: const InputDecoration(
@@ -2164,7 +2378,7 @@ class _AdminPageState extends State<AdminPage> {
                                 children: [
                                   ElevatedButton(
                                     onPressed: _loading ? null : _saveLabelTemplatesConfig,
-                                    child: const Text('保存模板'),
+                                    child: const Text('保存JSON'),
                                   ),
                                   const SizedBox(width: 8),
                                   OutlinedButton(
@@ -2174,6 +2388,54 @@ class _AdminPageState extends State<AdminPage> {
                                 ],
                               ),
                               const SizedBox(height: 12),
+                              const Text('作物编辑器', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _cropDrafts.asMap().entries.map((entry) {
+                                  final idx = entry.key;
+                                  final ctrl = entry.value;
+                                  return SizedBox(
+                                    width: 160,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: ctrl,
+                                            decoration: const InputDecoration(labelText: '作物'),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: _loading ? null : () => _removeCropDraft(idx),
+                                          icon: const Icon(Icons.close),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                              Row(
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _addCropDraft,
+                                    child: const Text('添加作物'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _loading ? null : _saveCropListFromDrafts,
+                                    child: const Text('保存作物'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _loading ? null : _loadSettings,
+                                    child: const Text('重新加载'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              const Text('作物JSON/逗号', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
                               TextField(
                                 controller: _cropListController,
                                 decoration: const InputDecoration(
@@ -2188,7 +2450,7 @@ class _AdminPageState extends State<AdminPage> {
                                 children: [
                                   ElevatedButton(
                                     onPressed: _loading ? null : _saveCropListConfig,
-                                    child: const Text('保存作物'),
+                                    child: const Text('保存JSON'),
                                   ),
                                   const SizedBox(width: 8),
                                   OutlinedButton(
@@ -3100,6 +3362,39 @@ class _LabelTemplate {
     required this.tags,
     this.note = '',
   });
+}
+
+class _TemplateDraft {
+  final TextEditingController label;
+  final TextEditingController category;
+  final TextEditingController tags;
+  final TextEditingController note;
+
+  _TemplateDraft({
+    String label = '',
+    String category = '',
+    String tags = '',
+    String note = '',
+  })  : label = TextEditingController(text: label),
+        category = TextEditingController(text: category),
+        tags = TextEditingController(text: tags),
+        note = TextEditingController(text: note);
+
+  factory _TemplateDraft.fromTemplate(_LabelTemplate tpl) {
+    return _TemplateDraft(
+      label: tpl.label,
+      category: tpl.category,
+      tags: tpl.tags.join(','),
+      note: tpl.note,
+    );
+  }
+
+  void dispose() {
+    label.dispose();
+    category.dispose();
+    tags.dispose();
+    note.dispose();
+  }
 }
 
 const List<_LabelTemplate> _defaultLabelTemplates = [
