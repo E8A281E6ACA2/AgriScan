@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 import '../utils/export_helper.dart';
@@ -22,12 +24,15 @@ class _HistoryPageState extends State<HistoryPage> {
   final TextEditingController _maxLatController = TextEditingController();
   final TextEditingController _minLngController = TextEditingController();
   final TextEditingController _maxLngController = TextEditingController();
+  final TextEditingController _presetNameController = TextEditingController();
+  List<_GeoPreset> _geoPresets = [];
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
     _loadEntitlements();
+    _loadGeoPresets();
   }
 
   @override
@@ -41,6 +46,7 @@ class _HistoryPageState extends State<HistoryPage> {
     _maxLatController.dispose();
     _minLngController.dispose();
     _maxLngController.dispose();
+    _presetNameController.dispose();
     super.dispose();
   }
   
@@ -120,6 +126,55 @@ class _HistoryPageState extends State<HistoryPage> {
       final ent = await api.getEntitlements();
       if (mounted) setState(() => _entitlements = ent);
     } catch (_) {}
+  }
+
+  Future<void> _loadGeoPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('history_geo_presets') ?? '[]';
+    final items = _GeoPreset.decodeList(raw);
+    if (mounted) {
+      setState(() => _geoPresets = items);
+    }
+  }
+
+  Future<void> _saveGeoPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('history_geo_presets', _GeoPreset.encodeList(_geoPresets));
+  }
+
+  void _applyPreset(_GeoPreset preset) {
+    _minLatController.text = preset.minLat?.toString() ?? '';
+    _maxLatController.text = preset.maxLat?.toString() ?? '';
+    _minLngController.text = preset.minLng?.toString() ?? '';
+    _maxLngController.text = preset.maxLng?.toString() ?? '';
+    _loadHistory();
+  }
+
+  Future<void> _addPreset() async {
+    final name = _presetNameController.text.trim();
+    if (name.isEmpty) return;
+    final minLat = double.tryParse(_minLatController.text.trim());
+    final maxLat = double.tryParse(_maxLatController.text.trim());
+    final minLng = double.tryParse(_minLngController.text.trim());
+    final maxLng = double.tryParse(_maxLngController.text.trim());
+    final next = _GeoPreset(
+      name: name,
+      minLat: minLat,
+      maxLat: maxLat,
+      minLng: minLng,
+      maxLng: maxLng,
+    );
+    setState(() {
+      _geoPresets.removeWhere((p) => p.name == name);
+      _geoPresets.insert(0, next);
+    });
+    _presetNameController.clear();
+    await _saveGeoPresets();
+  }
+
+  Future<void> _removePreset(_GeoPreset preset) async {
+    setState(() => _geoPresets.removeWhere((p) => p.name == preset.name));
+    await _saveGeoPresets();
   }
 
   List<RecognizeResponse> _findSimilar(List<RecognizeResponse> history) {
@@ -533,8 +588,93 @@ class _HistoryPageState extends State<HistoryPage> {
             ],
           ),
           const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _presetNameController,
+                  decoration: const InputDecoration(labelText: '区域名称'),
+                ),
+              ),
+              OutlinedButton(
+                onPressed: _addPreset,
+                child: const Text('保存区域'),
+              ),
+            ],
+          ),
+          if (_geoPresets.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _geoPresets
+                  .map((p) => InputChip(
+                        label: Text(p.name),
+                        onPressed: () => _applyPreset(p),
+                        onDeleted: () => _removePreset(p),
+                      ))
+                  .toList(),
+            ),
+          ],
+          const SizedBox(height: 8),
         ],
       ),
     );
+  }
+}
+
+class _GeoPreset {
+  final String name;
+  final double? minLat;
+  final double? maxLat;
+  final double? minLng;
+  final double? maxLng;
+
+  const _GeoPreset({
+    required this.name,
+    this.minLat,
+    this.maxLat,
+    this.minLng,
+    this.maxLng,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'min_lat': minLat,
+        'max_lat': maxLat,
+        'min_lng': minLng,
+        'max_lng': maxLng,
+      };
+
+  static _GeoPreset fromJson(Map<String, dynamic> json) {
+    return _GeoPreset(
+      name: (json['name'] ?? '').toString(),
+      minLat: (json['min_lat'] as num?)?.toDouble(),
+      maxLat: (json['max_lat'] as num?)?.toDouble(),
+      minLng: (json['min_lng'] as num?)?.toDouble(),
+      maxLng: (json['max_lng'] as num?)?.toDouble(),
+    );
+  }
+
+  static List<_GeoPreset> decodeList(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map((e) => fromJson(Map<String, dynamic>.from(e)))
+            .where((p) => p.name.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  static String encodeList(List<_GeoPreset> items) {
+    final list = items.map((e) => e.toJson()).toList();
+    return jsonEncode(list);
   }
 }
