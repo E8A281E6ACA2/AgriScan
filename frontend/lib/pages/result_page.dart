@@ -564,7 +564,7 @@ class _ResultPageState extends State<ResultPage> {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           provider.reset();
-                          Navigator.pop(context);
+                          Navigator.pushReplacementNamed(context, '/camera');
                         },
                         icon: const Icon(Icons.camera_alt),
                         label: const Text('重新识别'),
